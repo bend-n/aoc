@@ -2,30 +2,39 @@
 use std::str::FromStr;
 
 pub mod prelude {
-    pub use super::{GreekTools, IterͶ, Ͷ, Α, Κ, Λ, Μ};
+    pub use super::{
+        GreekTools, IterͶ, NumTupleIterTools, TupleIterTools, TupleUtils, Ͷ, Α, Κ, Λ, Μ,
+    };
     pub use itertools::izip;
     pub use itertools::Itertools;
     pub use std::{
+        cmp::Ordering::*,
         collections::{HashMap, HashSet, VecDeque},
         fmt::{Debug, Display},
         hint::black_box as boxd,
         iter,
         ops::Range,
     };
+    #[allow(unused_imports)]
+    pub(crate) use {super::bits, super::dang};
 }
 
-pub trait Λ<T>
-where
-    T: FromStr,
-{
-    fn λ(&self) -> T
+macro_rules! dang {
+    () => {
+        panic!();
+    };
+}
+pub(crate) use dang;
+
+pub trait Λ {
+    fn λ<T: FromStr>(&self) -> T
     where
         <T as FromStr>::Err: std::fmt::Display;
 }
 
-impl<T: FromStr> Λ<T> for &str {
+impl Λ for &str {
     /// parse, unwrap
-    fn λ(&self) -> T
+    fn λ<T: FromStr>(&self) -> T
     where
         <T as FromStr>::Err: std::fmt::Display,
     {
@@ -147,12 +156,108 @@ impl<I: Iterator<Item = u64>> IterͶ for I {
     }
 }
 
+pub trait TupleIterTools<T, U> {
+    fn rml(self) -> impl Iterator<Item = U>;
+    fn rmr(self) -> impl Iterator<Item = T>;
+}
+
+pub trait NumTupleIterTools {
+    fn πολλαπλασιάζω_και_αθροίζω(&mut self) -> u64;
+}
+
+impl<I: Iterator<Item = (u64, u64)>> NumTupleIterTools for I {
+    fn πολλαπλασιάζω_και_αθροίζω(&mut self) -> u64 {
+        self.map(|(a, b)| a * b).sum()
+    }
+}
+
+impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools<T, U> for I {
+    fn rml(self) -> impl Iterator<Item = U> {
+        self.map(|(_, x)| x)
+    }
+    fn rmr(self) -> impl Iterator<Item = T> {
+        self.map(|(x, _)| x)
+    }
+}
+
 pub trait GreekTools<T> {
     fn Δ(&mut self) -> T;
+    fn ι(&mut self) -> impl Iterator<Item = (T, u64)>;
+    fn ι1(&mut self) -> impl Iterator<Item = (T, u64)>;
 }
 
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
     fn Δ(&mut self) -> T {
         self.next().α()
     }
+
+    fn ι(&mut self) -> impl Iterator<Item = (T, u64)> {
+        self.zip(0..)
+    }
+
+    fn ι1(&mut self) -> impl Iterator<Item = (T, u64)> {
+        self.zip(1..)
+    }
+}
+
+pub trait TupleUtils<T, U> {
+    fn map<V, W>(self, f: impl FnOnce((T, U)) -> (V, W)) -> (V, W);
+    fn mr<W>(self, f: impl FnOnce(U) -> W) -> (T, W);
+    fn ml<V>(self, f: impl FnOnce(T) -> V) -> (V, U);
+    fn rev(self) -> (U, T);
+}
+
+impl<T, U> TupleUtils<T, U> for (T, U) {
+    fn map<V, W>(self, f: impl FnOnce((T, U)) -> (V, W)) -> (V, W) {
+        f(self)
+    }
+    fn mr<W>(self, f: impl FnOnce(U) -> W) -> (T, W) {
+        (self.0, f(self.1))
+    }
+    fn ml<V>(self, f: impl FnOnce(T) -> V) -> (V, U) {
+        (f(self.0), self.1)
+    }
+    fn rev(self) -> (U, T) {
+        (self.1, self.0)
+    }
+}
+
+#[allow(dead_code)]
+fn cast_to<T: From<bool>>(x: bool, _to: T) -> T {
+    x.into()
+}
+
+#[allow(unused_macros)]
+macro_rules! bits {
+    ($bitset:ident + $bit:expr) => {
+        $bitset |= 1 << $bit
+    };
+    ($bitset:ident[$bit:expr]) => {
+        ($bitset & 1 << $bit) != 0
+    };
+    ($bitset:ident[$bit:expr] = $val:expr) => {
+        $bitset = ($bitset & !(1 << $bit)) | (crate::util::cast_to($val, $bitset) << $bit)
+    };
+    ($bitset:ident - $bit:expr) => {
+        $bitset &= !(1 << $bit)
+    };
+    ($bitset:ident ! $bit:expr) => {
+        $bitset ^= 1 << $bit
+    };
+}
+pub(crate) use bits;
+
+#[test]
+fn do_bits() {
+    let mut bitset = 0u128;
+    bits!(bitset + 5);
+    assert!(bits!(bitset[5]));
+    bits!(bitset ! 5);
+    assert!(!bits!(bitset[5]));
+    bits!(bitset ! 5);
+    assert!(bits!(bitset[5]));
+    bits!(bitset - 5);
+    assert!(!bits!(bitset[5]));
+    bits!(bitset[4] = true);
+    assert!(bits!(bitset[4]));
 }
