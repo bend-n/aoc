@@ -1,15 +1,16 @@
 #![allow(non_snake_case)]
-use std::str::FromStr;
+use std::{mem::swap, str::FromStr};
 
 pub mod prelude {
     pub use super::{
-        GreekTools, IterͶ, NumTupleIterTools, TupleIterTools, TupleUtils, Ͷ, Α, Κ, Λ, Μ,
+        gcd, lcm, GreekTools, IterͶ, NumTupleIterTools, TupleIterTools, TupleUtils,
+        UnifiedTupleUtils, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
     pub use std::{
         cmp::Ordering::*,
-        collections::{HashMap, HashSet, VecDeque},
+        collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
         fmt::{Debug, Display},
         hint::black_box as boxd,
         iter,
@@ -25,6 +26,36 @@ macro_rules! dang {
     };
 }
 pub(crate) use dang;
+
+pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
+    let mut x = n.into_iter();
+    let mut lcm = x.by_ref().next().expect("cannot compute LCM of 0 numbers");
+    let mut gcd;
+    for x in x {
+        gcd = crate::util::gcd(x, lcm);
+        lcm = (lcm * x) / gcd;
+    }
+    lcm
+}
+
+pub fn gcd(mut a: u64, mut b: u64) -> u64 {
+    if a == 0 || b == 0 {
+        return a | b;
+    }
+    let shift = (a | b).trailing_zeros();
+    a >>= shift;
+    loop {
+        b >>= b.trailing_zeros();
+        if a > b {
+            swap(&mut a, &mut b);
+        }
+        b -= a;
+        if b == 0 {
+            break;
+        }
+    }
+    return a << shift;
+}
 
 pub trait Λ {
     fn λ<T: FromStr>(&self) -> T
@@ -205,6 +236,16 @@ pub trait TupleUtils<T, U> {
     fn mr<W>(self, f: impl FnOnce(U) -> W) -> (T, W);
     fn ml<V>(self, f: impl FnOnce(T) -> V) -> (V, U);
     fn rev(self) -> (U, T);
+}
+
+pub trait UnifiedTupleUtils<T> {
+    fn mb<U>(self, f: impl FnMut(T) -> U) -> (U, U);
+}
+
+impl<T> UnifiedTupleUtils<T> for (T, T) {
+    fn mb<U>(self, mut f: impl FnMut(T) -> U) -> (U, U) {
+        (f(self.0), f(self.1))
+    }
 }
 
 impl<T, U> TupleUtils<T, U> for (T, U) {

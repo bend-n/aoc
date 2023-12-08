@@ -2,24 +2,41 @@
 #![feature(array_windows, test, slice_as_chunks, array_chunks)]
 extern crate test;
 mod util;
-pub use explicit_cast::prelude::*;
 pub use util::prelude::*;
 
-fn solve(i: &str) -> impl Display {
+#[inline(always)]
+fn k(s: &str) -> u16 {
+    unsafe { *s.as_ptr().cast::<[u8; 3]>() }
+        .iter()
+        .enumerate()
+        .map(|(i, &b)| ((b - b'A') as u16) << (i * 5))
+        .sum()
+}
+
+fn start(x: u16) -> bool {
+    (x >> (2 * 5) & 0b11111) == 0u16
+}
+
+fn end(x: u16) -> bool {
+    (x >> (2 * 5) & 0b11111) == (b'Z' - b'A') as u16
+}
+
+pub fn run(i: &str) -> impl Display {
     let mut lines = i.lines();
     let line = lines.by_ref().Δ().as_bytes();
     let map = lines
         .skip(1)
         .map(|x| {
             x.μ('=')
-                .mr(|x| x.trim()[1..x.len() - 2].μ(',').ml(str::trim).mr(str::trim))
+                .mr(|x| x.trim()[1..x.len() - 2].μ(',').mb(str::trim).mb(k))
                 .ml(str::trim)
+                .ml(k)
         })
         .collect::<HashMap<_, _>>();
     let mut positions = map
         .keys()
         .map(|&x| x)
-        .filter(|x| x.ends_with('A'))
+        .filter(|&x| start(x))
         .collect::<Box<[_]>>();
     let mut steps = 1u64;
     let mut findings = HashMap::new();
@@ -29,41 +46,37 @@ fn solve(i: &str) -> impl Display {
             break;
         }
         for p in &mut *positions {
-            let at = map[*p];
+            let at = map[p];
             *p = match instruction {
                 b'L' => at.0,
                 b'R' => at.1,
                 _ => dang!(),
             };
-            if p.ends_with('Z') {
-                if let Some(&c) = findings.get(*p) {
-                    if !cycle.contains_key(*p) {
-                        println!("cycle {} ({steps})", steps - c);
-                        cycle.insert(*p, steps - c);
+            if end(*p) {
+                if let Some(&c) = findings.get(p) {
+                    match cycle.entry(*p) {
+                        Entry::Occupied(_) => {}
+                        Entry::Vacant(x) => {
+                            x.insert(steps - c);
+                        }
                     }
                 } else {
-                    println!("register {p} ({steps})");
                     findings.insert(*p, steps);
                 }
             }
         }
         steps += 1;
     }
-    print!("lcm(");
-    for cycle in cycle.values() {
-        print!("{cycle},")
-    }
-    println!(")");
-    0
+    lcm(cycle.values().copied())
 }
 
 fn main() {
     let i = include_str!("inp.txt").trim();
-    println!("{}", solve(i));
+    println!("{}", run(i));
 }
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt").trim());
-    b.iter(|| solve(i));
+    b.iter(|| run(i));
 }

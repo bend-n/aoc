@@ -1,2 +1,5 @@
 /target
 Cargo.lock
+before
+prepare.sh
+prepared.rs
