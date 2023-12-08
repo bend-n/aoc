@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-explicit_cast = "1.0.0"
 itertools = "0.12.0"
 [profile.release]
 lto = true
 codegen-units = 1
+debug = true

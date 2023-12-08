@@ -67,7 +67,11 @@ pub fn run(i: &str) -> impl Display {
         }
         steps += 1;
     }
-    lcm(cycle.values().copied())
+    let v = lcm(cycle.values().copied());
+    std::mem::forget(cycle);
+    std::mem::forget(findings);
+    std::mem::forget(positions);
+    v
 }
 
 fn main() {
