@@ -16,22 +16,45 @@ fn solve(i: &str) -> impl Display {
                 .ml(str::trim)
         })
         .collect::<HashMap<_, _>>();
-    let mut position = "AAA";
-    let mut steps = 1;
+    let mut positions = map
+        .keys()
+        .map(|&x| x)
+        .filter(|x| x.ends_with('A'))
+        .collect::<Box<[_]>>();
+    let mut steps = 1u64;
+    let mut findings = HashMap::new();
+    let mut cycle = HashMap::new();
     for &instruction in line.iter().cycle() {
-        println!("{position}");
-        let at = map[position];
-        position = match instruction {
-            b'L' => at.0,
-            b'R' => at.1,
-            _ => dang!(),
-        };
-        if position == "ZZZ" {
-            return steps;
+        if cycle.len() >= positions.len() {
+            break;
+        }
+        for p in &mut *positions {
+            let at = map[*p];
+            *p = match instruction {
+                b'L' => at.0,
+                b'R' => at.1,
+                _ => dang!(),
+            };
+            if p.ends_with('Z') {
+                if let Some(&c) = findings.get(*p) {
+                    if !cycle.contains_key(*p) {
+                        println!("cycle {} ({steps})", steps - c);
+                        cycle.insert(*p, steps - c);
+                    }
+                } else {
+                    println!("register {p} ({steps})");
+                    findings.insert(*p, steps);
+                }
+            }
         }
         steps += 1;
     }
-    dang!();
+    print!("lcm(");
+    for cycle in cycle.values() {
+        print!("{cycle},")
+    }
+    println!(")");
+    0
 }
 
 fn main() {

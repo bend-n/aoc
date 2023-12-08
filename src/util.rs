@@ -21,7 +21,7 @@ pub mod prelude {
 
 macro_rules! dang {
     () => {
-        panic!();
+        panic!()
     };
 }
 pub(crate) use dang;
