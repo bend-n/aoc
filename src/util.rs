@@ -1,5 +1,8 @@
 #![allow(non_snake_case)]
-use std::{mem::swap, str::FromStr};
+use std::{
+    mem::{swap, MaybeUninit},
+    str::FromStr,
+};
 
 pub mod prelude {
     pub use super::{
@@ -226,7 +229,7 @@ impl Μ for &str {
     }
 }
 
-pub trait IterͶ {
+pub trait IterͶ: Iterator {
     fn ͷ(self) -> impl Iterator<Item = u8>;
 }
 
@@ -236,7 +239,7 @@ impl<I: Iterator<Item = u64>> IterͶ for I {
     }
 }
 
-pub trait TupleIterTools<T, U> {
+pub trait TupleIterTools<T, U>: Iterator {
     fn rml(self) -> impl Iterator<Item = U>;
     fn rmr(self) -> impl Iterator<Item = T>;
 }
@@ -260,13 +263,16 @@ impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools<T, U> for I {
     }
 }
 
-pub trait GreekTools<T> {
+pub trait GreekTools<T>: Iterator {
     fn Δ(&mut self) -> T;
     fn ι(&mut self) -> impl Iterator<Item = (T, u64)>;
     fn ι1(&mut self) -> impl Iterator<Item = (T, u64)>;
+    fn Ν<const N: usize>(&mut self) -> [T; N];
+    fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize;
 }
 
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
+    #[track_caller]
     fn Δ(&mut self) -> T {
         self.next().α()
     }
@@ -277,6 +283,29 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
 
     fn ι1(&mut self) -> impl Iterator<Item = (T, u64)> {
         self.zip(1..)
+    }
+
+    fn Ν<const N: usize>(&mut self) -> [T; N] {
+        let mut array: [MaybeUninit<Self::Item>; N] =
+            // SAFETY: mu likes this
+            unsafe { MaybeUninit::uninit().assume_init() };
+
+        for i in 0..array.len() {
+            array[i].write(self.Δ());
+        }
+
+        // SAFETY: init
+        array.map(|elem| unsafe { elem.assume_init() })
+    }
+
+    fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize {
+        let mut set = 0;
+        for e in into {
+            let Some(y) = self.next() else { break };
+            *e = y;
+            set += 1;
+        }
+        set
     }
 }
 
