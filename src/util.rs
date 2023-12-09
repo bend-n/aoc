@@ -61,7 +61,7 @@ pub fn gcd(mut a: u64, mut b: u64) -> u64 {
             break;
         }
     }
-    return a << shift;
+    a << shift
 }
 
 pub trait Λ {

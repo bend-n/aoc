@@ -9,69 +9,40 @@
 )]
 extern crate test;
 mod util;
+use std::mem::ManuallyDrop;
+
 pub use util::prelude::*;
 
-#[inline(always)]
-fn k(s: &[u8]) -> u16 {
-    unsafe { *s.as_ptr().cast::<[u8; 3]>() }
-        .iter()
-        .enumerate()
-        .map(|(i, &b)| ((b - b'A') as u16) << (i * 5))
-        .sum()
-}
-
-fn start(x: u16) -> bool {
-    (x >> (2 * 5) & 0b11111) == 0u16
-}
-
-fn end(x: u16) -> bool {
-    (x >> (2 * 5) & 0b11111) == (b'Z' - b'A') as u16
-}
-
-pub fn run(mut i: &str) -> impl Display {
-    let line = i.take_line().unwrap();
-    let map = i
-        .as_bytes()
-        .array_chunks::<17>()
-        .map(|x| (k(&x[1..4]), (k(&x[8..11]), k(&x[13..16]))))
-        .collect::<HashMap<_, _>>();
-    let mut positions = map
-        .keys()
-        .map(|&x| x)
-        .filter(|&x| start(x))
-        .collect::<Box<[_]>>();
-    let mut steps = 1u64;
-    let mut findings = HashMap::new();
-    let mut cycle = HashMap::new();
-    for &instruction in line.iter().cycle() {
-        if cycle.len() >= positions.len() {
-            break;
-        }
-        for p in &mut *positions {
-            let at = map[p];
-            *p = match instruction {
-                b'L' => at.0,
-                b'R' => at.1,
-                _ => dang!(),
-            };
-            if end(*p) {
-                if let Some(&c) = findings.get(p) {
-                    match cycle.entry(*p) {
-                        Entry::Occupied(_) => {}
-                        Entry::Vacant(x) => {
-                            x.insert(steps - c);
-                        }
-                    }
-                } else {
-                    findings.insert(*p, steps);
-                }
-            }
-        }
-        steps += 1;
+pub fn p1(a: &[i32]) -> i32 {
+    if !a[1..].iter().any(|&x| x != a[0]) {
+        a[0]
+    } else {
+        *a.last().unwrap()
+            + p1(&*ManuallyDrop::new(
+                a.array_windows::<2>()
+                    .map(|[b, a]| a - b)
+                    .collect::<Box<[_]>>(),
+            ))
     }
-    let v = lcm(cycle.values().copied());
-    leek!(cycle findings positions);
-    v
+}
+
+pub fn p2(a: &[i32]) -> i32 {
+    if !a[1..].iter().any(|&x| x != a[0]) {
+        a[0]
+    } else {
+        *a.first().unwrap()
+            - p2(&*ManuallyDrop::new(
+                a.array_windows::<2>()
+                    .map(|[b, a]| a - b)
+                    .collect::<Box<[_]>>(),
+            ))
+    }
+}
+
+pub fn run(i: &str) -> impl Display {
+    i.行()
+        .map(|x| p1(&*ManuallyDrop::new(x.κ().collect::<Box<[i32]>>())))
+        .sum::<i32>()
 }
 
 fn main() {
