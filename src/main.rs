@@ -1,11 +1,18 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
-#![feature(array_windows, test, slice_as_chunks, array_chunks)]
+#![feature(
+    array_windows,
+    test,
+    slice_as_chunks,
+    array_chunks,
+    slice_split_once,
+    byte_slice_trim_ascii
+)]
 extern crate test;
 mod util;
 pub use util::prelude::*;
 
 #[inline(always)]
-fn k(s: &str) -> u16 {
+fn k(s: &[u8]) -> u16 {
     unsafe { *s.as_ptr().cast::<[u8; 3]>() }
         .iter()
         .enumerate()
@@ -21,17 +28,12 @@ fn end(x: u16) -> bool {
     (x >> (2 * 5) & 0b11111) == (b'Z' - b'A') as u16
 }
 
-pub fn run(i: &str) -> impl Display {
-    let mut lines = i.lines();
-    let line = lines.by_ref().Δ().as_bytes();
-    let map = lines
-        .skip(1)
-        .map(|x| {
-            x.μ('=')
-                .mr(|x| x.trim()[1..x.len() - 2].μ(',').mb(str::trim).mb(k))
-                .ml(str::trim)
-                .ml(k)
-        })
+pub fn run(mut i: &str) -> impl Display {
+    let line = i.take_line().unwrap();
+    let map = i
+        .as_bytes()
+        .array_chunks::<17>()
+        .map(|x| (k(&x[1..4]), (k(&x[8..11]), k(&x[13..16]))))
         .collect::<HashMap<_, _>>();
     let mut positions = map
         .keys()
@@ -68,9 +70,7 @@ pub fn run(i: &str) -> impl Display {
         steps += 1;
     }
     let v = lcm(cycle.values().copied());
-    std::mem::forget(cycle);
-    std::mem::forget(findings);
-    std::mem::forget(positions);
+    leek!(cycle findings positions);
     v
 }
 

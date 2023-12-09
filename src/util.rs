@@ -3,8 +3,8 @@ use std::{mem::swap, str::FromStr};
 
 pub mod prelude {
     pub use super::{
-        gcd, lcm, GreekTools, IterͶ, NumTupleIterTools, TupleIterTools, TupleUtils,
-        UnifiedTupleUtils, Ͷ, Α, Κ, Λ, Μ,
+        gcd, lcm, GreekTools, IntoLines, IterͶ, NumTupleIterTools, Skip, TakeLine, TupleIterTools,
+        TupleUtils, UnifiedTupleUtils, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -17,7 +17,7 @@ pub mod prelude {
         ops::Range,
     };
     #[allow(unused_imports)]
-    pub(crate) use {super::bits, super::dang};
+    pub(crate) use {super::bits, super::dang, super::leek};
 }
 
 macro_rules! dang {
@@ -26,6 +26,13 @@ macro_rules! dang {
     };
 }
 pub(crate) use dang;
+
+macro_rules! leek {
+    ($($allocation:ident)+) => {
+        $(std::mem::forget($allocation);)+
+    };
+}
+pub(crate) use leek;
 
 pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
     let mut x = n.into_iter();
@@ -84,6 +91,15 @@ pub trait Κ {
     fn κ<T: FromStr>(self) -> impl Iterator<Item = T>
     where
         <T as FromStr>::Err: std::fmt::Display;
+}
+
+impl Κ for &[u8] {
+    fn κ<T: FromStr>(self) -> impl Iterator<Item = T>
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        std::str::from_utf8(self).unwrap().κ()
+    }
 }
 
 impl Κ for &str {
@@ -146,6 +162,39 @@ pub trait Μ where
     fn μ0<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
     where
         <T as FromStr>::Err: std::fmt::Display;
+}
+
+impl Μ for &[u8] {
+    fn μ(self, d: char) -> (Self, Self) {
+        self.split_once(|&x| x == d as u8).unwrap_or_else(|| {
+            panic!(
+                "{} should split at {d} fine",
+                std::str::from_utf8(self).expect("utf8")
+            )
+        })
+    }
+
+    fn μκ<T: FromStr>(self, d: char) -> impl Iterator<Item = (T, T)>
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        let (α, β) = self.μ(d);
+        α.κ::<T>().zip(β.κ::<T>())
+    }
+
+    fn μ1<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        self.μ(d).1.κ()
+    }
+
+    fn μ0<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        self.μ(d).0.κ()
+    }
 }
 
 impl Μ for &str {
@@ -301,4 +350,95 @@ fn do_bits() {
     assert!(!bits!(bitset[5]));
     bits!(bitset[4] = true);
     assert!(bits!(bitset[4]));
+}
+
+pub struct Lines<'a> {
+    bytes: &'a [u8],
+}
+
+impl<'a> Iterator for Lines<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.bytes.take_line()
+    }
+}
+
+impl<'a> std::iter::FusedIterator for Lines<'a> {}
+
+pub trait IntoLines {
+    fn 行(&self) -> Lines<'_>;
+}
+
+impl<T: AsRef<[u8]>> IntoLines for T {
+    fn 行(&self) -> Lines<'_> {
+        Lines {
+            bytes: self.as_ref(),
+        }
+    }
+}
+
+pub trait TakeLine<'b> {
+    fn take_line<'a>(&'a mut self) -> Option<&'b [u8]>;
+}
+
+impl<'b> TakeLine<'b> for &'b [u8] {
+    fn take_line<'a>(&'a mut self) -> Option<&'b [u8]> {
+        match memchr::memchr(b'\n', self) {
+            None if self.is_empty() => None,
+            None => {
+                let line = *self;
+                *self = b"";
+                Some(line)
+            }
+            Some(end) => {
+                let line = &self[..end];
+                *self = &self[end + 1..];
+                Some(line)
+            }
+        }
+    }
+}
+
+impl<'b> TakeLine<'b> for &'b str {
+    fn take_line<'a>(&'a mut self) -> Option<&'b [u8]> {
+        match memchr::memchr(b'\n', self.as_bytes()) {
+            None if self.is_empty() => None,
+            None => {
+                let line = self.as_bytes();
+                *self = "";
+                Some(line)
+            }
+            Some(end) => {
+                let line = self[..end].as_bytes();
+                *self = &self[end + 1..];
+                Some(line)
+            }
+        }
+    }
+}
+
+pub trait Skip {
+    fn skip(&mut self, n: usize);
+}
+
+impl Skip for &[u8] {
+    fn skip(&mut self, n: usize) {
+        *self = &self[n..];
+    }
+}
+
+impl Skip for &str {
+    fn skip(&mut self, n: usize) {
+        *self = &self[n..];
+    }
+}
+
+#[test]
+fn liney() {
+    let mut i = b"xyz\nlmaolol\nhuh".行();
+    assert_eq!(i.next(), Some(&b"xyz"[..]));
+    assert_eq!(i.next(), Some(&b"lmaolol"[..]));
+    assert_eq!(i.next(), Some(&b"huh"[..]));
+    assert_eq!(i.next(), None);
 }
