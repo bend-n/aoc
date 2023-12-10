@@ -99,13 +99,12 @@ impl<const S: usize> Map<S> {
     }
 
     fn start(&self, x: u8, y: u8) -> (Pipe, D) {
-        let surround = [
+        match [
             self.at(x - 1, y).s() as u8,
             self.at(x, y + 1).w() as u8,
             self.at(x, y - 1).e() as u8,
             self.at(x + 1, y).n() as u8,
-        ];
-        match surround {
+        ] {
             [1, 1, 0, 0] => (Pipe::NE, D::E),
             [1, 0, 1, 0] => (Pipe::NS, D::S),
             [1, 0, 0, 1] => (Pipe::NW, D::W),
@@ -192,19 +191,59 @@ impl<const S: usize> Map<S> {
         })
     }
 
-    fn run(&self) -> usize {
-        let mut x = 0;
-        let mut y = 0;
-        for (r, j) in self.map.iter().zip(0..) {
-            for (&c, i) in r.iter().zip(0..) {
-                if c == Pipe::Start {
-                    x = i;
-                    y = j;
-                    break;
+    fn p2(&self) -> usize {
+        let (mut x, mut y) = self.search();
+        let mut network = [[None; S]; S];
+        let (mut at, mut dir) = self.start(x, y);
+        network[y.nat()][x.nat()] = Some(at);
+        loop {
+            self.go(at, &mut x, &mut y, dir);
+            at = self.at(x, y);
+            if at == Pipe::Start {
+                break;
+            }
+            network[y.nat()][x.nat()] = Some(at);
+            self.turn(at, &mut dir);
+        }
+
+        let mut inside = 0;
+        for row in network {
+            let mut up = 0;
+            let mut down = 0;
+            for x in row {
+                match x {
+                    Some(x) => {
+                        if x.n() {
+                            up += 1;
+                        }
+                        if x.s() {
+                            down += 1;
+                        }
+                    }
+                    None => {
+                        if up % 2 != 0 && down % 2 != 0 {
+                            inside += 1;
+                        }
+                    }
                 }
             }
         }
+        inside
+    }
 
+    fn search(&self) -> (u8, u8) {
+        for (r, j) in self.map.iter().zip(0..) {
+            for (&c, i) in r.iter().zip(0..) {
+                if c == Pipe::Start {
+                    return (i, j);
+                }
+            }
+        }
+        dang!();
+    }
+
+    fn p1(&self) -> usize {
+        let (mut x, mut y) = self.search();
         let (mut at, mut dir) = self.start(x, y);
         let mut steps = 1;
         loop {
@@ -243,7 +282,7 @@ impl<const S: usize> From<&[u8]> for Map<S> {
 
 pub fn run(i: &str) -> impl Display {
     let map = Map::<140>::from(i.as_bytes());
-    map.run()
+    map.p2()
 }
 
 fn main() {

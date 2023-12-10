@@ -482,12 +482,14 @@ pub trait Skip {
 }
 
 impl Skip for &[u8] {
+    #[track_caller]
     fn skip(&mut self, n: usize) {
         *self = &self[n..];
     }
 }
 
 impl Skip for &str {
+    #[track_caller]
     fn skip(&mut self, n: usize) {
         *self = &self[n..];
     }
