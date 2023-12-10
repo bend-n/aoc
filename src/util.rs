@@ -1,4 +1,4 @@
-#![allow(non_snake_case)]
+#![allow(non_snake_case, unused_macros)]
 use std::{
     mem::{swap, MaybeUninit},
     str::FromStr,
@@ -7,7 +7,7 @@ use std::{
 pub mod prelude {
     pub use super::{
         gcd, lcm, GreekTools, IntoLines, IterͶ, NumTupleIterTools, Skip, TakeLine, TupleIterTools,
-        TupleUtils, UnifiedTupleUtils, Ͷ, Α, Κ, Λ, Μ,
+        TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -20,7 +20,7 @@ pub mod prelude {
         ops::Range,
     };
     #[allow(unused_imports)]
-    pub(crate) use {super::bits, super::dang, super::leek};
+    pub(crate) use {super::bits, super::dang, super::leek, super::mat};
 }
 
 macro_rules! dang {
@@ -36,6 +36,13 @@ macro_rules! leek {
     };
 }
 pub(crate) use leek;
+
+macro_rules! mat {
+    ($thing:ident { $($what:pat => $b:expr,)+ }) => {
+        match $thing { $($what => { $b })+ _ => unreachable!("the impossible happened") }
+    };
+}
+pub(crate) use mat;
 
 pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
     let mut x = n.into_iter();
@@ -315,6 +322,29 @@ pub trait TupleUtils<T, U> {
     fn ml<V>(self, f: impl FnOnce(T) -> V) -> (V, U);
     fn rev(self) -> (U, T);
 }
+
+pub trait Widen<Wide> {
+    fn nat(self) -> usize;
+    fn widen(self) -> Wide;
+}
+
+macro_rules! wide {
+    ($t:ty: $upper:ty) => {
+        impl Widen<$upper> for $t {
+            fn nat(self) -> usize {
+                self as _
+            }
+
+            fn widen(self) -> $upper {
+                self as _
+            }
+        }
+    };
+}
+wide!(u8: u16);
+wide!(u16: u32);
+wide!(u32: u64);
+wide!(u64: u128);
 
 pub trait UnifiedTupleUtils<T> {
     fn mb<U>(self, f: impl FnMut(T) -> U) -> (U, U);
