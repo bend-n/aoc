@@ -23,10 +23,12 @@ enum Element {
 }
 
 impl Element {
+    #[inline]
     fn galaxy(self) -> bool {
         self == Self::Galaxy
     }
 
+    #[inline]
     fn space(self) -> bool {
         self == Self::Space
     }
@@ -88,7 +90,7 @@ impl Map<'_> {
         (0..S)
             .flat_map(|y| (0..S).map(move |x| (x, y)))
             .filter(|&(x, y)| self.at(x, y).galaxy())
-            .tuple_combinations()
+            .combine()
             .map(|((x1, y1), (x2, y2))| {
                 let expand = 2;
                 // let expand = 1000000;

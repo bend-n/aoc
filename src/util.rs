@@ -6,8 +6,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        gcd, lcm, pa, GreekTools, IntoLines, IterͶ, NumTupleIterTools, Skip, TakeLine,
-        TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
+        gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, Skip,
+        TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -484,6 +484,20 @@ impl<'b> TakeLine<'b> for &'b str {
     }
 }
 
+pub trait IntoCombinations<T: Copy>: Iterator {
+    /// LEAKY
+    fn combine(self) -> impl Iterator<Item = (T, T)>;
+}
+
+impl<T: Copy + 'static, I: Iterator<Item = T>> IntoCombinations<T> for I {
+    fn combine(self) -> impl Iterator<Item = (T, T)> {
+        let x = Box::leak(self.collect::<Box<[_]>>());
+        x.iter()
+            .enumerate()
+            .flat_map(|(i, &a)| x[i..].iter().map(move |&b| (a, b)))
+    }
+}
+
 pub trait Skip {
     fn skip(&mut self, n: usize);
 }
@@ -500,13 +514,4 @@ impl Skip for &str {
     fn skip(&mut self, n: usize) {
         *self = &self[n..];
     }
-}
-
-#[test]
-fn liney() {
-    let mut i = b"xyz\nlmaolol\nhuh".行();
-    assert_eq!(i.next(), Some(&b"xyz"[..]));
-    assert_eq!(i.next(), Some(&b"lmaolol"[..]));
-    assert_eq!(i.next(), Some(&b"huh"[..]));
-    assert_eq!(i.next(), None);
 }
