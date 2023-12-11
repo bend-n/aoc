@@ -224,10 +224,14 @@ impl Map<'_> {
         }
 
         let mut inside = 0;
-        for row in unsafe { network.as_chunks_unchecked::<141>() } {
+        for row in unsafe { network.as_chunks_unchecked::<141>() }
+            .iter()
+            .skip(30)
+            .take(90)
+        {
             let mut up = 0u32;
             let mut down = 0u32;
-            for &x in row.iter().take(140) {
+            for &x in row.iter().take(110) {
                 match x {
                     Some(x) => {
                         if x.n() {
