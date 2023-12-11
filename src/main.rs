@@ -1,5 +1,6 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
 #![feature(
+    core_intrinsics,
     array_windows,
     slice_take,
     test,
@@ -30,6 +31,8 @@ enum Pipe {
     #[allow(dead_code)] // transmute() go brr
     Ground = b'.',
     Start = b'S',
+    #[allow(dead_code)]
+    New = 10,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -40,9 +43,16 @@ enum D {
     W,
 }
 
+impl std::fmt::Debug for Pipe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", *self as u8 as char)
+    }
+}
+
 impl Pipe {
     fn ch(self) -> char {
         match self {
+            Self::New => panic!(),
             Pipe::NS => '│',
             Pipe::EW => '─',
             Pipe::NE => '╰',
@@ -77,33 +87,49 @@ impl std::fmt::Display for Pipe {
     }
 }
 
-struct Map<const S: usize> {
-    map: [[Pipe; S]; S],
+const S: u8 = 140;
+const WI: u16 = S as u16 + 1;
+
+struct Map<'a> {
+    map: &'a [Pipe],
 }
 
-impl<const N: usize> std::fmt::Display for Map<N> {
+impl<'a> std::ops::Index<u16> for Map<'a> {
+    type Output = Pipe;
+
+    fn index(&self, index: u16) -> &'a Self::Output {
+        unsafe { self.map.get_unchecked(index.nat()) }
+    }
+}
+
+impl std::fmt::Display for Map<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for x in self.map {
-            for y in x {
-                write!(f, "{y}")?;
+        pa(self.map);
+        for x in 0..S {
+            for y in 0..S {
+                write!(f, "{}", self.at(x, y))?;
             }
             writeln!(f)?;
         }
+
         Ok(())
     }
 }
 
-impl<const S: usize> Map<S> {
+impl Map<'_> {
     fn at(&self, x: u8, y: u8) -> Pipe {
-        self.map[y.nat()][x.nat()]
+        self[y.widen() * WI + x.widen()]
     }
 
-    fn start(&self, x: u8, y: u8) -> (Pipe, D) {
+    fn start(&self, offset: u16) -> (Pipe, D) {
+        if self[offset - 1].e() && self[offset - WI] == Pipe::NW && self[offset + WI].n() {
+            return (Pipe::SW, D::S);
+        }
         match [
-            self.at(x - 1, y).s() as u8,
-            self.at(x, y + 1).w() as u8,
-            self.at(x, y - 1).e() as u8,
-            self.at(x + 1, y).n() as u8,
+            self[offset - 1].s() as u8,
+            self[offset + WI].w() as u8,
+            self[offset - WI].e() as u8,
+            self[offset + 1].n() as u8,
         ] {
             [1, 1, 0, 0] => (Pipe::NE, D::E),
             [1, 0, 1, 0] => (Pipe::NS, D::S),
@@ -115,24 +141,32 @@ impl<const S: usize> Map<S> {
         }
     }
 
-    fn go(&self, p: Pipe, x: &mut u8, y: &mut u8, d: D) {
+    fn go(&self, p: Pipe, offset: &mut u16, d: D) {
         use D::*;
         #[rustfmt::skip]
-        macro_rules! n { () => { *y -= 1 }; }
+        macro_rules! n { () => { *offset -= WI }; }
         #[rustfmt::skip]
-        macro_rules! e { () => { *x += 1 }; }
+        macro_rules! e { () => { *offset += 1 }; }
         #[rustfmt::skip]
-        macro_rules! s { () => { *y += 1 }; }
+        macro_rules! s { () => { *offset += WI }; }
         #[rustfmt::skip]
-        macro_rules! w { () => { *x -= 1 }; }
+        macro_rules! w { () => { *offset -= 1 }; }
         mat!(p {
+            Pipe::EW => mat!(d {
+                E => e!(),
+                W => w!(),
+            }),
+            Pipe::SW => mat!(d {
+                S => s!(),
+                W => w!(),
+            }),
             Pipe::NS => mat!(d {
                 N => n!(),
                 S => s!(),
             }),
-            Pipe::EW => mat!(d {
+            Pipe::SE => mat!(d {
                 E => e!(),
-                W => w!(),
+                S => s!(),
             }),
             Pipe::NE => mat!(d {
                 N => n!(),
@@ -141,14 +175,6 @@ impl<const S: usize> Map<S> {
             Pipe::NW => mat!(d {
                 N => n!(),
                 W => w!(),
-            }),
-            Pipe::SW => mat!(d {
-                S => s!(),
-                W => w!(),
-            }),
-            Pipe::SE => mat!(d {
-                E => e!(),
-                S => s!(),
             }),
         })
     }
@@ -164,17 +190,9 @@ impl<const S: usize> Map<S> {
         #[rustfmt::skip]
         macro_rules! w { () => { *d = W }; }
         mat!(p {
-            Pipe::NS => mat!(d {
-                N => n!(), // keep going north
-                S => s!(), // keep going south
-            }),
             Pipe::EW => mat!(d {
                 E => e!(), // keep going east
                 W => w!(), // keep going west
-            }),
-            Pipe::NE => mat!(d {
-                W => n!(), // start going north
-                S => e!(), // start going east
             }),
             Pipe::NW => mat!(d {
                 E => n!(), // start going north
@@ -188,29 +206,37 @@ impl<const S: usize> Map<S> {
                 N => e!(), // start going east
                 W => s!(), // start going south
             }),
+            Pipe::NS => mat!(d {
+                N => n!(), // keep going north
+                S => s!(), // keep going south
+            }),
+            Pipe::NE => mat!(d {
+                W => n!(), // start going north
+                S => e!(), // start going east
+            }),
         })
     }
 
     fn p2(&self) -> usize {
-        let (mut x, mut y) = self.search();
-        let mut network = [[None; S]; S];
-        let (mut at, mut dir) = self.start(x, y);
-        network[y.nat()][x.nat()] = Some(at);
+        let mut offset = self.search();
+        let mut network = vec![None; WI as usize * WI as usize];
+        let (mut at, mut dir) = self.start(offset);
+        network[offset.nat()] = Some(at);
         loop {
-            self.go(at, &mut x, &mut y, dir);
-            at = self.at(x, y);
+            self.go(at, &mut offset, dir);
+            at = self[offset];
             if at == Pipe::Start {
                 break;
             }
-            network[y.nat()][x.nat()] = Some(at);
+            network[offset.nat()] = Some(at);
             self.turn(at, &mut dir);
         }
 
         let mut inside = 0;
-        for row in network {
-            let mut up = 0;
-            let mut down = 0;
-            for x in row {
+        for row in unsafe { network.as_chunks_unchecked::<141>() } {
+            let mut up = 0u32;
+            let mut down = 0u32;
+            for &x in row.iter().take(140) {
                 match x {
                     Some(x) => {
                         if x.n() {
@@ -231,24 +257,17 @@ impl<const S: usize> Map<S> {
         inside
     }
 
-    fn search(&self) -> (u8, u8) {
-        for (r, j) in self.map.iter().zip(0..) {
-            for (&c, i) in r.iter().zip(0..) {
-                if c == Pipe::Start {
-                    return (i, j);
-                }
-            }
-        }
-        dang!();
+    fn search(&self) -> u16 {
+        self.map.iter().position(|&x| x == Pipe::Start).unwrap() as u16
     }
 
     fn p1(&self) -> usize {
-        let (mut x, mut y) = self.search();
-        let (mut at, mut dir) = self.start(x, y);
+        let mut offset = self.search();
+        let (mut at, mut dir) = self.start(offset);
         let mut steps = 1;
         loop {
-            self.go(at, &mut x, &mut y, dir);
-            at = self.at(x, y);
+            self.go(at, &mut offset, dir);
+            at = self[offset];
             if at == Pipe::Start {
                 break;
             }
@@ -259,29 +278,16 @@ impl<const S: usize> Map<S> {
     }
 }
 
-impl<const S: usize> From<&[u8]> for Map<S> {
-    fn from(mut i: &[u8]) -> Self {
+impl From<&[u8]> for Map<'_> {
+    fn from(i: &[u8]) -> Self {
         Self {
-            map: (0..S)
-                .map(|n| {
-                    let inner = i
-                        .take(..S)
-                        .α()
-                        .iter()
-                        .map(|&b| unsafe { std::mem::transmute(b) })
-                        .Ν();
-                    if n != S - 1 {
-                        i.skip(1);
-                    }
-                    inner
-                })
-                .Ν(),
+            map: unsafe { core::mem::transmute(i) },
         }
     }
 }
 
 pub fn run(i: &str) -> impl Display {
-    let map = Map::<140>::from(i.as_bytes());
+    let map = Map::from(i.as_bytes());
     map.p2()
 }
 

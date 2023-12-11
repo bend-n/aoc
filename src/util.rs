@@ -6,8 +6,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        gcd, lcm, GreekTools, IntoLines, IterͶ, NumTupleIterTools, Skip, TakeLine, TupleIterTools,
-        TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
+        gcd, lcm, pa, GreekTools, IntoLines, IterͶ, NumTupleIterTools, Skip, TakeLine,
+        TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -39,7 +39,7 @@ pub(crate) use leek;
 
 macro_rules! mat {
     ($thing:ident { $($what:pat => $b:expr,)+ }) => {
-        match $thing { $($what => { $b })+ _ => unreachable!("the impossible happened") }
+        match $thing { $($what => { $b })+ _ => unsafe { std::hint::unreachable_unchecked() } }
     };
 }
 pub(crate) use mat;
@@ -53,6 +53,13 @@ pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
         lcm = (lcm * x) / gcd;
     }
     lcm
+}
+
+pub fn pa<T: std::fmt::Debug>(a: &[T]) {
+    for e in a {
+        print!("{e:?}");
+    }
+    println!();
 }
 
 pub fn gcd(mut a: u64, mut b: u64) -> u64 {
