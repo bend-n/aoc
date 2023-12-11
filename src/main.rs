@@ -15,258 +15,90 @@ pub use util::prelude::*;
 
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq)]
-enum Pipe {
-    /// │
-    NS = b'|',
-    /// ─
-    EW = b'-',
-    /// ╰
-    NE = b'L',
-    /// ╯
-    NW = b'J',
-    /// ╮
-    SW = b'7',
-    /// ╭
-    SE = b'F',
-    #[allow(dead_code)] // transmute() go brr
-    Ground = b'.',
-    Start = b'S',
+enum Element {
+    Space = b'.',
+    Galaxy = b'#',
     #[allow(dead_code)]
     New = 10,
 }
 
-#[derive(Copy, Clone, Debug)]
-enum D {
-    N,
-    E,
-    S,
-    W,
+impl Element {
+    fn galaxy(self) -> bool {
+        self == Self::Galaxy
+    }
+
+    fn space(self) -> bool {
+        self == Self::Space
+    }
 }
 
-impl std::fmt::Debug for Pipe {
+impl std::fmt::Debug for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if *self as u8 == 10 {
+            return write!(f, "@");
+        }
         write!(f, "{}", *self as u8 as char)
     }
 }
 
-impl Pipe {
-    fn ch(self) -> char {
-        match self {
-            Self::New => panic!(),
-            Pipe::NS => '│',
-            Pipe::EW => '─',
-            Pipe::NE => '╰',
-            Pipe::NW => '╯',
-            Pipe::SW => '╮',
-            Pipe::SE => '╭',
-            Pipe::Ground => '.',
-            Pipe::Start => 'S',
-        }
-    }
-
-    fn n(self) -> bool {
-        matches!(self, Pipe::NS | Pipe::NE | Pipe::NW)
-    }
-
-    fn e(self) -> bool {
-        matches!(self, Pipe::EW | Pipe::NE | Pipe::SE)
-    }
-
-    fn s(self) -> bool {
-        matches!(self, Pipe::SW | Pipe::NS | Pipe::SE)
-    }
-
-    fn w(self) -> bool {
-        matches!(self, Pipe::EW | Pipe::NW | Pipe::SW)
-    }
-}
-
-impl std::fmt::Display for Pipe {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.ch())
-    }
-}
-
 const S: u8 = 140;
-const WI: u16 = S as u16 + 1;
+const W: u16 = S as u16 + 1;
 
 struct Map<'a> {
-    map: &'a [Pipe],
+    map: &'a [Element],
 }
 
 impl<'a> std::ops::Index<u16> for Map<'a> {
-    type Output = Pipe;
+    type Output = Element;
 
     fn index(&self, index: u16) -> &'a Self::Output {
         unsafe { self.map.get_unchecked(index.nat()) }
     }
 }
 
-impl std::fmt::Display for Map<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        pa(self.map);
-        for x in 0..S {
-            for y in 0..S {
-                write!(f, "{}", self.at(x, y))?;
-            }
-            writeln!(f)?;
-        }
-
-        Ok(())
-    }
-}
-
 impl Map<'_> {
-    fn at(&self, x: u8, y: u8) -> Pipe {
-        self[y.widen() * WI + x.widen()]
+    fn at(&self, x: u8, y: u8) -> Element {
+        self[y.widen() * W + x.widen()]
     }
 
-    fn start(&self, offset: u16) -> (Pipe, D) {
-        if self[offset - 1].e() && self[offset - WI] == Pipe::NW && self[offset + WI].n() {
-            return (Pipe::SW, D::S);
-        }
-        match [
-            self[offset - 1].s() as u8,
-            self[offset + WI].w() as u8,
-            self[offset - WI].e() as u8,
-            self[offset + 1].n() as u8,
-        ] {
-            [1, 1, 0, 0] => (Pipe::NE, D::E),
-            [1, 0, 1, 0] => (Pipe::NS, D::S),
-            [1, 0, 0, 1] => (Pipe::NW, D::W),
-            [0, 1, 1, 0] => (Pipe::SE, D::S),
-            [0, 1, 0, 1] => (Pipe::EW, D::W),
-            [0, 0, 1, 1] => (Pipe::SW, D::S),
-            _ => dang!(),
-        }
-    }
-
-    fn go(&self, p: Pipe, offset: u16, d: D) -> u16 {
-        use D::*;
-        #[rustfmt::skip]
-        macro_rules! n { () => { offset - WI }; }
-        #[rustfmt::skip]
-        macro_rules! e { () => { offset + 1 }; }
-        #[rustfmt::skip]
-        macro_rules! s { () => { offset + WI }; }
-        #[rustfmt::skip]
-        macro_rules! w { () => { offset - 1 }; }
-        mat!(p {
-            Pipe::EW => mat!(d {
-                E => e!(),
-                W => w!(),
-            }),
-            Pipe::SW => mat!(d {
-                S => s!(),
-                W => w!(),
-            }),
-            Pipe::NS => mat!(d {
-                N => n!(),
-                S => s!(),
-            }),
-            Pipe::SE => mat!(d {
-                E => e!(),
-                S => s!(),
-            }),
-            Pipe::NE => mat!(d {
-                N => n!(),
-                E => e!(),
-            }),
-            Pipe::NW => mat!(d {
-                N => n!(),
-                W => w!(),
-            }),
-        })
-    }
-
-    fn turn(&self, p: Pipe, d: D) -> D {
-        use D::*;
-        mat!(p {
-            Pipe::EW => mat!(d {
-                E => E, // keep going east
-                W => W, // keep going west
-            }),
-            Pipe::NW => mat!(d {
-                E => N, // start going north
-                S => W, // start going west
-            }),
-            Pipe::SW => mat!(d {
-                E => S, // start going south
-                N => W, // start going west
-            }),
-            Pipe::SE => mat!(d {
-                N => E, // start going east
-                W => S, // start going south
-            }),
-            Pipe::NS => mat!(d {
-                N => N, // keep going north
-                S => S, // keep going south
-            }),
-            Pipe::NE => mat!(d {
-                W => N, // start going north
-                S => E, // start going east
-            }),
-        })
-    }
-
-    fn p2(&self) -> usize {
-        let mut offset = self.search();
-        let mut network = vec![None; WI as usize * WI as usize];
-        let (mut at, mut dir) = self.start(offset);
-        network[offset.nat()] = Some(at);
-        loop {
-            offset = self.go(at, offset, dir);
-            at = self[offset];
-            if at == Pipe::Start {
-                break;
-            }
-            network[offset.nat()] = Some(at);
-            dir = self.turn(at, dir);
-        }
-
-        let mut inside = 0;
-        for row in unsafe { network.as_chunks_unchecked::<141>() }
-            .iter()
-            .skip(30)
-            .take(90)
-        {
-            let mut up = 0u8;
-            for &x in row.iter().take(110) {
-                match x {
-                    Some(x) => {
-                        if x.n() {
-                            unsafe { up = up.unchecked_add(1) };
-                        }
+    fn solve(&self) -> usize {
+        let mut n = 0u8;
+        let emptyr = {
+            self.map
+                .chunks(W.nat())
+                .map(|x| {
+                    if x.iter().take(S.nat()).copied().all(Element::space) {
+                        n += 1;
                     }
-                    None => {
-                        if up % 2 != 0 {
-                            inside += 1;
-                        }
-                    }
+                    n
+                })
+                .Ν::<{ S as usize }>()
+        };
+        let mut n = 0u8;
+        let emptyc = (0..S)
+            .map(move |x| (0..S).map(move |y| self.at(x, y)))
+            .map(|mut x| {
+                if x.all(Element::space) {
+                    n += 1;
                 }
-            }
-        }
-        inside
-    }
+                n
+            })
+            .Ν::<{ S as usize }>();
 
-    fn search(&self) -> u16 {
-        self.map.iter().position(|&x| x == Pipe::Start).unwrap() as u16
-    }
-
-    fn p1(&self) -> usize {
-        let mut offset = self.search();
-        let (mut at, mut dir) = self.start(offset);
-        let mut steps = 1;
-        loop {
-            offset = self.go(at, offset, dir);
-            at = self[offset];
-            if at == Pipe::Start {
-                break;
-            }
-            dir = self.turn(at, dir);
-            steps += 1;
-        }
-        steps / 2
+        (0..S)
+            .flat_map(|y| (0..S).map(move |x| (x, y)))
+            .filter(|&(x, y)| self.at(x, y).galaxy())
+            .tuple_combinations()
+            .map(|((x1, y1), (x2, y2))| {
+                let expand = 2;
+                // let expand = 1000000;
+                ((y1 as i16 - y2 as i16).abs() + (x1 as i16 - x2 as i16).abs()) as usize
+                    + (expand - 1)
+                        * (emptyr[y1.max(y2).nat()].nat() - emptyr[y1.min(y2).nat()].nat())
+                    + (expand - 1)
+                        * (emptyc[x1.max(x2).nat()].nat() - emptyc[x1.min(x2).nat()].nat())
+            })
+            .sum()
     }
 }
 
@@ -280,7 +112,7 @@ impl From<&[u8]> for Map<'_> {
 
 pub fn run(i: &str) -> impl Display {
     let map = Map::from(i.as_bytes());
-    map.p2()
+    map.solve()
 }
 
 fn main() {

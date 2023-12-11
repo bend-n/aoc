@@ -488,7 +488,7 @@ pub trait Skip {
     fn skip(&mut self, n: usize);
 }
 
-impl Skip for &[u8] {
+impl<T> Skip for &[T] {
     #[track_caller]
     fn skip(&mut self, n: usize) {
         *self = &self[n..];
