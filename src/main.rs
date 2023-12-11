@@ -1,6 +1,5 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
 #![feature(
-    core_intrinsics,
     array_windows,
     slice_take,
     test,
@@ -141,16 +140,16 @@ impl Map<'_> {
         }
     }
 
-    fn go(&self, p: Pipe, offset: &mut u16, d: D) {
+    fn go(&self, p: Pipe, offset: u16, d: D) -> u16 {
         use D::*;
         #[rustfmt::skip]
-        macro_rules! n { () => { *offset -= WI }; }
+        macro_rules! n { () => { offset - WI }; }
         #[rustfmt::skip]
-        macro_rules! e { () => { *offset += 1 }; }
+        macro_rules! e { () => { offset + 1 }; }
         #[rustfmt::skip]
-        macro_rules! s { () => { *offset += WI }; }
+        macro_rules! s { () => { offset + WI }; }
         #[rustfmt::skip]
-        macro_rules! w { () => { *offset -= 1 }; }
+        macro_rules! w { () => { offset - 1 }; }
         mat!(p {
             Pipe::EW => mat!(d {
                 E => e!(),
@@ -179,9 +178,9 @@ impl Map<'_> {
         })
     }
 
-    fn turn(&self, p: Pipe, d: &mut D) {
+    fn turn(&self, p: Pipe, d: D) -> D {
         use D::*;
-        *d = mat!(p {
+        mat!(p {
             Pipe::EW => mat!(d {
                 E => E, // keep going east
                 W => W, // keep going west
@@ -206,7 +205,7 @@ impl Map<'_> {
                 W => N, // start going north
                 S => E, // start going east
             }),
-        });
+        })
     }
 
     fn p2(&self) -> usize {
@@ -215,13 +214,13 @@ impl Map<'_> {
         let (mut at, mut dir) = self.start(offset);
         network[offset.nat()] = Some(at);
         loop {
-            self.go(at, &mut offset, dir);
+            offset = self.go(at, offset, dir);
             at = self[offset];
             if at == Pipe::Start {
                 break;
             }
             network[offset.nat()] = Some(at);
-            self.turn(at, &mut dir);
+            dir = self.turn(at, dir);
         }
 
         let mut inside = 0;
@@ -258,12 +257,12 @@ impl Map<'_> {
         let (mut at, mut dir) = self.start(offset);
         let mut steps = 1;
         loop {
-            self.go(at, &mut offset, dir);
+            offset = self.go(at, offset, dir);
             at = self[offset];
             if at == Pipe::Start {
                 break;
             }
-            self.turn(at, &mut dir);
+            dir = self.turn(at, dir);
             steps += 1;
         }
         steps / 2
