@@ -231,19 +231,15 @@ impl Map<'_> {
             .take(90)
         {
             let mut up = 0u8;
-            let mut down = 0u8;
             for &x in row.iter().take(110) {
                 match x {
-                    Some(x) => unsafe {
+                    Some(x) => {
                         if x.n() {
-                            up = up.unchecked_add(1);
+                            unsafe { up = up.unchecked_add(1) };
                         }
-                        if x.s() {
-                            down = down.unchecked_add(1);
-                        }
-                    },
+                    }
                     None => {
-                        if up % 2 != 0 && down % 2 != 0 {
+                        if up % 2 != 0 {
                             inside += 1;
                         }
                     }
