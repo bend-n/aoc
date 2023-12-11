@@ -1,5 +1,6 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
 #![feature(
+    unchecked_math,
     array_windows,
     slice_take,
     test,
@@ -229,18 +230,18 @@ impl Map<'_> {
             .skip(30)
             .take(90)
         {
-            let mut up = 0u32;
-            let mut down = 0u32;
+            let mut up = 0u8;
+            let mut down = 0u8;
             for &x in row.iter().take(110) {
                 match x {
-                    Some(x) => {
+                    Some(x) => unsafe {
                         if x.n() {
-                            up += 1;
+                            up = up.unchecked_add(1);
                         }
                         if x.s() {
-                            down += 1;
+                            down = down.unchecked_add(1);
                         }
-                    }
+                    },
                     None => {
                         if up % 2 != 0 && down % 2 != 0 {
                             inside += 1;
