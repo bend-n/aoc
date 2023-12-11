@@ -181,40 +181,32 @@ impl Map<'_> {
 
     fn turn(&self, p: Pipe, d: &mut D) {
         use D::*;
-        #[rustfmt::skip]
-        macro_rules! n { () => { *d = N }; }
-        #[rustfmt::skip]
-        macro_rules! e { () => { *d = E }; }
-        #[rustfmt::skip]
-        macro_rules! s { () => { *d = S }; }
-        #[rustfmt::skip]
-        macro_rules! w { () => { *d = W }; }
-        mat!(p {
+        *d = mat!(p {
             Pipe::EW => mat!(d {
-                E => e!(), // keep going east
-                W => w!(), // keep going west
+                E => E, // keep going east
+                W => W, // keep going west
             }),
             Pipe::NW => mat!(d {
-                E => n!(), // start going north
-                S => w!(), // start going west
+                E => N, // start going north
+                S => W, // start going west
             }),
             Pipe::SW => mat!(d {
-                E => s!(), // start going south
-                N => w!(), // start going west
+                E => S, // start going south
+                N => W, // start going west
             }),
             Pipe::SE => mat!(d {
-                N => e!(), // start going east
-                W => s!(), // start going south
+                N => E, // start going east
+                W => S, // start going south
             }),
             Pipe::NS => mat!(d {
-                N => n!(), // keep going north
-                S => s!(), // keep going south
+                N => N, // keep going north
+                S => S, // keep going south
             }),
             Pipe::NE => mat!(d {
-                W => n!(), // start going north
-                S => e!(), // start going east
+                W => N, // start going north
+                S => E, // start going east
             }),
-        })
+        });
     }
 
     fn p2(&self) -> usize {
