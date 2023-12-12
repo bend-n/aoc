@@ -1,5 +1,6 @@
 #![allow(non_snake_case, unused_macros)]
 use std::{
+    fmt::Write,
     mem::{swap, MaybeUninit},
     str::FromStr,
 };
@@ -7,7 +8,8 @@ use std::{
 pub mod prelude {
     pub use super::{
         gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter,
-        Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
+        Printable, Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ,
+        Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -456,6 +458,36 @@ impl<T: AsRef<[u8]>> IntoLines for T {
         Lines {
             bytes: self.as_ref(),
         }
+    }
+}
+
+pub trait Printable {
+    fn p(&self) -> impl std::fmt::Display;
+}
+
+struct PrintU8s<'a>(&'a [u8]);
+impl std::fmt::Display for PrintU8s<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for &b in self.0 {
+            if b.is_ascii() {
+                f.write_char(b as char)?;
+            } else {
+                write!(f, "\\x{b:x}")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Printable for &[u8] {
+    fn p(&self) -> impl std::fmt::Display {
+        PrintU8s(self)
+    }
+}
+
+impl Printable for Vec<u8> {
+    fn p(&self) -> impl std::fmt::Display {
+        PrintU8s(self)
     }
 }
 
