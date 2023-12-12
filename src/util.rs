@@ -6,8 +6,8 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, Skip,
-        TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
+        gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter,
+        Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -283,6 +283,21 @@ pub trait GreekTools<T>: Iterator {
     fn ι1(&mut self) -> impl Iterator<Item = (T, u64)>;
     fn Ν<const N: usize>(&mut self) -> [T; N];
     fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize;
+}
+
+pub trait ParseIter {
+    fn κ<T: FromStr>(&mut self) -> impl Iterator<Item = T>
+    where
+        <T as FromStr>::Err: std::fmt::Display;
+}
+
+impl<'x, I: Iterator<Item = &'x [u8]>> ParseIter for I {
+    fn κ<T: FromStr>(&mut self) -> impl Iterator<Item = T>
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        self.flat_map(|x| x.κ())
+    }
 }
 
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
