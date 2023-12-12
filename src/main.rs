@@ -16,6 +16,7 @@ pub use util::prelude::*;
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum Element {
+    #[allow(dead_code)]
     Space = b'.',
     Galaxy = b'#',
     #[allow(dead_code)]
@@ -26,11 +27,6 @@ impl Element {
     #[inline]
     fn galaxy(self) -> bool {
         self == Self::Galaxy
-    }
-
-    #[inline]
-    fn space(self) -> bool {
-        self == Self::Space
     }
 }
 
@@ -58,56 +54,99 @@ impl<'a> std::ops::Index<u16> for Map<'a> {
     }
 }
 
+pub unsafe fn galaxies(line: &[u8]) -> usize {
+    use std::arch::x86_64::*;
+    let galaxy = _mm256_set1_epi8(b'#' as i8);
+    let mut counts = _mm256_setzero_si256();
+    for i in 0..4 {
+        counts = _mm256_sub_epi8(
+            counts,
+            _mm256_cmpeq_epi8(
+                _mm256_loadu_si256(line.as_ptr().add(i * 32) as *const _),
+                galaxy,
+            ),
+        );
+    }
+    const MASK: [u8; 64] = [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    ];
+    counts = _mm256_sub_epi8(
+        counts,
+        _mm256_and_si256(
+            _mm256_cmpeq_epi8(
+                _mm256_loadu_si256(line.as_ptr().add(108) as *const _),
+                galaxy,
+            ),
+            _mm256_loadu_si256(MASK.as_ptr().add(12) as *const _),
+        ),
+    );
+
+    let sums = _mm256_sad_epu8(counts, _mm256_setzero_si256());
+    (_mm256_extract_epi64(sums, 0)
+        + _mm256_extract_epi64(sums, 1)
+        + _mm256_extract_epi64(sums, 2)
+        + _mm256_extract_epi64(sums, 3)) as usize
+}
+
 impl Map<'_> {
     fn at(&self, x: u8, y: u8) -> Element {
         self[y.widen() * W + x.widen()]
     }
 
     fn solve(&self) -> usize {
-        let mut n = 0u8;
-        let emptyr = {
-            self.map
-                .chunks(W.nat())
-                .map(|x| {
-                    if x.iter().take(S.nat()).copied().all(Element::space) {
-                        n += 1;
-                    }
-                    n
-                })
-                .Ν::<{ S as usize }>()
-        };
-        let mut n = 0u8;
-        let emptyc = (0..S)
+        let mut sum = 0;
+        let mut above = 0;
+        let mut upward = 0;
+        // const FACTOR: usize = 2;
+        const FACTOR: usize = 1000000;
+        for has in self.map.chunks(W.nat()).map(|x| {
+            #[cfg(target_feature = "avx")]
+            return unsafe { galaxies(std::mem::transmute(x)) };
+            #[cfg(not(target_feature = "avx"))]
+            return x.iter().filter(|x| x.galaxy()).count();
+        }) {
+            if has == 0 {
+                upward += above * FACTOR;
+            } else {
+                sum += upward * has;
+                above += has;
+                upward += above;
+            }
+        }
+        let mut beside = 0;
+        let mut left = 0;
+        #[cfg(target_feature = "avx")]
+        let mut x = [Element::Space; 140];
+        for has in (0..S)
             .map(move |x| (0..S).map(move |y| self.at(x, y)))
-            .map(|mut x| {
-                if x.all(Element::space) {
-                    n += 1;
-                }
-                n
+            .map(|mut y| {
+                #[cfg(not(target_feature = "avx"))]
+                return y.filter(|x| x.galaxy()).count();
+                #[cfg(target_feature = "avx")]
+                return {
+                    y.ν(&mut x);
+                    unsafe { galaxies(&std::mem::transmute::<_, [u8; 140]>(x)) }
+                };
             })
-            .Ν::<{ S as usize }>();
-
-        (0..S)
-            .flat_map(|y| (0..S).map(move |x| (x, y)))
-            .filter(|&(x, y)| self.at(x, y).galaxy())
-            .combine()
-            .map(|((x1, y1), (x2, y2))| {
-                let expand = 2;
-                // let expand = 1000000;
-                ((y1 as i16 - y2 as i16).abs() + (x1 as i16 - x2 as i16).abs()) as usize
-                    + (expand - 1)
-                        * (emptyr[y1.max(y2).nat()].nat() - emptyr[y1.min(y2).nat()].nat())
-                    + (expand - 1)
-                        * (emptyc[x1.max(x2).nat()].nat() - emptyc[x1.min(x2).nat()].nat())
-            })
-            .sum()
+        {
+            if has == 0 {
+                left += beside * FACTOR;
+            } else {
+                sum += left * has;
+                beside += has;
+                left += beside;
+            }
+        }
+        sum
     }
 }
 
 impl From<&[u8]> for Map<'_> {
     fn from(i: &[u8]) -> Self {
         Self {
-            map: unsafe { core::mem::transmute(i) },
+            map: &unsafe { core::mem::transmute::<_, &[Element]>(i) }[..(W.nat() * S.nat()) - 1],
         }
     }
 }
