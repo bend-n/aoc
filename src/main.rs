@@ -1,6 +1,5 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
 #![feature(
-    iter_collect_into,
     unchecked_math,
     array_windows,
     slice_take,
@@ -14,20 +13,6 @@ extern crate test;
 mod util;
 
 pub use util::prelude::*;
-
-fn trans(v: Box<[&[u8]]>) -> Box<[Box<[u8]>]> {
-    let len = v[0].len();
-    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
-    (0..len)
-        .map(|_| {
-            iters
-                .iter_mut()
-                .map(|n| n.next().unwrap())
-                .copied()
-                .collect::<Box<[u8]>>()
-        })
-        .collect()
-}
 
 pub fn run(i: &str) -> impl Display {
     let mut sum = 0;
@@ -47,16 +32,22 @@ pub fn run(i: &str) -> impl Display {
                 sum += (i + 1) * 100;
             }
         }
-        let this = trans(this);
-        'huh: for (&[ref a, ref b], i) in this.array_windows::<2>().ι::<usize>() {
-            if a == b {
+        let t = &this;
+        'yes: for ((a, b), i) in (0..this[0].len())
+            .map(|x| (0..this.len()).map(move |y| t[y][x]))
+            .tuple_windows()
+            .ι::<usize>()
+        {
+            if a.zip(b).all(|(a, b)| a == b) {
                 let mut α = i;
                 let mut β = i + 1;
-                while α > 0 && β < this.len() - 1 {
+                while α > 0 && β < this[0].len() - 1 {
                     α -= 1;
                     β += 1;
-                    if this[β] != this[α] {
-                        continue 'huh;
+                    for i in 0..this.len() {
+                        if this[i][β] != this[i][α] {
+                            continue 'yes;
+                        }
                     }
                 }
                 sum += i + 1;
