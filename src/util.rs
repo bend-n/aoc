@@ -185,12 +185,11 @@ pub trait Μ where
 
 impl Μ for &[u8] {
     fn μ(self, d: char) -> (Self, Self) {
-        self.split_once(|&x| x == d as u8).unwrap_or_else(|| {
-            panic!(
-                "{} should split at {d} fine",
-                std::str::from_utf8(self).expect("utf8")
-            )
-        })
+        let i = self
+            .iter()
+            .position(|&x| x == d as u8)
+            .unwrap_or_else(|| panic!("{} should split at {d} fine", self.p(),));
+        (&self[..i], &self[i + 1..])
     }
 
     fn μκ<T: FromStr>(self, d: char) -> impl Iterator<Item = (T, T)>

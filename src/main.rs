@@ -1,15 +1,15 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
-#![feature(
-    unchecked_math,
-    array_windows,
-    slice_take,
-    test,
-    slice_as_chunks,
-    array_chunks,
-    slice_split_once,
-    byte_slice_trim_ascii
-)]
-extern crate test;
+// #![feature(
+//     unchecked_math,
+//     array_windows,
+//     slice_take,
+//     test,
+//     slice_as_chunks,
+//     array_chunks,
+//     slice_split_once,
+//     byte_slice_trim_ascii
+// )]
+// extern crate test;
 mod util;
 use std::{io::Write, ops::ControlFlow};
 
@@ -90,8 +90,8 @@ fn main() {
     println!("{}", run(i));
 }
 
-#[bench]
-fn bench(b: &mut test::Bencher) {
-    let i = boxd(include_str!("inp.txt").trim());
-    b.iter(|| run(i));
-}
+// #[bench]
+// fn bench(b: &mut test::Bencher) {
+//     let i = boxd(include_str!("inp.txt").trim());
+//     b.iter(|| run(i));
+// }
