@@ -89,6 +89,15 @@ pub trait Λ {
         <T as FromStr>::Err: std::fmt::Display;
 }
 
+impl Λ for String {
+    fn λ<T: FromStr>(&self) -> T
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        self.as_str().λ()
+    }
+}
+
 impl Λ for &str {
     /// parse, unwrap
     fn λ<T: FromStr>(&self) -> T
