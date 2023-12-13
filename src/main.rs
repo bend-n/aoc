@@ -17,7 +17,9 @@ pub use util::prelude::*;
 pub fn run(i: &str) -> impl Display {
     let mut sum = 0;
     for lines in i.split("\n\n") {
-        let this = lines.行().collect::<Box<_>>();
+        let mut this = [&b""[..]; 17];
+        let put = lines.行().ν(&mut this);
+        let this = &this[..put];
         'huh: for (&[a, b], i) in this.array_windows::<2>().ι::<usize>() {
             if a == b {
                 let mut α = i;
@@ -62,8 +64,8 @@ fn main() {
     println!("{}", run(i));
 }
 
-// #[bench]
-// fn bench(b: &mut test::Bencher) {
-//     let i = boxd(include_str!("inp.txt").trim());
-//     b.iter(|| run(i));
-// }
+#[bench]
+fn bench(b: &mut test::Bencher) {
+    let i = boxd(include_str!("inp.txt").trim());
+    b.iter(|| run(i));
+}
