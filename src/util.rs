@@ -289,8 +289,12 @@ impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools<T, U> for I {
 
 pub trait GreekTools<T>: Iterator {
     fn Δ(&mut self) -> T;
-    fn ι(&mut self) -> impl Iterator<Item = (T, u64)>;
-    fn ι1(&mut self) -> impl Iterator<Item = (T, u64)>;
+    fn ι<N>(&mut self) -> impl Iterator<Item = (T, N)>
+    where
+        Self: Ι<T, N>;
+    fn ι1<N>(&mut self) -> impl Iterator<Item = (T, N)>
+    where
+        Self: Ι<T, N>;
     fn Ν<const N: usize>(&mut self) -> [T; N];
     fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize;
 }
@@ -310,18 +314,34 @@ impl<'x, I: Iterator<Item = &'x [u8]>> ParseIter for I {
     }
 }
 
+pub trait Ι<T, N>: Iterator {
+    fn ι(&mut self) -> impl Iterator<Item = (T, N)>;
+    fn ι1(&mut self) -> impl Iterator<Item = (T, N)>;
+}
+
+macro_rules! ι {
+    ($t:ty) => {
+        impl<T, I: Iterator<Item = T>> Ι<T, $t> for I {
+            fn ι(&mut self) -> impl Iterator<Item = (T, $t)> {
+                self.zip(0..)
+            }
+
+            fn ι1(&mut self) -> impl Iterator<Item = (T, $t)> {
+                self.zip(1..)
+            }
+        }
+    };
+}
+ι!(u8);
+ι!(u16);
+ι!(u32);
+ι!(u64);
+ι!(usize);
+
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
     #[track_caller]
     fn Δ(&mut self) -> T {
         self.next().α()
-    }
-
-    fn ι(&mut self) -> impl Iterator<Item = (T, u64)> {
-        self.zip(0..)
-    }
-
-    fn ι1(&mut self) -> impl Iterator<Item = (T, u64)> {
-        self.zip(1..)
     }
 
     fn Ν<const N: usize>(&mut self) -> [T; N] {
@@ -345,6 +365,20 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
             set += 1;
         }
         set
+    }
+
+    fn ι<N>(&mut self) -> impl Iterator<Item = (T, N)>
+    where
+        Self: Ι<T, N>,
+    {
+        self.ι()
+    }
+
+    fn ι1<N>(&mut self) -> impl Iterator<Item = (T, N)>
+    where
+        Self: Ι<T, N>,
+    {
+        self.ι1()
     }
 }
 
