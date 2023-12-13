@@ -1,88 +1,69 @@
 #![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
-// #![feature(
-//     unchecked_math,
-//     array_windows,
-//     slice_take,
-//     test,
-//     slice_as_chunks,
-//     array_chunks,
-//     slice_split_once,
-//     byte_slice_trim_ascii
-// )]
-// extern crate test;
+#![feature(
+    iter_collect_into,
+    unchecked_math,
+    array_windows,
+    slice_take,
+    test,
+    slice_as_chunks,
+    array_chunks,
+    slice_split_once,
+    byte_slice_trim_ascii
+)]
+extern crate test;
 mod util;
-use std::{io::Write, ops::ControlFlow};
 
 pub use util::prelude::*;
 
-pub fn run(i: &str) -> impl Display {
-    i.行()
-        .map(|x| {
-            // AAA?
-            let (r, c) = x
-                .μ(' ')
-                .mr(|x| x.split(|&x| x == b',').κ::<u8>().collect::<Box<_>>());
-            fn kill_me(
-                s: Vec<u8>,
-                n: usize,
-                max: usize,
-                p: &mut impl FnMut(&[u8]) -> ControlFlow<(), ()>,
-            ) -> Vec<Vec<u8>> {
-                if n == max {
-                    return vec![s];
-                }
-                let mut combinations = vec![];
-                for c in [b'.', b'#'] {
-                    let mut s = s.clone();
-                    s.push(c);
-                    for thing in kill_me(s, n + 1, max, p) {
-                        match p(&thing) {
-                            ControlFlow::Break(()) => break,
-                            ControlFlow::Continue(()) => combinations.push(thing),
-                        }
-                    }
-                }
-                combinations
-            }
-            let why = kill_me(vec![], 0, r.len(), &mut |x| {
-                for (&x, &y) in r.iter().zip(x.iter()) {
-                    if matches!(x, b'.' | b'#' if y != x) {
-                        return ControlFlow::Break(());
-                    }
-                }
-                let mut checked = 0;
-                let mut len = 0;
-                for &b in x {
-                    match b {
-                        b'#' => len += 1,
-                        b'.' if len != 0 => {
-                            match c.get(checked) {
-                                Some(&x) if x == len => {}
-                                _ => return ControlFlow::Break(()),
-                            };
-                            checked += 1;
-                            len = 0;
-                        }
-                        _ => {}
-                    }
-                }
-                if len != 0 {
-                    match c.get(checked) {
-                        Some(&x) if x == len => {}
-                        _ => return ControlFlow::Break(()),
-                    }
-                    checked += 1;
-                }
-                if checked != c.len() {
-                    return ControlFlow::Break(());
-                }
-                ControlFlow::Continue(())
-            })
-            .len();
-            std::io::stdout().flush().unwrap();
-            why
+fn trans(v: Box<[&[u8]]>) -> Box<[Box<[u8]>]> {
+    let len = v[0].len();
+    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
+    (0..len)
+        .map(|_| {
+            iters
+                .iter_mut()
+                .map(|n| n.next().unwrap())
+                .copied()
+                .collect::<Box<[u8]>>()
         })
-        .sum::<usize>()
+        .collect()
+}
+
+pub fn run(i: &str) -> impl Display {
+    let mut sum = 0;
+    for lines in i.split("\n\n") {
+        let this = lines.行().collect::<Box<_>>();
+        'huh: for (&[a, b], i) in this.array_windows::<2>().ι::<usize>() {
+            if a == b {
+                let mut α = i;
+                let mut β = i + 1;
+                while α > 0 && β < this.len() - 1 {
+                    α -= 1;
+                    β += 1;
+                    if this[β] != this[α] {
+                        continue 'huh;
+                    }
+                }
+                sum += (i + 1) * 100;
+            }
+        }
+        let this = trans(this);
+        'huh: for (&[ref a, ref b], i) in this.array_windows::<2>().ι::<usize>() {
+            if a == b {
+                let mut α = i;
+                let mut β = i + 1;
+                while α > 0 && β < this.len() - 1 {
+                    α -= 1;
+                    β += 1;
+                    if this[β] != this[α] {
+                        continue 'huh;
+                    }
+                }
+                sum += i + 1;
+            }
+        }
+    }
+    sum
 }
 
 fn main() {

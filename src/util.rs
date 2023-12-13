@@ -7,9 +7,9 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter,
-        Printable, Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen, Ͷ, Α, Κ,
-        Λ, Μ,
+        even, gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
+        ParseIter, Printable, Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen,
+        Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -19,6 +19,7 @@ pub mod prelude {
         fmt::{Debug, Display},
         hint::black_box as boxd,
         iter,
+        mem::transmute as rint,
         ops::Range,
     };
     #[allow(unused_imports)]
@@ -337,6 +338,10 @@ macro_rules! ι {
 ι!(u32);
 ι!(u64);
 ι!(usize);
+
+pub fn even(x: &usize) -> bool {
+    x % 2 == 0
+}
 
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
     #[track_caller]
