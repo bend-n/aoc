@@ -15,6 +15,7 @@ pub mod prelude {
     pub use itertools::Itertools;
     pub use std::{
         cmp::Ordering::*,
+        cmp::{max, min},
         collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
         fmt::{Debug, Display},
         hint::black_box as boxd,
@@ -23,7 +24,7 @@ pub mod prelude {
         ops::Range,
     };
     #[allow(unused_imports)]
-    pub(crate) use {super::bits, super::dang, super::leek, super::mat};
+    pub(crate) use {super::bits, super::dang, super::leek, super::mat, super::読む};
 }
 
 macro_rules! dang {
@@ -339,6 +340,44 @@ macro_rules! ι {
 ι!(u64);
 ι!(usize);
 
+pub mod 読む {
+    use crate::util::prelude::*;
+    pub fn κ(x: &[u8], v: &mut Vec<u64>) {
+        let mut s = 0;
+        for &b in x {
+            match b {
+                b' ' => {
+                    v.push(s);
+                    s = 0;
+                }
+                b => {
+                    s = s * 10 + (b - b'0') as u64;
+                }
+            }
+        }
+    }
+
+    pub fn 不全の(x: &mut &[u8]) -> u64 {
+        let mut n = 0;
+        loop {
+            let byte = x[0];
+            x.skip(1);
+            if byte == b' ' {
+                return n;
+            }
+            n = n * 10 + (byte - b'0') as u64;
+        }
+    }
+
+    pub fn 完了(x: &[u8]) -> u64 {
+        let mut n = 0;
+        for &byte in x {
+            n = n * 10 + (byte - b'0') as u64;
+        }
+        n
+    }
+}
+
 pub fn even(x: &usize) -> bool {
     x % 2 == 0
 }
@@ -349,6 +388,7 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
         self.next().α()
     }
 
+    #[track_caller]
     fn Ν<const N: usize>(&mut self) -> [T; N] {
         let mut array: [MaybeUninit<Self::Item>; N] =
             // SAFETY: mu likes this
