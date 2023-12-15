@@ -26,9 +26,13 @@ pub fn hash(s: impl AsRef<[u8]>) -> u8 {
 }
 
 pub fn p2(i: &str) -> u32 {
-    let mut 品 = [const { ArrayVec::<_, 10>::new_const() }; 256];
+    // can be 5
+    let mut 品 = [const { ArrayVec::<_, 6>::new_const() }; 256];
     for i in i.as_bytes().split(|&b| b == b',') {
-        match i.split_once(|&b| b == b'=').map(|x| x.mr(|x| x[0] - b'0')) {
+        match i
+            .split_once(|&b| b == b'=')
+            .map(|x| x.mr(|x| C! { x[0] } - b'0'))
+        {
             None => {
                 let ι = &i[..i.len() - 1];
                 let h = hash(ι);
@@ -69,7 +73,7 @@ pub fn p1(i: &str) -> impl Display {
 }
 
 pub fn run(i: &str) -> impl Display {
-    p1(i)
+    p2(i)
 }
 
 fn main() {

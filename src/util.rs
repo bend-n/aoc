@@ -10,8 +10,8 @@ pub mod prelude {
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
         even, gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
-        ParseIter, Printable, Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen,
-        読む, Ͷ, Α, Κ, Λ, Μ,
+        ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3, TupleUtils,
+        UnifiedTupleUtils, Widen, 読む, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -31,11 +31,18 @@ macro_rules! C {
     ($buf:ident[$n:expr]) => {
         unsafe { *$buf.get_unchecked($n) }
     };
+    ($buf:ident[$a:expr] = $rbuf:ident[$b:expr]) => {
+        *unsafe { $buf.get_unchecked_mut($a) } = unsafe { *$rbuf.get_unchecked($b) }
+    };
     ($buf:ident[$n:expr] = $e:expr) => {
         *unsafe { $buf.get_unchecked_mut($n) } = $e
     };
     ($buf:ident[$a:expr][$b:expr]) => {
         unsafe { *$buf.get_unchecked($a).get_unchecked($b) }
+    };
+    ($buf:ident[$a:expr][$b:expr] = $rbuf:ident[$ra:expr]) => {
+        *unsafe { $buf.get_unchecked_mut($a).get_unchecked_mut($b) } =
+            unsafe { *$rbuf.get_unchecked($ra) }
     };
     ($buf:ident[$a:expr][$b:expr] = $rbuf:ident[$ra:expr][$rb:expr]) => {
         *unsafe { $buf.get_unchecked_mut($a).get_unchecked_mut($b) } =
@@ -359,9 +366,18 @@ impl<I: Iterator<Item = u64>> IterͶ for I {
     }
 }
 
-pub trait TupleIterTools<T, U>: Iterator {
-    fn rml(self) -> impl Iterator<Item = U>;
-    fn rmr(self) -> impl Iterator<Item = T>;
+pub trait TupleIterTools3<T, U, V>: Iterator {
+    fn l(self) -> impl Iterator<Item = T>;
+    fn m(self) -> impl Iterator<Item = U>;
+    fn r(self) -> impl Iterator<Item = V>;
+    fn lm(self) -> impl Iterator<Item = (T, U)>;
+    fn lr(self) -> impl Iterator<Item = (T, V)>;
+    fn mr(self) -> impl Iterator<Item = (U, V)>;
+}
+
+pub trait TupleIterTools2<T, U>: Iterator {
+    fn l(self) -> impl Iterator<Item = T>;
+    fn r(self) -> impl Iterator<Item = U>;
 }
 
 pub trait NumTupleIterTools {
@@ -374,12 +390,38 @@ impl<I: Iterator<Item = (u64, u64)>> NumTupleIterTools for I {
     }
 }
 
-impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools<T, U> for I {
-    fn rml(self) -> impl Iterator<Item = U> {
+impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools2<T, U> for I {
+    fn l(self) -> impl Iterator<Item = T> {
+        self.map(|(x, _)| x)
+    }
+    fn r(self) -> impl Iterator<Item = U> {
         self.map(|(_, x)| x)
     }
-    fn rmr(self) -> impl Iterator<Item = T> {
-        self.map(|(x, _)| x)
+}
+
+impl<T, U, V, I: Iterator<Item = (T, U, V)>> TupleIterTools3<T, U, V> for I {
+    fn l(self) -> impl Iterator<Item = T> {
+        self.map(|(x, _, _)| x)
+    }
+
+    fn m(self) -> impl Iterator<Item = U> {
+        self.map(|(_, x, _)| x)
+    }
+
+    fn r(self) -> impl Iterator<Item = V> {
+        self.map(|(_, _, x)| x)
+    }
+
+    fn lm(self) -> impl Iterator<Item = (T, U)> {
+        self.map(|(a, b, _)| (a, b))
+    }
+
+    fn lr(self) -> impl Iterator<Item = (T, V)> {
+        self.map(|(a, _, b)| (a, b))
+    }
+
+    fn mr(self) -> impl Iterator<Item = (U, V)> {
+        self.map(|(_, a, b)| (a, b))
     }
 }
 
