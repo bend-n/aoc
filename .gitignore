@@ -1,3 +1,6 @@
+callgrind.*
+perf*
+flamegraph*
 /target
 Cargo.lock
 before

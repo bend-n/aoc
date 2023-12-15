@@ -58,6 +58,22 @@ macro_rules! shucks {
             unsafe { std::hint::unreachable_unchecked() }
         }
     };
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
+        if cfg!(debug_assertions) {
+            unreachable!($fmt $(, $args)*);
+        } else {
+            unsafe { std::hint::unreachable_unchecked() }
+        }
+    };
+    (if $x:expr) => {
+        if $x {
+            if cfg!(debug_assertions) {
+                unreachable!();
+            } else {
+                unsafe { std::hint::unreachable_unchecked() }
+            }
+        }
+    };
 }
 pub(crate) use shucks;
 
@@ -277,7 +293,7 @@ impl Μ for &[u8] {
         let i = self
             .iter()
             .position(|&x| x == d as u8)
-            .unwrap_or_else(|| panic!("{} should split at {d} fine", self.p(),));
+            .unwrap_or_else(|| shucks!("{} should split at {d} fine", self.p()));
         (&self[..i], &self[i + 1..])
     }
 
@@ -307,7 +323,7 @@ impl Μ for &[u8] {
 impl Μ for &str {
     fn μ(self, d: char) -> (Self, Self) {
         self.split_once(d)
-            .unwrap_or_else(|| panic!("{self} should split at {d} fine"))
+            .unwrap_or_else(|| shucks!("{self} should split at {d} fine"))
     }
 
     fn μκ<T: FromStr>(self, d: char) -> impl Iterator<Item = (T, T)>
@@ -511,7 +527,6 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
 }
 
 pub trait TupleUtils<T, U> {
-    fn map<V, W>(self, f: impl FnOnce((T, U)) -> (V, W)) -> (V, W);
     fn mr<W>(self, f: impl FnOnce(U) -> W) -> (T, W);
     fn ml<V>(self, f: impl FnOnce(T) -> V) -> (V, U);
     fn rev(self) -> (U, T);
@@ -551,9 +566,6 @@ impl<T> UnifiedTupleUtils<T> for (T, T) {
 }
 
 impl<T, U> TupleUtils<T, U> for (T, U) {
-    fn map<V, W>(self, f: impl FnOnce((T, U)) -> (V, W)) -> (V, W) {
-        f(self)
-    }
     fn mr<W>(self, f: impl FnOnce(U) -> W) -> (T, W) {
         (self.0, f(self.1))
     }
