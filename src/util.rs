@@ -6,6 +6,8 @@ use std::{
 };
 
 pub mod prelude {
+    #[allow(unused_imports)]
+    pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
         even, gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
         ParseIter, Printable, Skip, TakeLine, TupleIterTools, TupleUtils, UnifiedTupleUtils, Widen,
@@ -20,12 +22,44 @@ pub mod prelude {
         fmt::{Debug, Display},
         hint::black_box as boxd,
         iter,
-        mem::transmute as rint,
+        mem::{replace as rplc, swap, transmute as rint},
         ops::Range,
     };
-    #[allow(unused_imports)]
-    pub(crate) use {super::bits, super::dang, super::leek, super::mat};
 }
+
+macro_rules! C {
+    ($buf:ident[$n:expr]) => {
+        unsafe { *$buf.get_unchecked($n) }
+    };
+    ($buf:ident[$n:expr] = $e:expr) => {
+        *unsafe { $buf.get_unchecked_mut($n) } = $e
+    };
+    ($buf:ident[$a:expr][$b:expr]) => {
+        unsafe { *$buf.get_unchecked($a).get_unchecked($b) }
+    };
+    ($buf:ident[$a:expr][$b:expr] = $rbuf:ident[$ra:expr][$rb:expr]) => {
+        *unsafe { $buf.get_unchecked_mut($a).get_unchecked_mut($b) } =
+            unsafe { *$rbuf.get_unchecked($ra).get_unchecked($rb) }
+    };
+    ($buf:ident[$a:expr][$b:expr] = $c:expr) => {{
+        #[allow(unused_unsafe)]
+        {
+            *unsafe { $buf.get_unchecked_mut($a).get_unchecked_mut($b) } = unsafe { $c }
+        }
+    }};
+}
+pub(crate) use C;
+
+macro_rules! shucks {
+    () => {
+        if cfg!(debug_assertions) {
+            unreachable!();
+        } else {
+            unsafe { std::hint::unreachable_unchecked() }
+        }
+    };
+}
+pub(crate) use shucks;
 
 macro_rules! dang {
     () => {
@@ -43,7 +77,7 @@ pub(crate) use leek;
 
 macro_rules! mat {
     ($thing:ident { $($what:pat => $b:expr,)+ }) => {
-        match $thing { $($what => { $b })+ _ => unsafe { std::hint::unreachable_unchecked() } }
+        match $thing { $($what => { $b })+ _ => shucks!() }
     };
 }
 pub(crate) use mat;
@@ -87,7 +121,7 @@ unsafe fn count_avx<const N: usize>(hay: &[u8; N], needle: u8) -> usize {
 
 pub fn count<const N: usize>(hay: &[u8; N], what: u8) -> usize {
     #[cfg(target_feature = "avx2")]
-    return count_avx(hay, what);
+    return unsafe { count_avx(hay, what) };
     #[cfg(not(target_feature = "avx2"))]
     hay.iter().filter(|&&x| x == what).count()
 }
