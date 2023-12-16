@@ -35,29 +35,25 @@ macro_rules! sret {
     };
 }
 
-pub fn run(i: &str) -> impl Display {
+fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
     use D::*;
-    let mat = i.行().collect::<Box<_>>();
     let mut e = vec![vec![false; mat.len()]; mat.len()];
     let mut been = HashSet::new();
     fn beam(
         mat: &[&[u8]],
-        (mut x, mut y): (usize, usize),
+        (mut x, mut y): (u8, u8),
         mut d: D,
         e: &mut [Vec<bool>],
-        been: &mut HashSet<(usize, usize, D)>,
+        been: &mut HashSet<(u8, u8, D)>,
     ) {
-        println!("new beam!");
         loop {
-            if y >= mat.len() || x >= mat.len() {
+            if y >= mat.len() as u8 || x >= mat.len() as u8 {
                 break;
             }
-            e[y][x] = true;
-            println!("hello {} (going {d:?})", mat[y][x] as char);
-            match (mat[y][x], d) {
+            e[y.nat()][x.nat()] = true;
+            match (mat[y.nat()][x.nat()], d) {
                 (b'|', E | W) => {
                     if been.insert((x, y, N)) {
-                        println!("splitting |");
                         if let Some(v) = y.checked_sub(1)
                             && been.insert((x, v, N))
                         {
@@ -66,20 +62,17 @@ pub fn run(i: &str) -> impl Display {
                         d = S;
                         y += 1;
                     } else {
-                        println!("beam death: repetition");
                         return;
                     }
                 }
                 (b'-', N | S) => {
                     if been.insert((x, y, N)) {
                         if let Some(v) = x.checked_sub(1) {
-                            println!("splitting -");
                             beam(mat, (v, y), W, e, been);
                         }
                         d = E;
                         x += 1;
                     } else {
-                        println!("beam death: repetition");
                         return;
                     }
                 }
@@ -106,12 +99,26 @@ pub fn run(i: &str) -> impl Display {
                 _ => unreachable!(),
             }
         }
-        println!("beam death");
     }
-    beam(&mat, (0, 0), E, &mut e, &mut been);
+    beam(&mat, p, d, &mut e, &mut been);
     e.iter()
-        .map(|x| x.iter().filter(|x| **x).count())
-        .sum::<usize>()
+        .map(|x| x.iter().filter(|x| **x).count() as u16)
+        .sum::<u16>()
+}
+
+pub fn run(i: &str) -> impl Display {
+    use D::*;
+    let mat = i.行().collect::<Box<_>>();
+    let mut max = 0;
+    for i in 0..mat.len() as u8 {
+        max = max.max(test(&mat, (i, 0), S));
+        max = max.max(test(&mat, (i, mat.len() as u8 - 1), N));
+    }
+    for j in 0..mat.len() as u8 {
+        max = max.max(test(&mat, (0, j), E));
+        max = max.max(test(&mat, (mat.len() as u8 - 1, j), W));
+    }
+    max
 }
 
 fn main() {
