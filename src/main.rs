@@ -35,19 +35,21 @@ macro_rules! sret {
     };
 }
 
-fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
+const SZ: u8 = 110;
+
+fn test(mat: &[[u8; SZ as usize + 1]; SZ as usize], p: (u8, u8), d: D) -> u16 {
     use D::*;
-    let mut e = vec![0u128; mat.len()];
+    let mut e = vec![0u128; SZ.nat()];
     let mut been = HashSet::new();
     fn beam(
-        mat: &[&[u8]],
+        mat: &[[u8; SZ as usize + 1]; SZ as usize],
         (mut x, mut y): (u8, u8),
         mut d: D,
         e: &mut [u128],
         been: &mut HashSet<(u8, u8, D)>,
     ) {
         loop {
-            if y >= mat.len() as u8 || x >= mat.len() as u8 {
+            if y >= SZ || x >= SZ {
                 break;
             }
             bits!(e[y.nat()] + x);
@@ -98,23 +100,27 @@ fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
             }}
         }
     }
-    beam(&mat, p, d, &mut e, &mut been);
+    beam(mat, p, d, &mut e, &mut been);
     e.iter().map(|x| x.count_ones() as u16).sum::<u16>()
 }
 
-pub fn run(i: &str) -> impl Display {
+use rayon::prelude::*;
+pub fn p2(mat: &[[u8; 111]; 110]) -> impl Display {
     use D::*;
-    let mat = i.行().collect::<Box<_>>();
-    let mut max = 0;
-    for i in 0..mat.len() as u8 {
-        max = max.max(test(&mat, (i, 0), S));
-        max = max.max(test(&mat, (i, mat.len() as u8 - 1), N));
-    }
-    for j in 0..mat.len() as u8 {
-        max = max.max(test(&mat, (0, j), E));
-        max = max.max(test(&mat, (mat.len() as u8 - 1, j), W));
-    }
-    max
+    let a = (0..SZ).into_par_iter().map(|i| test(mat, (i, 0), S)).max();
+    let b = (0..SZ).into_par_iter().map(|i| test(mat, (i, SZ), N)).max();
+    let c = (0..SZ).into_par_iter().map(|i| test(mat, (0, i), E)).max();
+    let d = (0..SZ).into_par_iter().map(|i| test(mat, (SZ, i), W)).max();
+    a.α().max(b.α()).max(c.α()).max(d.α())
+}
+
+pub fn p1(mat: &[[u8; 111]; 110]) -> impl Display {
+    test(mat, (0, 0), D::E)
+}
+
+pub fn run(i: &str) -> impl Display {
+    let mat = unsafe { &*(i.as_bytes().as_ptr() as *const [[u8; 111]; 110]) };
+    p1(mat)
 }
 
 fn main() {
