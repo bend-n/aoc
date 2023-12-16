@@ -16,78 +16,102 @@
 )]
 extern crate test;
 pub mod util;
-use arrayvec::ArrayVec;
 pub use util::prelude::*;
 
-pub fn hash16(s: &[u8]) -> u16 {
-    s.as_ref()
-        .iter()
-        .fold(0u16, |acc, &x| acc.wrapping_add(x.widen()).wrapping_mul(17))
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+enum D {
+    N,
+    E,
+    S,
+    W,
 }
 
-pub fn hash(s: impl AsRef<[u8]>) -> u8 {
-    s.as_ref()
-        .iter()
-        .fold(0u8, |acc, &x| acc.wrapping_add(x).wrapping_mul(17))
-}
-
-pub fn p2(i: &str) -> u32 {
-    // can be 5
-    let mut 品 = [const { ArrayVec::<_, 6>::new_const() }; 256];
-    for i in i
-        .as_bytes()
-        .split(|&b| b == b',')
-        .take(4000)
-        .inspect(|x| shucks!(if x.len() > 8))
-    {
-        match i
-            .split_once(|&b| b == b'=')
-            .map(|x| x.mr(|x| C! { x[0] } - b'0'))
-        {
-            None => {
-                let ι = &i[..i.len() - 1];
-                let h = hash16(ι);
-                let lh = h + C! { ι[0] }.widen();
-                let β = &mut 品[(h as u8).nat()];
-                β.retain(|(α, _)| *α != lh);
-            }
-            Some((ι, κ)) => {
-                let h = hash16(ι);
-                let lh = h + C! { ι[0] }.widen();
-                let bx = &mut 品[(h as u8).nat()];
-                if let Some((_, σ)) = bx.iter_mut().find(|(α, _)| *α == lh) {
-                    *σ = κ;
-                } else {
-                    unsafe { bx.push_unchecked((lh, κ)) };
-                }
-            }
+macro_rules! sret {
+    ($a:ident -= $b:expr) => {
+        $a = match $a.checked_sub($b) {
+            Some(x) => x,
+            None => break,
         }
-    }
-    品.into_iter()
-        .ι1::<u32>()
-        .map(|(bx, i)| {
-            bx.iter()
-                .map(|(_, x)| *x)
-                .ι1::<u32>()
-                .map(|(x, j)| x as u32 * j)
-                .sum::<u32>()
-                * i
-        })
-        .sum::<u32>()
-}
-
-#[no_mangle]
-pub fn p1(i: &str) -> impl Display {
-    i.as_bytes()
-        .split(|&x| x == b',')
-        .take(4000)
-        .inspect(|x| shucks!(if x.len() > 8))
-        .map(|x| hash(x) as u32)
-        .sum::<u32>()
+    };
 }
 
 pub fn run(i: &str) -> impl Display {
-    p2(i)
+    use D::*;
+    let mat = i.行().collect::<Box<_>>();
+    let mut e = vec![vec![false; mat.len()]; mat.len()];
+    let mut been = HashSet::new();
+    fn beam(
+        mat: &[&[u8]],
+        (mut x, mut y): (usize, usize),
+        mut d: D,
+        e: &mut [Vec<bool>],
+        been: &mut HashSet<(usize, usize, D)>,
+    ) {
+        println!("new beam!");
+        loop {
+            if y >= mat.len() || x >= mat.len() {
+                break;
+            }
+            e[y][x] = true;
+            println!("hello {} (going {d:?})", mat[y][x] as char);
+            match (mat[y][x], d) {
+                (b'|', E | W) => {
+                    if been.insert((x, y, N)) {
+                        println!("splitting |");
+                        if let Some(v) = y.checked_sub(1)
+                            && been.insert((x, v, N))
+                        {
+                            beam(mat, (x, v), N, e, been);
+                        }
+                        d = S;
+                        y += 1;
+                    } else {
+                        println!("beam death: repetition");
+                        return;
+                    }
+                }
+                (b'-', N | S) => {
+                    if been.insert((x, y, N)) {
+                        if let Some(v) = x.checked_sub(1) {
+                            println!("splitting -");
+                            beam(mat, (v, y), W, e, been);
+                        }
+                        d = E;
+                        x += 1;
+                    } else {
+                        println!("beam death: repetition");
+                        return;
+                    }
+                }
+                (b'|' | b'.', N) => sret!(y -= 1),
+                (b'-' | b'.', E) => x += 1,
+                (b'|' | b'.', S) => y += 1,
+                (b'-' | b'.', W) => sret!(x -= 1),
+                (b'/', N) | (b'\\', S) => {
+                    d = E;
+                    x += 1;
+                }
+                (b'/', E) | (b'\\', W) => {
+                    d = N;
+                    sret!(y -= 1);
+                }
+                (b'/', S) | (b'\\', N) => {
+                    d = W;
+                    sret!(x -= 1);
+                }
+                (b'/', W) | (b'\\', E) => {
+                    d = S;
+                    y += 1;
+                }
+                _ => unreachable!(),
+            }
+        }
+        println!("beam death");
+    }
+    beam(&mat, (0, 0), E, &mut e, &mut been);
+    e.iter()
+        .map(|x| x.iter().filter(|x| **x).count())
+        .sum::<usize>()
 }
 
 fn main() {
