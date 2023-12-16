@@ -629,6 +629,9 @@ macro_rules! bits {
     ($bitset:ident + $bit:expr) => {
         $bitset |= 1 << $bit
     };
+    ($holder:ident[$index:expr] + $bit:expr) => {
+        $holder[$index] |= 1 << $bit;
+    };
     ($bitset:ident[$bit:expr]) => {
         ($bitset & 1 << $bit) != 0
     };

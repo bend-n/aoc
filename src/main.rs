@@ -37,26 +37,25 @@ macro_rules! sret {
 
 fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
     use D::*;
-    let mut e = vec![vec![false; mat.len()]; mat.len()];
+    let mut e = vec![0u128; mat.len()];
     let mut been = HashSet::new();
     fn beam(
         mat: &[&[u8]],
         (mut x, mut y): (u8, u8),
         mut d: D,
-        e: &mut [Vec<bool>],
+        e: &mut [u128],
         been: &mut HashSet<(u8, u8, D)>,
     ) {
         loop {
             if y >= mat.len() as u8 || x >= mat.len() as u8 {
                 break;
             }
-            e[y.nat()][x.nat()] = true;
-            match (mat[y.nat()][x.nat()], d) {
+            bits!(e[y.nat()] + x);
+            let w = (mat[y.nat()][x.nat()], d);
+            mat! { w {
                 (b'|', E | W) => {
                     if been.insert((x, y, N)) {
-                        if let Some(v) = y.checked_sub(1)
-                            && been.insert((x, v, N))
-                        {
+                        if let Some(v) = y.checked_sub(1) {
                             beam(mat, (x, v), N, e, been);
                         }
                         d = S;
@@ -64,7 +63,7 @@ fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
                     } else {
                         return;
                     }
-                }
+                },
                 (b'-', N | S) => {
                     if been.insert((x, y, N)) {
                         if let Some(v) = x.checked_sub(1) {
@@ -75,7 +74,7 @@ fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
                     } else {
                         return;
                     }
-                }
+                },
                 (b'|' | b'.', N) => sret!(y -= 1),
                 (b'-' | b'.', E) => x += 1,
                 (b'|' | b'.', S) => y += 1,
@@ -83,27 +82,24 @@ fn test(mat: &[&[u8]], p: (u8, u8), d: D) -> u16 {
                 (b'/', N) | (b'\\', S) => {
                     d = E;
                     x += 1;
-                }
+                },
                 (b'/', E) | (b'\\', W) => {
                     d = N;
                     sret!(y -= 1);
-                }
+                },
                 (b'/', S) | (b'\\', N) => {
                     d = W;
                     sret!(x -= 1);
-                }
+                },
                 (b'/', W) | (b'\\', E) => {
                     d = S;
                     y += 1;
-                }
-                _ => unreachable!(),
-            }
+                },
+            }}
         }
     }
     beam(&mat, p, d, &mut e, &mut been);
-    e.iter()
-        .map(|x| x.iter().filter(|x| **x).count() as u16)
-        .sum::<u16>()
+    e.iter().map(|x| x.count_ones() as u16).sum::<u16>()
 }
 
 pub fn run(i: &str) -> impl Display {
