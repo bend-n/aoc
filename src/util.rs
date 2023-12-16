@@ -635,6 +635,15 @@ macro_rules! bits {
     ($bitset:ident[$bit:expr]) => {
         ($bitset & 1 << $bit) != 0
     };
+    ($holder:ident[$index:expr][$bit:expr]) => {
+        ($holder[$index] & 1 << $bit) != 0
+    };
+    ($holder:ident[$index:expr][$index2:expr][$bit:expr]) => {
+        ($holder[$index][$index2] & 1 << $bit) != 0
+    };
+    ($holder:ident[$index:expr][$index2:expr] + $bit:expr) => {
+        $holder[$index][$index2] |= 1 << $bit
+    };
     ($bitset:ident[$bit:expr] = $val:expr) => {
         $bitset = ($bitset & !(1 << $bit)) | (crate::util::cast_to($val, $bitset) << $bit)
     };

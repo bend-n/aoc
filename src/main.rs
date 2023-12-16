@@ -18,6 +18,7 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
+#[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 enum D {
     N,
@@ -26,8 +27,9 @@ enum D {
     W,
 }
 
-macro_rules! sret {
+macro_rules! csub {
     ($a:ident -= $b:expr) => {
+        // faster than a overflowing sub :/
         $a = match $a.checked_sub($b) {
             Some(x) => x,
             None => break,
@@ -40,13 +42,14 @@ const SZ: u8 = 110;
 fn test(mat: &[[u8; SZ as usize + 1]; SZ as usize], p: (u8, u8), d: D) -> u16 {
     use D::*;
     let mut e = vec![0u128; SZ.nat()];
-    let mut been = HashSet::new();
+    // *three dimensions* omg
+    let mut been = vec![[0; 110]; 110];
     fn beam(
         mat: &[[u8; SZ as usize + 1]; SZ as usize],
         (mut x, mut y): (u8, u8),
         mut d: D,
         e: &mut [u128],
-        been: &mut HashSet<(u8, u8, D)>,
+        been: &mut [[u8; 110]],
     ) {
         loop {
             if y >= SZ || x >= SZ {
@@ -56,7 +59,8 @@ fn test(mat: &[[u8; SZ as usize + 1]; SZ as usize], p: (u8, u8), d: D) -> u16 {
             let w = (mat[y.nat()][x.nat()], d);
             mat! { w {
                 (b'|', E | W) => {
-                    if been.insert((x, y, N)) {
+                    if !bits!(been[x.nat()][y.nat()][d as u8]) {
+                        bits!(been[x.nat()][y.nat()] + d as u8);
                         if let Some(v) = y.checked_sub(1) {
                             beam(mat, (x, v), N, e, been);
                         }
@@ -67,7 +71,8 @@ fn test(mat: &[[u8; SZ as usize + 1]; SZ as usize], p: (u8, u8), d: D) -> u16 {
                     }
                 },
                 (b'-', N | S) => {
-                    if been.insert((x, y, N)) {
+                    if !bits!(been[x.nat()][y.nat()][d as u8]) {
+                        bits!(been[x.nat()][y.nat()] + d as u8);
                         if let Some(v) = x.checked_sub(1) {
                             beam(mat, (v, y), W, e, been);
                         }
@@ -77,21 +82,21 @@ fn test(mat: &[[u8; SZ as usize + 1]; SZ as usize], p: (u8, u8), d: D) -> u16 {
                         return;
                     }
                 },
-                (b'|' | b'.', N) => sret!(y -= 1),
+                (b'|' | b'.', N) => csub!(y -= 1),
                 (b'-' | b'.', E) => x += 1,
                 (b'|' | b'.', S) => y += 1,
-                (b'-' | b'.', W) => sret!(x -= 1),
+                (b'-' | b'.', W) => csub!(x -= 1),
                 (b'/', N) | (b'\\', S) => {
                     d = E;
                     x += 1;
                 },
                 (b'/', E) | (b'\\', W) => {
                     d = N;
-                    sret!(y -= 1);
+                    csub!(y -= 1);
                 },
                 (b'/', S) | (b'\\', N) => {
                     d = W;
-                    sret!(x -= 1);
+                    csub!(x -= 1);
                 },
                 (b'/', W) | (b'\\', E) => {
                     d = S;
