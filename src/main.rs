@@ -19,6 +19,12 @@ pub mod util;
 use arrayvec::ArrayVec;
 pub use util::prelude::*;
 
+pub fn hash16(s: &[u8]) -> u16 {
+    s.as_ref()
+        .iter()
+        .fold(0u16, |acc, &x| acc.wrapping_add(x.widen()).wrapping_mul(17))
+}
+
 pub fn hash(s: impl AsRef<[u8]>) -> u8 {
     s.as_ref()
         .iter()
@@ -28,24 +34,31 @@ pub fn hash(s: impl AsRef<[u8]>) -> u8 {
 pub fn p2(i: &str) -> u32 {
     // can be 5
     let mut 品 = [const { ArrayVec::<_, 6>::new_const() }; 256];
-    for i in i.as_bytes().split(|&b| b == b',') {
+    for i in i
+        .as_bytes()
+        .split(|&b| b == b',')
+        .take(4000)
+        .inspect(|x| shucks!(if x.len() > 8))
+    {
         match i
             .split_once(|&b| b == b'=')
             .map(|x| x.mr(|x| C! { x[0] } - b'0'))
         {
             None => {
                 let ι = &i[..i.len() - 1];
-                let h = hash(ι);
-                let β = &mut 品[h.nat()];
-                β.retain(|(α, _)| *α != ι);
+                let h = hash16(ι);
+                let lh = h + C! { ι[0] }.widen();
+                let β = &mut 品[(h as u8).nat()];
+                β.retain(|(α, _)| *α != lh);
             }
             Some((ι, κ)) => {
-                let h = hash(ι);
-                let bx = &mut 品[h.nat()];
-                if let Some((_, σ)) = bx.iter_mut().find(|(α, _)| *α == ι) {
+                let h = hash16(ι);
+                let lh = h + C! { ι[0] }.widen();
+                let bx = &mut 品[(h as u8).nat()];
+                if let Some((_, σ)) = bx.iter_mut().find(|(α, _)| *α == lh) {
                     *σ = κ;
                 } else {
-                    unsafe { bx.push_unchecked((ι, κ)) };
+                    unsafe { bx.push_unchecked((lh, κ)) };
                 }
             }
         }
@@ -54,8 +67,9 @@ pub fn p2(i: &str) -> u32 {
         .ι1::<u32>()
         .map(|(bx, i)| {
             bx.iter()
+                .map(|(_, x)| *x)
                 .ι1::<u32>()
-                .map(|(&(_, x), j)| x as u32 * j)
+                .map(|(x, j)| x as u32 * j)
                 .sum::<u32>()
                 * i
         })
