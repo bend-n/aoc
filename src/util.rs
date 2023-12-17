@@ -198,11 +198,37 @@ where
     }
 }
 
-pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord>(
-    mut graph: LMap<N, Vec<(N, u32)>, impl Fn(N) -> Option<Vec<(N, u32)>>>,
+pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
+    graph: impl Fn(N) -> I,
     start: N,
     end: impl Fn(N) -> bool,
-) -> u32 {
+    h: impl Fn(N) -> u16,
+) -> u16 {
+    let mut q = BinaryHeap::new();
+    let mut s = HashSet::new();
+    q.push(Reverse((h(start), 0, start)));
+    while let Some(Reverse((_, c, n))) = q.pop() {
+        if end(n) {
+            return c;
+        }
+        if !s.insert(n) {
+            continue;
+        }
+        for (n, d) in graph(n) {
+            if s.contains(&n) {
+                continue;
+            }
+            q.push(Reverse((h(n) + c + d, c + d, n)));
+        }
+    }
+    dang!()
+}
+
+pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
+    graph: impl Fn(N) -> I,
+    start: N,
+    end: impl Fn(N) -> bool,
+) -> u16 {
     let mut q = BinaryHeap::new();
     let mut s = HashSet::new();
     q.push(Reverse((0, start)));
@@ -213,15 +239,16 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord>(
         if !s.insert(n) {
             continue;
         }
-        for (n, d) in graph.get(n).α() {
-            if s.contains(n) {
+        for (n, d) in graph(n) {
+            if s.contains(&n) {
                 continue;
             }
-            q.push(Reverse((c + *d, *n)));
+            q.push(Reverse((c + d, n)));
         }
     }
     dang!()
 }
+
 impl std::ops::Add<(i16, i16)> for Dir {
     type Output = (i16, i16);
     fn add(self, (x, y): (i16, i16)) -> Self::Output {
