@@ -18,6 +18,11 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
+// const MUST: i16 = 3;
+// const NEEDS: i16 = 0;
+const MUST: i16 = 10;
+const NEEDS: i16 = 4;
+
 pub fn run(i: &str) -> impl Display {
     let v = i.行().collect_vec();
     let g = util::LMap::new(|(x, y, δx, δy, gone): (i16, i16, i16, i16, i16)| {
@@ -34,13 +39,16 @@ pub fn run(i: &str) -> impl Display {
                 let nδx = nx - x;
                 let nδy = ny - y;
                 if nδx == δx && nδy == δy {
-                    if gone == 3 {
+                    if gone == MUST {
                         return None;
                     }
                     ngon = gone + 1;
                 } else if (nδx == -δx && nδx != 0) || (nδy == -δy && nδy != 0) {
                     return None;
                 } else {
+                    if gone < NEEDS {
+                        return None;
+                    }
                     ngon = 1;
                 }
                 (nx >= 0 && nx < v[0].len() as i16 && ny >= 0 && ny < v.len() as i16).then(|| {
@@ -53,8 +61,8 @@ pub fn run(i: &str) -> impl Display {
             .collect_vec(),
         )
     });
-    util::dijkstra(g, (0i16, 0i16, 0i16, 0i16, 0i16), |(x, y, _, _, _)| {
-        x == v[0].len() as i16 - 1 && y == v.len() as i16 - 1
+    util::dijkstra(g, (0i16, 0i16, 0i16, 0i16, NEEDS), |(x, y, _, _, g)| {
+        x == v[0].len() as i16 - 1 && y == v.len() as i16 - 1 && g >= NEEDS
     })
 }
 
