@@ -1,6 +1,9 @@
 #![allow(non_snake_case, unused_macros)]
 use std::{
-    fmt::Write,
+    cmp::Reverse,
+    collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
+    fmt::{Debug, Write},
+    hash::Hash,
     mem::{swap, MaybeUninit},
     str::FromStr,
 };
@@ -9,7 +12,7 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, lcm, pa, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
+        even, gcd, lcm, pa, Dir, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
         ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3, TupleUtils,
         UnifiedTupleUtils, Widen, 読む, Ͷ, Α, Κ, Λ, Μ,
     };
@@ -158,6 +161,90 @@ pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
         lcm = (lcm * x) / gcd;
     }
     lcm
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum Dir {
+    N,
+    E,
+    S,
+    W,
+}
+
+pub struct LMap<K, V, F>(HashMap<K, V>, F)
+where
+    F: Fn(K) -> Option<V>,
+    K: Eq + Hash + Copy;
+impl<K: Eq + Hash + Copy, V, F> LMap<K, V, F>
+where
+    F: Fn(K) -> Option<V>,
+{
+    pub fn new(f: F) -> Self {
+        Self {
+            0: HashMap::new(),
+            1: f,
+        }
+    }
+
+    pub fn get(&mut self, k: K) -> Option<&mut V> {
+        match self.0.entry(k) {
+            Entry::Occupied(x) => Some(x.into_mut()),
+            Entry::Vacant(e) => match self.1(k) {
+                Some(v) => Some(e.insert(v)),
+                None => None,
+            },
+        }
+    }
+}
+
+pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord>(
+    mut graph: LMap<N, Vec<(N, u32)>, impl Fn(N) -> Option<Vec<(N, u32)>>>,
+    start: N,
+    end: impl Fn(N) -> bool,
+) -> u32 {
+    let mut q = BinaryHeap::new();
+    let mut s = HashSet::new();
+    q.push(Reverse((0, start)));
+    while let Some(Reverse((c, n))) = q.pop() {
+        if end(n) {
+            return c;
+        }
+        if !s.insert(n) {
+            continue;
+        }
+        for (n, d) in graph.get(n).α() {
+            if s.contains(n) {
+                continue;
+            }
+            q.push(Reverse((c + *d, *n)));
+        }
+    }
+    dang!()
+}
+impl std::ops::Add<(i16, i16)> for Dir {
+    type Output = (i16, i16);
+    fn add(self, (x, y): (i16, i16)) -> Self::Output {
+        match self {
+            Dir::N => (x, y - 1),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x - 1, y),
+        }
+    }
+}
+
+impl std::ops::Add<(u8, u8)> for Dir {
+    type Output = Option<(u8, u8)>;
+
+    fn add(self, (x, y): (u8, u8)) -> Self::Output {
+        match self {
+            Dir::N => Some((x, y.checked_sub(1)?)),
+            Dir::E => Some((x + 1, y)),
+            Dir::S => Some((x, y + 1)),
+            Dir::W => Some((x.checked_sub(1)?, y)),
+        }
+    }
 }
 
 pub fn pa<T: std::fmt::Debug>(a: &[T]) {
