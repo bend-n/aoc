@@ -19,8 +19,7 @@ pub mod util;
 pub use util::prelude::*;
 
 pub fn p1(i: &str) -> u16 {
-    let mut x = 0i16;
-    let mut y = 0i16;
+    let mut y = 0i32;
     let mut a = 0i32;
     let mut b = 0u16;
     let mut i = i.as_bytes();
@@ -42,25 +41,17 @@ pub fn p1(i: &str) -> u16 {
                 (a - b'0') * 10 + (b - b'0')
             }
         };
-        let (ox, oy) = (x, y);
-        (x, y) = match d {
-            // y down
-            Dir::N => (x, y + c as i16),
-            Dir::E => (x + c as i16, y),
-            Dir::S => (x, y - c as i16),
-            Dir::W => (x - c as i16, y),
-        };
-
-        unsafe { b = b.unchecked_add(c as u16) };
-        unsafe {
-            a = a.unchecked_add(
-                ((x as i32).unchecked_add(ox as i32)).unchecked_mul(y as i32 - oy as i32),
-            )
-        };
+        b += c as u16;
+        match d {
+            Dir::N => y = y + (c as i32),
+            Dir::E => a = a + (c as i32 * y),
+            Dir::S => y = y - (c as i32),
+            Dir::W => a = a - (c as i32 * y),
+        }
     }
 
     // use shoelace formula to get the area, then use picks formula to count the number of inner points
-    ((a.abs() / 2) as u16) + (1 + b / 2)
+    a.abs() as u16 + (1 + b / 2)
 }
 
 pub fn p2(i: &str) -> u64 {
