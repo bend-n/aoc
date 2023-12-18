@@ -57,10 +57,10 @@ pub fn p2(i: &str) -> u64 {
             }
             .as_ptr() as *const [u8; 6])
         };
-        let c = 読む::hex(&dat[0..5]).unwrap();
+        let c = unsafe { 読む::hex(&dat[0..5]).unwrap_unchecked() };
         let (ox, oy) = (x, y);
         for _ in 0..c {
-            let d = 読む::hex_dig(dat[5]).unwrap();
+            let d = 読む::hex_dig(dat[5]);
             (x, y) = mat!(d {
                 0 => (x + 1, y),
                 1 => (x, y - 1),
@@ -78,7 +78,7 @@ pub fn p2(i: &str) -> u64 {
 }
 
 pub fn run(i: &str) -> impl Display {
-    p1(i)
+    p2(i)
 }
 
 fn main() {

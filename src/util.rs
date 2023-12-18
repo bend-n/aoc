@@ -680,19 +680,15 @@ pub mod 読む {
         }
     }
 
-    pub fn hex_dig(b: u8) -> Result<u8, ()> {
-        match b {
-            b'0'..=b'9' => Ok(b as u8 - b'0' as u8),
-            b'a'..=b'f' => Ok(b as u8 - (b'a' as u8 - 10)),
-            _ => Err(()),
-        }
+    pub fn hex_dig(b: u8) -> u8 {
+        (b & 0xF) + 9 * (b >> 6)
     }
 
     pub fn hex(mut d: &[u8]) -> Result<u32, ()> {
         let &b = d.take_first().ok_or(())?;
-        let mut num = hex_dig(b)? as u32;
+        let mut num = hex_dig(b) as u32;
         while let Some(&b) = d.take_first() {
-            num = num * 16 + hex_dig(b)? as u32;
+            num = num * 16 + hex_dig(b) as u32;
         }
         Ok(num)
     }
