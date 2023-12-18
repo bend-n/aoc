@@ -18,13 +18,17 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-pub fn run(i: &str) -> impl Display {
+pub fn p1(i: &str) -> u32 {
     let mut x = 0i32;
     let mut y = 0i32;
     // boundary points, shoelace
     let (b, a) = i.行().fold((0, 0), |(b, a), i| {
-        let d = unsafe { std::mem::transmute::<u8, Dir>(i[0]) };
-        let c = i.μ(' ').1.μ(' ').0.λ::<u8>();
+        let d = unsafe { rint::<_, Dir>(C! { i[0] }) };
+        let c = if C! { i[3] } == b' ' {
+            (C! { i[2] } - b'0')
+        } else {
+            (C! { i[2] } - b'0') * 10 + C! { i[3] } - b'0'
+        };
         let (ox, oy) = (x, y);
         for _ in 0..c {
             (x, y) = match d {
@@ -35,10 +39,46 @@ pub fn run(i: &str) -> impl Display {
                 Dir::W => (x - 1, y),
             };
         }
-        (b + c as u16, a + ((x + ox) * (y - oy)))
+        (b + c as u32, a + ((x + ox) * (y - oy)))
     });
     // use shoelace formula to get the area, then use picks formula to count the number of inner points
-    ((a.abs() / 2) as u16) + (1 + b / 2)
+    ((a.abs() / 2) as u32) + (1 + b / 2)
+}
+
+pub fn p2(i: &str) -> u64 {
+    let mut x = 0i32;
+    let mut y = 0i32;
+    let (b, a) = i.行().fold((0, 0), |(b, a), i| {
+        let dat = unsafe {
+            &*(if C! { i[3] } == b' ' {
+                C! { &i[6..] }
+            } else {
+                C! { &i[7..] }
+            }
+            .as_ptr() as *const [u8; 6])
+        };
+        let c = 読む::hex(&dat[0..5]).unwrap();
+        let (ox, oy) = (x, y);
+        for _ in 0..c {
+            let d = 読む::hex_dig(dat[5]).unwrap();
+            (x, y) = mat!(d {
+                0 => (x + 1, y),
+                1 => (x, y - 1),
+                2 => (x - 1, y),
+                3 => (x, y + 1),
+            });
+        }
+        (
+            b + c as u64,
+            a + ((x as i64 + ox as i64) * (y as i64 - oy as i64)),
+        )
+    });
+
+    ((a.abs() / 2) as u64) + (1 + b / 2)
+}
+
+pub fn run(i: &str) -> impl Display {
+    p1(i)
 }
 
 fn main() {

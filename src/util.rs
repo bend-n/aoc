@@ -31,9 +31,18 @@ pub mod prelude {
 }
 
 macro_rules! C {
-    ($buf:ident[$n:expr]) => {
-        unsafe { *$buf.get_unchecked($n) }
-    };
+    (&$buf:ident[$n:expr]) => {{
+        #[allow(unused_unsafe)]
+        unsafe {
+            $buf.get_unchecked($n)
+        }
+    }};
+    ($buf:ident[$n:expr]) => {{
+        #[allow(unused_unsafe)]
+        unsafe {
+            *$buf.get_unchecked($n)
+        }
+    }};
     ($buf:ident[$a:expr] = $rbuf:ident[$b:expr]) => {
         *unsafe { $buf.get_unchecked_mut($a) } = unsafe { *$rbuf.get_unchecked($b) }
     };
@@ -669,6 +678,23 @@ pub mod 読む {
                 }
             }
         }
+    }
+
+    pub fn hex_dig(b: u8) -> Result<u8, ()> {
+        match b {
+            b'0'..=b'9' => Ok(b as u8 - b'0' as u8),
+            b'a'..=b'f' => Ok(b as u8 - (b'a' as u8 - 10)),
+            _ => Err(()),
+        }
+    }
+
+    pub fn hex(mut d: &[u8]) -> Result<u32, ()> {
+        let &b = d.take_first().ok_or(())?;
+        let mut num = hex_dig(b)? as u32;
+        while let Some(&b) = d.take_first() {
+            num = num * 16 + hex_dig(b)? as u32;
+        }
+        Ok(num)
     }
 
     pub fn 不全の(x: &mut &[u8]) -> u64 {
