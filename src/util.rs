@@ -2,7 +2,7 @@
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
-    fmt::{Debug, Write},
+    fmt::{Debug, Display, Write},
     hash::Hash,
     mem::{swap, MaybeUninit},
     str::FromStr,
@@ -196,6 +196,37 @@ where
             },
         }
     }
+}
+
+pub fn show<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>, D: Display>(
+    graph: impl Fn(N) -> I,
+    start: N,
+    end: impl Fn(N) -> bool,
+    name: impl Fn(N) -> D,
+) {
+    println!("digraph {{");
+    let mut s = HashSet::new();
+    let mut q = BinaryHeap::new();
+    q.push(Reverse((0, start)));
+    while let Some(Reverse((c, n))) = q.pop() {
+        if end(n) {
+            println!("}}");
+            return;
+        }
+        if !s.insert(n) {
+            continue;
+        }
+        print!("\t{}", name(n));
+        for (n, d) in graph(n) {
+            if s.contains(&n) {
+                continue;
+            }
+            print!(" -> {}", name(n));
+            q.push(Reverse((c + d, n)));
+        }
+        println!(";");
+    }
+    dang!();
 }
 
 pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
