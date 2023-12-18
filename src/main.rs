@@ -21,13 +21,26 @@ pub use util::prelude::*;
 pub fn p1(i: &str) -> u16 {
     let mut x = 0i16;
     let mut y = 0i16;
-    // boundary points, shoelace
-    let (b, a) = i.行().fold((0, 0), |(b, a), i| {
-        let d = unsafe { rint::<_, Dir>(C! { i[0] }) };
-        let c = if C! { i[3] } == b' ' {
-            (C! { i[2] } - b'0')
-        } else {
-            (C! { i[2] } - b'0') * 10 + C! { i[3] } - b'0'
+    let mut a = 0i32;
+    let mut b = 0u16;
+    let mut i = i.as_bytes();
+    loop {
+        let d = unsafe {
+            rint::<_, Dir>(match i.by() {
+                Ok(x) => x,
+                Err(_) => break,
+            })
+        };
+        let c = match unsafe { i.rd::<3>().unwrap_unchecked() } {
+            [_, b, b' '] => {
+                i = C! { &i[10..] };
+                b - b'0'
+            }
+            [_, a, b] => {
+                _ = i.read(&mut [0; 11]);
+                // i = C! { &i[11..] };
+                (a - b'0') * 10 + (b - b'0')
+            }
         };
         let (ox, oy) = (x, y);
         (x, y) = match d {
@@ -37,11 +50,15 @@ pub fn p1(i: &str) -> u16 {
             Dir::S => (x, y - c as i16),
             Dir::W => (x - c as i16, y),
         };
-        (
-            b + c as u16,
-            a + ((x as i32 + ox as i32) * (y as i32 - oy as i32)),
-        )
-    });
+
+        unsafe { b = b.unchecked_add(c as u16) };
+        unsafe {
+            a = a.unchecked_add(
+                ((x as i32).unchecked_add(ox as i32)).unchecked_mul(y as i32 - oy as i32),
+            )
+        };
+    }
+
     // use shoelace formula to get the area, then use picks formula to count the number of inner points
     ((a.abs() / 2) as u16) + (1 + b / 2)
 }
@@ -79,7 +96,7 @@ pub fn p2(i: &str) -> u64 {
 }
 
 pub fn run(i: &str) -> impl Display {
-    p2(i)
+    p1(i)
 }
 
 fn main() {

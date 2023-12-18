@@ -14,7 +14,7 @@ pub mod prelude {
     pub use super::{
         even, gcd, lcm, pa, Dir, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
         ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3, TupleUtils,
-        UnifiedTupleUtils, Widen, 読む, Ͷ, Α, Κ, Λ, Μ,
+        UnifiedTupleUtils, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -24,6 +24,7 @@ pub mod prelude {
         collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
         fmt::{Debug, Display},
         hint::black_box as boxd,
+        io::{self, Read, Write},
         iter,
         mem::{replace as rplc, swap, transmute as rint},
         ops::Range,
@@ -664,6 +665,21 @@ macro_rules! ι {
 ι!(usize);
 
 pub mod 読む {
+    use std::io::{self, Read};
+    pub trait Ext {
+        fn rd<const N: usize>(&mut self) -> io::Result<[u8; N]>;
+        fn by(&mut self) -> io::Result<u8> {
+            Ok(self.rd::<1>()?[0])
+        }
+    }
+
+    impl<T: Read> Ext for T {
+        fn rd<const N: usize>(&mut self) -> io::Result<[u8; N]> {
+            let mut buf = [0; N];
+            self.read_exact(&mut buf)?;
+            Ok(buf)
+        }
+    }
     use crate::util::prelude::*;
     pub fn κ(x: &[u8], v: &mut Vec<u64>) {
         let mut s = 0;
