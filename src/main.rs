@@ -18,9 +18,9 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-pub fn p1(i: &str) -> u32 {
-    let mut x = 0i32;
-    let mut y = 0i32;
+pub fn p1(i: &str) -> u16 {
+    let mut x = 0i16;
+    let mut y = 0i16;
     // boundary points, shoelace
     let (b, a) = i.行().fold((0, 0), |(b, a), i| {
         let d = unsafe { rint::<_, Dir>(C! { i[0] }) };
@@ -30,19 +30,20 @@ pub fn p1(i: &str) -> u32 {
             (C! { i[2] } - b'0') * 10 + C! { i[3] } - b'0'
         };
         let (ox, oy) = (x, y);
-        for _ in 0..c {
-            (x, y) = match d {
-                // y down
-                Dir::N => (x, y + 1),
-                Dir::E => (x + 1, y),
-                Dir::S => (x, y - 1),
-                Dir::W => (x - 1, y),
-            };
-        }
-        (b + c as u32, a + ((x + ox) * (y - oy)))
+        (x, y) = match d {
+            // y down
+            Dir::N => (x, y + c as i16),
+            Dir::E => (x + c as i16, y),
+            Dir::S => (x, y - c as i16),
+            Dir::W => (x - c as i16, y),
+        };
+        (
+            b + c as u16,
+            a + ((x as i32 + ox as i32) * (y as i32 - oy as i32)),
+        )
     });
     // use shoelace formula to get the area, then use picks formula to count the number of inner points
-    ((a.abs() / 2) as u32) + (1 + b / 2)
+    ((a.abs() / 2) as u16) + (1 + b / 2)
 }
 
 pub fn p2(i: &str) -> u64 {
@@ -57,7 +58,7 @@ pub fn p2(i: &str) -> u64 {
             }
             .as_ptr() as *const [u8; 6])
         };
-        let c = unsafe { 読む::hex(&dat[0..5]).unwrap_unchecked() };
+        let c = 読む::hex5(dat[0..5].try_into().unwrap());
         let (ox, oy) = (x, y);
         for _ in 0..c {
             let d = 読む::hex_dig(dat[5]);
