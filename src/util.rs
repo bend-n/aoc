@@ -166,10 +166,10 @@ pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Dir {
-    N,
-    E,
-    S,
-    W,
+    N = b'U',
+    E = b'R',
+    S = b'D',
+    W = b'L',
 }
 
 pub struct LMap<K, V, F>(HashMap<K, V>, F)
@@ -280,6 +280,31 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>
     dang!()
 }
 
+impl std::ops::Add<(i32, i32)> for Dir {
+    type Output = (i32, i32);
+    fn add(self, (x, y): (i32, i32)) -> Self::Output {
+        match self {
+            Dir::N => (x, y - 1),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x - 1, y),
+        }
+    }
+}
+
+impl std::ops::Add<(u16, u16)> for Dir {
+    type Output = (u16, u16);
+
+    fn add(self, (x, y): (u16, u16)) -> Self::Output {
+        match self {
+            Dir::N => (x, y - 1),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x - 1, y),
+        }
+    }
+}
+
 impl std::ops::Add<(i16, i16)> for Dir {
     type Output = (i16, i16);
     fn add(self, (x, y): (i16, i16)) -> Self::Output {
@@ -345,7 +370,14 @@ impl Λ for String {
         self.as_str().λ()
     }
 }
-
+impl Λ for &[u8] {
+    fn λ<T: FromStr>(&self) -> T
+    where
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        std::str::from_utf8(self).α().λ()
+    }
+}
 impl Λ for &str {
     /// parse, unwrap
     fn λ<T: FromStr>(&self) -> T
