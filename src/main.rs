@@ -43,10 +43,10 @@ pub fn p1(i: &str) -> u16 {
         };
         b += c as u16;
         match d {
-            Dir::N => y = y + (c as i32),
-            Dir::E => a = a + (c as i32 * y),
-            Dir::S => y = y - (c as i32),
-            Dir::W => a = a - (c as i32 * y),
+            Dir::N => y += c as i32,
+            Dir::E => a += c as i32 * y,
+            Dir::S => y -= c as i32,
+            Dir::W => a -= c as i32 * y,
         }
     }
 
@@ -55,39 +55,33 @@ pub fn p1(i: &str) -> u16 {
 }
 
 pub fn p2(i: &str) -> u64 {
-    let mut x = 0i32;
-    let mut y = 0i32;
-    let (b, a) = i.行().fold((0, 0), |(b, a), i| {
-        let dat = unsafe {
-            &*(if C! { i[3] } == b' ' {
-                C! { &i[6..] }
-            } else {
-                C! { &i[7..] }
-            }
-            .as_ptr() as *const [u8; 6])
-        };
-        let c = 読む::hex5(dat[0..5].try_into().unwrap());
-        let (ox, oy) = (x, y);
-        for _ in 0..c {
-            let d = 読む::hex_dig(dat[5]);
-            (x, y) = mat!(d {
-                0 => (x + 1, y),
-                1 => (x, y - 1),
-                2 => (x - 1, y),
-                3 => (x, y + 1),
-            });
+    let mut y = 0;
+    let mut a = 0;
+    let mut b = 0;
+    let mut i = i.as_bytes();
+    loop {
+        let Ok(_) = i.by() else { break };
+        i.skip(2);
+        if unsafe { i.by().unwrap_unchecked() == b' ' } {
+            i.skip(2);
+        } else {
+            i.skip(3);
         }
-        (
-            b + c as u64,
-            a + ((x as i64 + ox as i64) * (y as i64 - oy as i64)),
-        )
-    });
-
-    ((a.abs() / 2) as u64) + (1 + b / 2)
+        let dat = unsafe { i.rd::<6>().unwrap_unchecked() };
+        _ = i.read(&mut [0; 2]);
+        let c = 読む::hex5(dat[0..5].try_into().unwrap());
+        const A: [i64; 4] = [1, 0, -1, 0];
+        const Y: [i64; 4] = [0, -1, 0, 1];
+        let d = dat[5] - b'0';
+        a += C! { A[d.nat()] } * c as i64 * y;
+        y += C! { Y[d.nat()] } * c as i64;
+        b += c as u64;
+    }
+    a.abs() as u64 + (1 + b / 2)
 }
 
 pub fn run(i: &str) -> impl Display {
-    p1(i)
+    p2(i)
 }
 
 fn main() {
