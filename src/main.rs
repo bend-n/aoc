@@ -73,12 +73,6 @@ impl Display for Then<'_> {
 }
 
 impl<'a> Then<'a> {
-    pub fn get<'b>(self, from: &'a [Workflow<'b>]) -> &'a Workflow<'b> {
-        mat!(self {
-            Then::Go(x) => from.iter().find(|w| w.name == x).α(),
-        })
-    }
-
     pub fn from(x: u8) -> Self {
         mat!(x {
             b'A' => Self::Accept,
@@ -152,7 +146,6 @@ impl<'a> Rule<'a> {
 }
 
 struct Workflow<'a> {
-    name: &'a [u8],
     rules: Box<[Rule<'a>]>,
 }
 
@@ -170,7 +163,7 @@ impl<'a> Workflow<'a> {
         dang!()
     }
 
-    fn new(name: &'a [u8], from: impl Iterator<Item = &'a [u8]>) -> Self {
+    fn new(from: impl Iterator<Item = &'a [u8]>) -> Self {
         let mut rules = vec![];
         for rule in from {
             if let &[b] = rule {
@@ -204,34 +197,32 @@ impl<'a> Workflow<'a> {
         }
         Self {
             rules: rules.into_boxed_slice(),
-            name,
         }
     }
 }
 
 pub fn p2(i: &str) -> u64 {
-    let mut workflows = vec![];
+    let mut workflows = HashMap::new();
     let mut i = i.行();
     for x in i.by_ref() {
         if x == b"" {
             break;
         }
         let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
-        let flow = Workflow::new(work, rules);
-        workflows.push(flow);
+        let flow = Workflow::new(rules);
+        workflows.insert(work, flow);
     }
     let mut s = 0;
     let h = Workflow {
-        name: b"",
         rules: Box::new([]),
     };
     util::iterg(
         (Then::Go(b"in"), [Ronge::from(1..=4001); 4]),
         &mut |(work, mut r): (Then<'_>, [Ronge; 4])| {
-            let work = match work {
+            let work = mat!(work {
                 Then::Reject => &h, // why are you like this
-                g => g.get(&workflows),
-            };
+                Then::Go(x) => &workflows[x],
+            });
             work.rules.iter().map(move |x| {
                 let mut r2 = r;
                 match x.condition {
@@ -264,7 +255,7 @@ pub fn run(i: &str) -> impl Display {
 }
 
 pub fn p1(i: &str) -> u32 {
-    let mut workflows = vec![];
+    let mut workflows = HashMap::new();
     let mut first = None;
     let mut i = i.行();
     for x in i.by_ref() {
@@ -272,11 +263,11 @@ pub fn p1(i: &str) -> u32 {
             break;
         }
         let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
-        let flow = Workflow::new(work, rules);
+        let flow = Workflow::new(rules);
         if work == b"in" {
             first = Some(flow)
         } else {
-            workflows.push(flow);
+            workflows.insert(work, flow);
         }
     }
     let first = first.unwrap();
@@ -295,7 +286,7 @@ pub fn p1(i: &str) -> u32 {
                         acc += a.iter().map(|&x| x as u32).sum::<u32>();
                         break;
                     }
-                    Then::Go(y) => w = workflows.iter().find(|x| x.name == y).α(),
+                    Then::Go(y) => w = &workflows[y],
                     Then::Reject => break,
                 }
             }
