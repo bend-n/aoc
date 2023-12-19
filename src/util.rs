@@ -5,6 +5,7 @@ use std::{
     fmt::{Debug, Display, Write},
     hash::Hash,
     mem::{swap, MaybeUninit},
+    ops::RangeInclusive,
     str::FromStr,
 };
 
@@ -206,6 +207,19 @@ where
             },
         }
     }
+}
+
+pub fn iterg<N: Debug + Copy, I: Iterator<Item = N>>(
+    start: N,
+    graph: &mut impl Fn(N) -> I,
+    end: &mut impl Fn(N) -> bool,
+    finally: &mut impl FnMut(N),
+) {
+    if end(start) {
+        finally(start);
+    } else {
+        graph(start).map(|x| iterg(x, graph, end, finally)).Θ();
+    };
 }
 
 pub fn show<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>, D: Display>(
@@ -464,6 +478,91 @@ impl Ͷ for u64 {
         (0..digits)
             .rev()
             .map(move |n| ((self / 10u64.pow(u32::from(n))) % 10) as u8)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
+pub struct Ronge {
+    pub begin: u16,
+    pub end: u16,
+}
+
+impl Debug for Ronge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}..{}", self.begin, self.end)
+    }
+}
+
+impl Display for Ronge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}..{}", self.begin, self.end)
+    }
+}
+
+impl From<RangeInclusive<u16>> for Ronge {
+    fn from(value: RangeInclusive<u16>) -> Self {
+        Self {
+            begin: *value.start(),
+            end: *value.end(),
+        }
+    }
+}
+
+impl PartialEq<RangeInclusive<u16>> for Ronge {
+    fn eq(&self, other: &RangeInclusive<u16>) -> bool {
+        self == &Self::from(other.clone())
+    }
+}
+
+impl Ronge {
+    pub fn len(self) -> u16 {
+        self.end - self.begin
+    }
+
+    /// push up
+    pub fn pushu(&mut self, to: u16) {
+        self.begin = self.begin.max(to);
+    }
+
+    /// push down
+    pub fn pushd(&mut self, to: u16) {
+        self.end = self.end.min(to);
+    }
+
+    pub fn intersect(self, with: Self) -> Self {
+        Self {
+            begin: self.begin.max(with.begin),
+            end: self.end.min(with.end),
+        }
+    }
+
+    pub fn news(&self, begin: u16) -> Self {
+        Self {
+            begin,
+            end: self.end,
+        }
+    }
+
+    pub fn newe(&self, end: u16) -> Self {
+        Self {
+            begin: self.begin,
+            end,
+        }
+    }
+
+    pub fn shrink(&mut self, with: Ronge) {
+        self.pushu(with.begin);
+        self.pushd(with.end);
+    }
+}
+
+impl IntoIterator for Ronge {
+    type Item = u16;
+
+    type IntoIter = std::ops::Range<u16>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.begin..self.end
     }
 }
 

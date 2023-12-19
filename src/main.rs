@@ -17,13 +17,24 @@
 extern crate test;
 pub mod util;
 pub use util::prelude::*;
+use util::Ronge;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum When {
     // m>N
-    Gt(What, u32),
-    Lt(What, u32),
+    Gt(What, u16),
+    Lt(What, u16),
     Always,
+}
+
+impl std::fmt::Display for When {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            When::Gt(a, b) => write!(f, "{a:?}>{b}"),
+            When::Lt(a, b) => write!(f, "{a:?}<{b}"),
+            When::Always => Ok(()),
+        }
+    }
 }
 
 impl When {
@@ -34,11 +45,7 @@ impl When {
         }
     }
 
-    fn considers(self, w: What) -> bool {
-        matches!(self, Self::Gt(y, _) | Self::Lt(y, _) if w == y) | (self == Self::Always)
-    }
-
-    fn test(self, w: u32) -> bool {
+    fn test(self, w: u16) -> bool {
         match self {
             Self::Gt(_, x) => w > x,
             Self::Lt(_, x) => w < x,
@@ -48,14 +55,30 @@ impl When {
 }
 
 #[repr(u8)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum Then<'a> {
     Go(&'a [u8]),
     Accept = b'A',
     Reject = b'R',
 }
 
+impl Display for Then<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Then::Go(x) => write!(f, "{}", x.p()),
+            Then::Accept => write!(f, "A"),
+            Then::Reject => write!(f, "R"),
+        }
+    }
+}
+
 impl<'a> Then<'a> {
+    pub fn get<'b>(self, from: &'a [Workflow<'b>]) -> &'a Workflow<'b> {
+        mat!(self {
+            Then::Go(x) => from.iter().find(|w| w.name == x).α(),
+        })
+    }
+
     pub fn from(x: u8) -> Self {
         mat!(x {
             b'A' => Self::Accept,
@@ -74,7 +97,7 @@ impl<'a> Then<'a> {
 
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, dead_code)]
 enum What {
     x = b'x',
     m = b'm',
@@ -83,7 +106,16 @@ enum What {
 }
 
 impl What {
-    pub fn select(self, [x, m, a, s]: [u32; 4]) -> u32 {
+    pub fn select<T>(self, [x, m, a, s]: [T; 4]) -> T {
+        match self {
+            What::x => x,
+            What::m => m,
+            What::a => a,
+            What::s => s,
+        }
+    }
+
+    pub fn select_mut<T>(self, [x, m, a, s]: &mut [T; 4]) -> &mut T {
         match self {
             What::x => x,
             What::m => m,
@@ -103,12 +135,18 @@ struct Rule<'a> {
     then: Then<'a>,
 }
 
+impl Display for Rule<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.condition, self.then)
+    }
+}
+
 impl<'a> Rule<'a> {
     fn takes(self) -> Option<What> {
         self.condition.accepts()
     }
 
-    fn consider(self, x: u32) -> Option<Then<'a>> {
+    fn consider(self, x: u16) -> Option<Then<'a>> {
         self.condition.test(x).then_some(self.then)
     }
 }
@@ -119,7 +157,7 @@ struct Workflow<'a> {
 }
 
 impl<'a> Workflow<'a> {
-    fn test(&self, x: [u32; 4]) -> Option<Then> {
+    fn test(&self, x: [u16; 4]) -> Option<Then> {
         for rule in &*self.rules {
             if let Some(x) = rule.takes().map(|y| y.select(x)) {
                 if let Some(x) = rule.consider(x) {
@@ -151,12 +189,12 @@ impl<'a> Workflow<'a> {
 
                 if let Some((&[x], y)) = cond.split_once(|&x| x == b'<') {
                     rules.push(Rule {
-                        condition: When::Lt(What::from(x), y.λ::<u32>()),
+                        condition: When::Lt(What::from(x), y.λ()),
                         then: Then::from2(then),
                     })
                 } else if let Some((&[x], y)) = cond.split_once(|&x| x == b'>') {
                     rules.push(Rule {
-                        condition: When::Gt(What::from(x), y.λ::<u32>()),
+                        condition: When::Gt(What::from(x), y.λ()),
                         then: Then::from2(then),
                     })
                 } else {
@@ -171,7 +209,61 @@ impl<'a> Workflow<'a> {
     }
 }
 
-pub fn run(i: &str) -> u32 {
+pub fn p2(i: &str) -> u64 {
+    let mut workflows = vec![];
+    let mut i = i.行();
+    for x in i.by_ref() {
+        if x == b"" {
+            break;
+        }
+        let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
+        let flow = Workflow::new(work, rules);
+        workflows.push(flow);
+    }
+    let mut s = 0;
+    let h = Workflow {
+        name: b"",
+        rules: Box::new([]),
+    };
+    util::iterg(
+        (Then::Go(b"in"), [Ronge::from(1..=4001); 4]),
+        &mut |(work, mut r): (Then<'_>, [Ronge; 4])| {
+            let work = match work {
+                Then::Reject => &h, // why are you like this
+                g => g.get(&workflows),
+            };
+            work.rules.iter().map(move |x| {
+                let mut r2 = r;
+                match x.condition {
+                    When::Gt(c, x) => {
+                        c.select_mut(&mut r2).begin = x + 1;
+                        c.select_mut(&mut r).end = x + 1;
+                    }
+                    When::Lt(c, x) => {
+                        c.select_mut(&mut r2).end = x;
+                        c.select_mut(&mut r).begin = x;
+                    }
+                    When::Always => (),
+                }
+                (x.then, r2)
+            })
+        },
+        &mut |(x, _)| x == Then::Accept,
+        &mut |(_, r)| {
+            s += r
+                .iter()
+                .map(|x| x.end.abs_diff(x.begin) as u64)
+                .product::<u64>()
+        },
+    );
+    s
+}
+
+pub fn run(i: &str) -> impl Display {
+    p2(i)
+}
+
+pub fn p1(i: &str) -> u32 {
     let mut workflows = vec![];
     let mut first = None;
     let mut i = i.行();
@@ -200,7 +292,7 @@ pub fn run(i: &str) -> u32 {
             if let Some(x) = w.test(a) {
                 match x {
                     Then::Accept => {
-                        acc += a.iter().copied().sum::<u32>();
+                        acc += a.iter().map(|&x| x as u32).sum::<u32>();
                         break;
                     }
                     Then::Go(y) => w = workflows.iter().find(|x| x.name == y).α(),
