@@ -474,12 +474,18 @@ pub trait Μ where
     fn μκ<T: FromStr>(self, d: char) -> impl Iterator<Item = (T, T)>
     where
         <T as FromStr>::Err: std::fmt::Display;
-    fn μ1<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
-    where
-        <T as FromStr>::Err: std::fmt::Display;
-    fn μ0<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
-    where
-        <T as FromStr>::Err: std::fmt::Display;
+
+    fn μ1(self, d: char) -> Self {
+        self.μ(d).1
+    }
+
+    fn μ0(self, d: char) -> Self {
+        self.μ(d).0
+    }
+
+    fn between(self, a: char, b: char) -> Self {
+        self.μ1(a).μ0(b)
+    }
 }
 
 impl Μ for &[u8] {
@@ -498,20 +504,6 @@ impl Μ for &[u8] {
         let (α, β) = self.μ(d);
         α.κ::<T>().zip(β.κ::<T>())
     }
-
-    fn μ1<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
-    where
-        <T as FromStr>::Err: std::fmt::Display,
-    {
-        self.μ(d).1.κ()
-    }
-
-    fn μ0<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
-    where
-        <T as FromStr>::Err: std::fmt::Display,
-    {
-        self.μ(d).0.κ()
-    }
 }
 
 impl Μ for &str {
@@ -526,20 +518,6 @@ impl Μ for &str {
     {
         let (α, β) = self.μ(d);
         α.κ::<T>().zip(β.κ::<T>())
-    }
-
-    fn μ1<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
-    where
-        <T as FromStr>::Err: std::fmt::Display,
-    {
-        self.μ(d).1.κ()
-    }
-
-    fn μ0<T: FromStr>(self, d: char) -> impl Iterator<Item = T>
-    where
-        <T as FromStr>::Err: std::fmt::Display,
-    {
-        self.μ(d).0.κ()
     }
 }
 

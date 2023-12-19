@@ -18,70 +18,198 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-pub fn p1(i: &str) -> u16 {
-    let mut y = 0i32;
-    let mut a = 0i32;
-    let mut b = 0u16;
-    let mut i = i.as_bytes();
-    loop {
-        let d = unsafe {
-            rint::<_, Dir>(match i.by() {
-                Ok(x) => x,
-                Err(_) => break,
-            })
-        };
-        let c = match unsafe { i.rd::<3>().unwrap_unchecked() } {
-            [_, b, b' '] => {
-                i = C! { &i[10..] };
-                b - b'0'
-            }
-            [_, a, b] => {
-                _ = i.read(&mut [0; 11]);
-                // i = C! { &i[11..] };
-                (a - b'0') * 10 + (b - b'0')
-            }
-        };
-        b += c as u16;
-        match d {
-            Dir::N => y += c as i32,
-            Dir::E => a += c as i32 * y,
-            Dir::S => y -= c as i32,
-            Dir::W => a -= c as i32 * y,
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum When {
+    // m>N
+    Gt(What, u32),
+    Lt(What, u32),
+    Always,
+}
+
+impl When {
+    fn accepts(self) -> Option<What> {
+        match self {
+            Self::Gt(y, _) | Self::Lt(y, _) => Some(y),
+            Self::Always => None,
         }
     }
 
-    // use shoelace formula to get the area, then use picks formula to count the number of inner points
-    a.abs() as u16 + (1 + b / 2)
+    fn considers(self, w: What) -> bool {
+        matches!(self, Self::Gt(y, _) | Self::Lt(y, _) if w == y) | (self == Self::Always)
+    }
+
+    fn test(self, w: u32) -> bool {
+        match self {
+            Self::Gt(_, x) => w > x,
+            Self::Lt(_, x) => w < x,
+            Self::Always => true,
+        }
+    }
 }
 
-pub fn p2(i: &str) -> u64 {
-    let mut y = 0;
-    let mut a = 0;
-    let mut b = 0;
-    let mut i = i.as_bytes();
-    loop {
-        let Ok(_) = i.by() else { break };
-        i.skip(2);
-        if unsafe { i.by().unwrap_unchecked() == b' ' } {
-            i.skip(2);
+#[repr(u8)]
+#[derive(Debug, Copy, Clone)]
+enum Then<'a> {
+    Go(&'a [u8]),
+    Accept = b'A',
+    Reject = b'R',
+}
+
+impl<'a> Then<'a> {
+    pub fn from(x: u8) -> Self {
+        mat!(x {
+            b'A' => Self::Accept,
+            b'R' => Self::Reject,
+        })
+    }
+
+    pub fn from2(x: &'a [u8]) -> Self {
+        if let &[x] = x {
+            Self::from(x)
         } else {
-            i.skip(3);
+            Self::Go(x)
         }
-        let dat = unsafe { i.rd::<6>().unwrap_unchecked() };
-        _ = i.read(&mut [0; 2]);
-        let c = 読む::hex5(dat[0..5].try_into().unwrap());
-        const A: [i64; 4] = [1, 0, -1, 0];
-        const Y: [i64; 4] = [0, -1, 0, 1];
-        let d = dat[5] - b'0';
-        a += C! { A[d.nat()] } * c as i64 * y;
-        y += C! { Y[d.nat()] } * c as i64;
-        b += c as u64;
     }
-    a.abs() as u64 + (1 + b / 2)
 }
 
-pub fn run(i: &str) -> impl Display {
-    p2(i)
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
+enum What {
+    x = b'x',
+    m = b'm',
+    a = b'a',
+    s = b's',
+}
+
+impl What {
+    pub fn select(self, [x, m, a, s]: [u32; 4]) -> u32 {
+        match self {
+            What::x => x,
+            What::m => m,
+            What::a => a,
+            What::s => s,
+        }
+    }
+
+    pub fn from(x: u8) -> Self {
+        unsafe { rint(x) }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+struct Rule<'a> {
+    condition: When,
+    then: Then<'a>,
+}
+
+impl<'a> Rule<'a> {
+    fn takes(self) -> Option<What> {
+        self.condition.accepts()
+    }
+
+    fn consider(self, x: u32) -> Option<Then<'a>> {
+        self.condition.test(x).then_some(self.then)
+    }
+}
+
+struct Workflow<'a> {
+    name: &'a [u8],
+    rules: Box<[Rule<'a>]>,
+}
+
+impl<'a> Workflow<'a> {
+    fn test(&self, x: [u32; 4]) -> Option<Then> {
+        for rule in &*self.rules {
+            if let Some(x) = rule.takes().map(|y| y.select(x)) {
+                if let Some(x) = rule.consider(x) {
+                    return Some(x);
+                }
+            } else {
+                return Some(rule.then);
+            }
+        }
+        dang!()
+    }
+
+    fn new(name: &'a [u8], from: impl Iterator<Item = &'a [u8]>) -> Self {
+        let mut rules = vec![];
+        for rule in from {
+            if let &[b] = rule {
+                rules.push(Rule {
+                    condition: When::Always,
+                    then: Then::from(b),
+                })
+            } else {
+                let Some((cond, then)) = rule.split_once(|&x| x == b':') else {
+                    rules.push(Rule {
+                        condition: When::Always,
+                        then: Then::from2(rule),
+                    });
+                    continue;
+                };
+
+                if let Some((&[x], y)) = cond.split_once(|&x| x == b'<') {
+                    rules.push(Rule {
+                        condition: When::Lt(What::from(x), y.λ::<u32>()),
+                        then: Then::from2(then),
+                    })
+                } else if let Some((&[x], y)) = cond.split_once(|&x| x == b'>') {
+                    rules.push(Rule {
+                        condition: When::Gt(What::from(x), y.λ::<u32>()),
+                        then: Then::from2(then),
+                    })
+                } else {
+                    shucks!()
+                }
+            }
+        }
+        Self {
+            rules: rules.into_boxed_slice(),
+            name,
+        }
+    }
+}
+
+pub fn run(i: &str) -> u32 {
+    let mut workflows = vec![];
+    let mut first = None;
+    let mut i = i.行();
+    for x in i.by_ref() {
+        if x == b"" {
+            break;
+        }
+        let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
+        let flow = Workflow::new(work, rules);
+        if work == b"in" {
+            first = Some(flow)
+        } else {
+            workflows.push(flow);
+        }
+    }
+    let first = first.unwrap();
+    let mut acc = 0;
+    for x in i {
+        let mut w = &first;
+        let a = x
+            .between('{', '}')
+            .split(|&x| x == b',')
+            .map(|x| x.μ1('=').λ())
+            .Ν();
+        loop {
+            if let Some(x) = w.test(a) {
+                match x {
+                    Then::Accept => {
+                        acc += a.iter().copied().sum::<u32>();
+                        break;
+                    }
+                    Then::Go(y) => w = workflows.iter().find(|x| x.name == y).α(),
+                    Then::Reject => break,
+                }
+            }
+        }
+    }
+    acc
 }
 
 fn main() {
