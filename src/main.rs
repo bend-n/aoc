@@ -16,6 +16,9 @@
 )]
 extern crate test;
 pub mod util;
+use std::time::Instant;
+
+use rayon::prelude::*;
 pub use util::prelude::*;
 use util::Ronge;
 
@@ -54,22 +57,61 @@ impl When {
     }
 }
 
+struct Hold<'a> {
+    names: [u16; 26 * 26 * 27],
+    flows: Vec<Workflow<'a>>,
+}
+
+impl<'a> std::ops::Index<&[u8]> for Hold<'a> {
+    type Output = Workflow<'a>;
+
+    fn index(&self, index: &[u8]) -> &Self::Output {
+        unsafe {
+            self.flows
+                .get_unchecked(self.names.get_unchecked(Self::hash(index).nat()).nat())
+        }
+    }
+}
+
+impl<'a> Hold<'a> {
+    fn start(&self) -> &Workflow<'a> {
+        unsafe { self.flows.get_unchecked(0) }
+    }
+
+    #[inline]
+    fn new() -> Self {
+        Self {
+            flows: vec![Workflow {
+                rules: Box::new([]),
+            }],
+            names: [0; 26 * 26 * 27],
+        }
+    }
+
+    fn hash(x: &[u8]) -> u16 {
+        mat!(x {
+            [a,b] => ((a - b'a').widen() * 26 + (b - b'a').widen()) * 27 + 26,
+            [a,b,c] => ((a - b'a').widen() * 26 + (b - b'a').widen()) * 27 + (c - b'a').widen(),
+        })
+    }
+
+    #[inline]
+    fn insert(&mut self, name: &[u8], flow: Workflow<'a>) {
+        if name == *b"in" {
+            C! { self.flows[0] = flow };
+            return;
+        }
+        self.flows.push(flow);
+        C! { self.names[Self::hash(&name).nat()] = self.flows.len() as u16 - 1 };
+    }
+}
+
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone)]
 enum Then<'a> {
     Go(&'a [u8]),
     Accept = b'A',
     Reject = b'R',
-}
-
-impl Display for Then<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Then::Go(x) => write!(f, "{}", x.p()),
-            Then::Accept => write!(f, "A"),
-            Then::Reject => write!(f, "R"),
-        }
-    }
 }
 
 impl<'a> Then<'a> {
@@ -123,16 +165,10 @@ impl What {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 struct Rule<'a> {
     condition: When,
     then: Then<'a>,
-}
-
-impl Display for Rule<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.condition, self.then)
-    }
 }
 
 impl<'a> Rule<'a> {
@@ -201,8 +237,61 @@ impl<'a> Workflow<'a> {
     }
 }
 
-pub fn p2(i: &str) -> u64 {
-    let mut workflows = HashMap::new();
+// pub fn p2(i: &str) -> u64 {
+//     let mut workflows = HashMap::new();
+//     let mut i = i.行();
+//     for x in i.by_ref() {
+//         if x == b"" {
+//             break;
+//         }
+//         let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
+//         let flow = Workflow::new(rules);
+//         workflows.insert(work, flow);
+//     }
+//     let mut s = 0;
+//     let h = Workflow {
+//         rules: Box::new([]),
+//     };
+//     util::iterg(
+//         (Then::Go(b"in"), [Ronge::from(1..=4001); 4]),
+//         &mut |(work, mut r): (Then<'_>, [Ronge; 4])| {
+//             let work = mat!(work {
+//                 Then::Reject => &h, // why are you like this
+//                 Then::Go(x) => &workflows[x],
+//             });
+//             work.rules.iter().map(move |x| {
+//                 let mut r2 = r;
+//                 match x.condition {
+//                     When::Gt(c, x) => {
+//                         c.select_mut(&mut r2).begin = x + 1;
+//                         c.select_mut(&mut r).end = x + 1;
+//                     }
+//                     When::Lt(c, x) => {
+//                         c.select_mut(&mut r2).end = x;
+//                         c.select_mut(&mut r).begin = x;
+//                     }
+//                     When::Always => (),
+//                 }
+//                 (x.then, r2)
+//             })
+//         },
+//         &mut |(x, _)| x == Then::Accept,
+//         &mut |(_, r)| {
+//             s += r
+//                 .iter()
+//                 .map(|x| x.end.abs_diff(x.begin) as u64)
+//                 .product::<u64>()
+//         },
+//     );
+//     s
+// }
+
+pub fn run(i: &str) -> impl Display {
+    p1(i)
+}
+
+pub fn p1(i: &str) -> u32 {
+    let mut workflows = Hold::new();
     let mut i = i.行();
     for x in i.by_ref() {
         if x == b"" {
@@ -212,68 +301,10 @@ pub fn p2(i: &str) -> u64 {
         let flow = Workflow::new(rules);
         workflows.insert(work, flow);
     }
-    let mut s = 0;
-    let h = Workflow {
-        rules: Box::new([]),
-    };
-    util::iterg(
-        (Then::Go(b"in"), [Ronge::from(1..=4001); 4]),
-        &mut |(work, mut r): (Then<'_>, [Ronge; 4])| {
-            let work = mat!(work {
-                Then::Reject => &h, // why are you like this
-                Then::Go(x) => &workflows[x],
-            });
-            work.rules.iter().map(move |x| {
-                let mut r2 = r;
-                match x.condition {
-                    When::Gt(c, x) => {
-                        c.select_mut(&mut r2).begin = x + 1;
-                        c.select_mut(&mut r).end = x + 1;
-                    }
-                    When::Lt(c, x) => {
-                        c.select_mut(&mut r2).end = x;
-                        c.select_mut(&mut r).begin = x;
-                    }
-                    When::Always => (),
-                }
-                (x.then, r2)
-            })
-        },
-        &mut |(x, _)| x == Then::Accept,
-        &mut |(_, r)| {
-            s += r
-                .iter()
-                .map(|x| x.end.abs_diff(x.begin) as u64)
-                .product::<u64>()
-        },
-    );
-    s
-}
 
-pub fn run(i: &str) -> impl Display {
-    p2(i)
-}
-
-pub fn p1(i: &str) -> u32 {
-    let mut workflows = HashMap::new();
-    let mut first = None;
-    let mut i = i.行();
-    for x in i.by_ref() {
-        if x == b"" {
-            break;
-        }
-        let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
-        let flow = Workflow::new(rules);
-        if work == b"in" {
-            first = Some(flow)
-        } else {
-            workflows.insert(work, flow);
-        }
-    }
-    let first = first.unwrap();
-    let mut acc = 0;
+    let mut sum = 0;
     for x in i {
-        let mut w = &first;
+        let mut w = workflows.start();
         let a = x
             .between('{', '}')
             .split(|&x| x == b',')
@@ -283,7 +314,7 @@ pub fn p1(i: &str) -> u32 {
             if let Some(x) = w.test(a) {
                 match x {
                     Then::Accept => {
-                        acc += a.iter().map(|&x| x as u32).sum::<u32>();
+                        sum += a.iter().map(|&x| x as u32).sum::<u32>();
                         break;
                     }
                     Then::Go(y) => w = &workflows[y],
@@ -292,7 +323,7 @@ pub fn p1(i: &str) -> u32 {
             }
         }
     }
-    acc
+    sum
 }
 
 fn main() {

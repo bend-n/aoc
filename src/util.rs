@@ -33,6 +33,10 @@ pub mod prelude {
 }
 
 macro_rules! C {
+    ($obj:ident.$what:ident$($tt:tt)+) => {{
+        let x = &mut $obj.$what;
+        C!( x$($tt)+ )
+    }};
     (&$buf:ident[$n:expr]) => {{
         #[allow(unused_unsafe)]
         unsafe {
