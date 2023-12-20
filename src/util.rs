@@ -1032,6 +1032,21 @@ impl std::fmt::Display for PrintU8s<'_> {
     }
 }
 
+impl Printable for [&[u8]] {
+    fn p(&self) -> impl std::fmt::Display {
+        struct PrintManyU8s<'a>(&'a [&'a [u8]]);
+        impl std::fmt::Display for PrintManyU8s<'_> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                for row in self.0 {
+                    write!(f, "{},", row.p())?;
+                }
+                Ok(())
+            }
+        }
+        PrintManyU8s(self)
+    }
+}
+
 impl Printable for [u8] {
     fn p(&self) -> impl std::fmt::Display {
         PrintU8s(self)

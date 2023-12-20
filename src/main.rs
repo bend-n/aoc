@@ -16,314 +16,161 @@
 )]
 extern crate test;
 pub mod util;
-use std::time::Instant;
 
-use rayon::prelude::*;
 pub use util::prelude::*;
-use util::Ronge;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum When {
-    // m>N
-    Gt(What, u16),
-    Lt(What, u16),
-    Always,
+#[derive(Eq, Debug, PartialEq)]
+enum ModuleT<'a> {
+    Flip(bool),
+    Cj(HashMap<&'a [u8], bool>),
+    Untyped,
 }
 
-impl std::fmt::Display for When {
+struct Module<'a> {
+    ty: ModuleT<'a>,
+    output: Box<[&'a [u8]]>,
+}
+
+fn signal(x: bool) -> &'static str {
+    if x {
+        "high"
+    } else {
+        "low"
+    }
+}
+
+impl std::fmt::Debug for Module<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            When::Gt(a, b) => write!(f, "{a:?}>{b}"),
-            When::Lt(a, b) => write!(f, "{a:?}<{b}"),
-            When::Always => Ok(()),
-        }
+        f.debug_struct("Module")
+            .field("ty", &self.ty)
+            .field("output", &self.output.p().to_string())
+            .finish()
     }
 }
 
-impl When {
-    fn accepts(self) -> Option<What> {
-        match self {
-            Self::Gt(y, _) | Self::Lt(y, _) => Some(y),
-            Self::Always => None,
-        }
-    }
-
-    fn test(self, w: u16) -> bool {
-        match self {
-            Self::Gt(_, x) => w > x,
-            Self::Lt(_, x) => w < x,
-            Self::Always => true,
-        }
-    }
-}
-
-struct Hold<'a> {
-    names: [u16; 26 * 26 * 27],
-    flows: Vec<Workflow<'a>>,
-}
-
-impl<'a> std::ops::Index<&[u8]> for Hold<'a> {
-    type Output = Workflow<'a>;
-
-    fn index(&self, index: &[u8]) -> &Self::Output {
-        unsafe {
-            self.flows
-                .get_unchecked(self.names.get_unchecked(Self::hash(index).nat()).nat())
-        }
-    }
-}
-
-impl<'a> Hold<'a> {
-    fn start(&self) -> &Workflow<'a> {
-        unsafe { self.flows.get_unchecked(0) }
-    }
-
-    #[inline]
-    fn new() -> Self {
-        Self {
-            flows: vec![Workflow {
-                rules: Box::new([]),
-            }],
-            names: [0; 26 * 26 * 27],
-        }
-    }
-
-    fn hash(x: &[u8]) -> u16 {
-        mat!(x {
-            [a,b] => ((a - b'a').widen() * 26 + (b - b'a').widen()) * 27 + 26,
-            [a,b,c] => ((a - b'a').widen() * 26 + (b - b'a').widen()) * 27 + (c - b'a').widen(),
-        })
-    }
-
-    #[inline]
-    fn insert(&mut self, name: &[u8], flow: Workflow<'a>) {
-        if name == *b"in" {
-            C! { self.flows[0] = flow };
-            return;
-        }
-        self.flows.push(flow);
-        C! { self.names[Self::hash(&name).nat()] = self.flows.len() as u16 - 1 };
-    }
-}
-
-#[repr(u8)]
-#[derive(Copy, Clone)]
-enum Then<'a> {
-    Go(&'a [u8]),
-    Accept = b'A',
-    Reject = b'R',
-}
-
-impl<'a> Then<'a> {
-    pub fn from(x: u8) -> Self {
-        mat!(x {
-            b'A' => Self::Accept,
-            b'R' => Self::Reject,
-        })
-    }
-
-    pub fn from2(x: &'a [u8]) -> Self {
-        if let &[x] = x {
-            Self::from(x)
-        } else {
-            Self::Go(x)
-        }
-    }
-}
-
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[allow(non_camel_case_types, dead_code)]
-enum What {
-    x = b'x',
-    m = b'm',
-    a = b'a',
-    s = b's',
-}
-
-impl What {
-    pub fn select<T>(self, [x, m, a, s]: [T; 4]) -> T {
-        match self {
-            What::x => x,
-            What::m => m,
-            What::a => a,
-            What::s => s,
-        }
-    }
-
-    pub fn select_mut<T>(self, [x, m, a, s]: &mut [T; 4]) -> &mut T {
-        match self {
-            What::x => x,
-            What::m => m,
-            What::a => a,
-            What::s => s,
-        }
-    }
-
-    pub fn from(x: u8) -> Self {
-        unsafe { rint(x) }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct Rule<'a> {
-    condition: When,
-    then: Then<'a>,
-}
-
-impl<'a> Rule<'a> {
-    fn takes(self) -> Option<What> {
-        self.condition.accepts()
-    }
-
-    fn consider(self, x: u16) -> Option<Then<'a>> {
-        self.condition.test(x).then_some(self.then)
-    }
-}
-
-struct Workflow<'a> {
-    rules: Box<[Rule<'a>]>,
-}
-
-impl<'a> Workflow<'a> {
-    fn test(&self, x: [u16; 4]) -> Option<Then> {
-        for rule in &*self.rules {
-            if let Some(x) = rule.takes().map(|y| y.select(x)) {
-                if let Some(x) = rule.consider(x) {
-                    return Some(x);
+impl<'a> Module<'a> {
+    pub fn pass<'b>(
+        &mut self,
+        myname: &'a [u8],
+        from: &[u8],
+        x: bool,
+        stack: &'b mut VecDeque<(&'a [u8], &'a [u8], bool)>,
+    ) {
+        match self.ty {
+            ModuleT::Flip(ref mut state) => {
+                if x {
+                    return;
                 }
+                *state = !*state;
+                for o in &*self.output {
+                    stack.push_back((myname, o, *state));
+                }
+            }
+            ModuleT::Cj(ref mut mem) => {
+                *mem.get_mut(from).unwrap() = x;
+                let s = !mem.values().all(|&x| x);
+                for o in &*self.output {
+                    stack.push_back((myname, o, s));
+                }
+            }
+            ModuleT::Untyped => {
+                for x in &*self.output {
+                    stack.push_back((myname, x, false));
+                }
+            }
+        }
+    }
+}
+
+pub fn run(i: &str) -> usize {
+    let i = i.行();
+
+    let mut modules = HashMap::new();
+    let mut rest = vec![];
+    i.map(|x| {
+        let (mut from, to) = std::str::from_utf8(x)
+            .unwrap()
+            .split_once("->")
+            .α()
+            .mr(|x| {
+                x.as_bytes()
+                    .split(|&x| x == b',')
+                    .map(|x| x.trim_ascii())
+                    .collect::<Box<_>>()
+            })
+            .ml(|x| x.as_bytes().trim_ascii());
+        match from[0] {
+            b'%' => {
+                from.skip(1);
+                modules.insert(
+                    from,
+                    Module {
+                        ty: ModuleT::Flip(false),
+                        output: to,
+                    },
+                );
+            }
+            b'&' => {
+                from.skip(1);
+                rest.push((from, to));
+                return;
+            }
+            _ => {
+                modules.insert(
+                    from,
+                    Module {
+                        ty: ModuleT::Untyped,
+                        output: to,
+                    },
+                );
+            }
+        };
+    })
+    .Θ();
+    let r = rest.clone();
+    for (name, output) in rest {
+        let mut inps: HashMap<&[u8], bool> = modules
+            .iter()
+            .filter(|(_, x)| x.output.contains(&name))
+            .map(|(x, _)| (*x, false))
+            .collect();
+        inps.extend(
+            r.iter()
+                .filter(|(x, _)| *x != name)
+                .filter(|(_, x)| x.contains(&name))
+                .map(|(x, _)| (*x, false)),
+        );
+        modules.insert(
+            name,
+            Module {
+                ty: ModuleT::Cj(inps),
+                output,
+            },
+        );
+    }
+
+    fn push(modules: &mut HashMap<&[u8], Module<'_>>) -> (usize, usize) {
+        let (mut lo, mut hi) = (0, 0);
+        let mut stack = VecDeque::new();
+        stack.push_back((&b"upstairs"[..], &b"broadcaster"[..], false));
+        while let Some((m, to, x)) = stack.pop_front() {
+            if x {
+                hi += 1
             } else {
-                return Some(rule.then);
+                lo += 1;
             }
+            if let Some(o) = modules.get_mut(to) {
+                o.pass(to, m, x, &mut stack)
+            };
         }
-        dang!()
+        (lo, hi)
     }
 
-    fn new(from: impl Iterator<Item = &'a [u8]>) -> Self {
-        let mut rules = vec![];
-        for rule in from {
-            if let &[b] = rule {
-                rules.push(Rule {
-                    condition: When::Always,
-                    then: Then::from(b),
-                })
-            } else {
-                let Some((cond, then)) = rule.split_once(|&x| x == b':') else {
-                    rules.push(Rule {
-                        condition: When::Always,
-                        then: Then::from2(rule),
-                    });
-                    continue;
-                };
-
-                if let Some((&[x], y)) = cond.split_once(|&x| x == b'<') {
-                    rules.push(Rule {
-                        condition: When::Lt(What::from(x), y.λ()),
-                        then: Then::from2(then),
-                    })
-                } else if let Some((&[x], y)) = cond.split_once(|&x| x == b'>') {
-                    rules.push(Rule {
-                        condition: When::Gt(What::from(x), y.λ()),
-                        then: Then::from2(then),
-                    })
-                } else {
-                    shucks!()
-                }
-            }
-        }
-        Self {
-            rules: rules.into_boxed_slice(),
-        }
-    }
-}
-
-// pub fn p2(i: &str) -> u64 {
-//     let mut workflows = HashMap::new();
-//     let mut i = i.行();
-//     for x in i.by_ref() {
-//         if x == b"" {
-//             break;
-//         }
-//         let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
-//         let flow = Workflow::new(rules);
-//         workflows.insert(work, flow);
-//     }
-//     let mut s = 0;
-//     let h = Workflow {
-//         rules: Box::new([]),
-//     };
-//     util::iterg(
-//         (Then::Go(b"in"), [Ronge::from(1..=4001); 4]),
-//         &mut |(work, mut r): (Then<'_>, [Ronge; 4])| {
-//             let work = mat!(work {
-//                 Then::Reject => &h, // why are you like this
-//                 Then::Go(x) => &workflows[x],
-//             });
-//             work.rules.iter().map(move |x| {
-//                 let mut r2 = r;
-//                 match x.condition {
-//                     When::Gt(c, x) => {
-//                         c.select_mut(&mut r2).begin = x + 1;
-//                         c.select_mut(&mut r).end = x + 1;
-//                     }
-//                     When::Lt(c, x) => {
-//                         c.select_mut(&mut r2).end = x;
-//                         c.select_mut(&mut r).begin = x;
-//                     }
-//                     When::Always => (),
-//                 }
-//                 (x.then, r2)
-//             })
-//         },
-//         &mut |(x, _)| x == Then::Accept,
-//         &mut |(_, r)| {
-//             s += r
-//                 .iter()
-//                 .map(|x| x.end.abs_diff(x.begin) as u64)
-//                 .product::<u64>()
-//         },
-//     );
-//     s
-// }
-
-pub fn run(i: &str) -> impl Display {
-    p1(i)
-}
-
-pub fn p1(i: &str) -> u32 {
-    let mut workflows = Hold::new();
-    let mut i = i.行();
-    for x in i.by_ref() {
-        if x == b"" {
-            break;
-        }
-        let (work, rules) = x.μ('{').mr(|x| x.μ0('}').split(|&x| x == b','));
-        let flow = Workflow::new(rules);
-        workflows.insert(work, flow);
-    }
-
-    let mut sum = 0;
-    for x in i {
-        let mut w = workflows.start();
-        let a = x
-            .between('{', '}')
-            .split(|&x| x == b',')
-            .map(|x| x.μ1('=').λ())
-            .Ν();
-        loop {
-            if let Some(x) = w.test(a) {
-                match x {
-                    Then::Accept => {
-                        sum += a.iter().map(|&x| x as u32).sum::<u32>();
-                        break;
-                    }
-                    Then::Go(y) => w = &workflows[y],
-                    Then::Reject => break,
-                }
-            }
-        }
-    }
-    sum
+    let (lo, hi) = (0..1000).fold((0, 0), |(lo, hi), _| {
+        let (lo2, hi2) = push(&mut modules);
+        (lo + lo2, hi + hi2)
+    });
+    lo * hi
 }
 
 fn main() {
