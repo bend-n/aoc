@@ -31,23 +31,6 @@ struct Module<'a> {
     output: Box<[&'a [u8]]>,
 }
 
-fn signal(x: bool) -> &'static str {
-    if x {
-        "high"
-    } else {
-        "low"
-    }
-}
-
-impl std::fmt::Debug for Module<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Module")
-            .field("ty", &self.ty)
-            .field("output", &self.output.p().to_string())
-            .finish()
-    }
-}
-
 impl<'a> Module<'a> {
     pub fn pass<'b>(
         &mut self,
@@ -82,30 +65,24 @@ impl<'a> Module<'a> {
     }
 }
 
-pub fn run(i: &str) -> u64 {
-    let i = i.行();
+fn split<'a>(
+    i: impl Iterator<Item = &'a [u8]>,
+) -> impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)> {
+    i.map(|mut x| {
+        let n = x.iter().position(|&x| x == b' ').unwrap();
+        let a = &x[..n];
+        x.skip(n + 4);
+        (a, x.split(|&x| x == b',').map(<[u8]>::trim_ascii))
+    })
+}
 
-    let mut from = HashMap::from([
-        (&b"xp"[..], None::<u64>),
-        (&b"fc"[..], None),
-        (&b"dd"[..], None),
-        (&b"fh"[..], None),
-    ]);
-
+fn parse<'a>(
+    i: impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)>,
+) -> HashMap<&'a [u8], Module<'a>> {
     let mut modules = HashMap::new();
     let mut rest = vec![];
-    i.map(|x| {
-        let (mut from, to) = std::str::from_utf8(x)
-            .unwrap()
-            .split_once("->")
-            .α()
-            .mr(|x| {
-                x.as_bytes()
-                    .split(|&x| x == b',')
-                    .map(|x| x.trim_ascii())
-                    .collect::<Box<_>>()
-            })
-            .ml(|x| x.as_bytes().trim_ascii());
+    i.map(|(mut from, to)| {
+        let to: Box<_> = to.collect();
         match from[0] {
             b'%' => {
                 from.skip(1);
@@ -155,13 +132,12 @@ pub fn run(i: &str) -> u64 {
             },
         );
     }
-    let mut lens = vec![];
-    fn push(
-        modules: &mut HashMap<&[u8], Module<'_>>,
-        root: &mut HashMap<&[u8], Option<u64>>,
-        lens: &mut Vec<u64>,
-        when: u64,
-    ) -> (usize, usize) {
+    modules
+}
+
+fn p1(i: &str) -> usize {
+    let mut modules = parse(split(i.行()));
+    fn push(modules: &mut HashMap<&[u8], Module<'_>>) -> (usize, usize) {
         let (mut lo, mut hi) = (0, 0);
         let mut stack = VecDeque::new();
         stack.push_back((&b"upstairs"[..], &b"broadcaster"[..], false));
@@ -171,10 +147,41 @@ pub fn run(i: &str) -> u64 {
             } else {
                 lo += 1;
             }
-            if !x && let Some(x) = root.get_mut(to) {
+            if let Some(o) = modules.get_mut(to) {
+                o.pass(to, m, x, &mut stack)
+            };
+        }
+        (lo, hi)
+    }
+
+    let (lo, hi) = (0..1000).fold((0, 0), |(lo, hi), _| {
+        let (lo2, hi2) = push(&mut modules);
+        (lo + lo2, hi + hi2)
+    });
+    lo * hi
+}
+
+fn p2(i: &str) -> u64 {
+    let mut modules = parse(split(i.行()));
+    let mut from = HashMap::from([
+        (&b"xp"[..], None::<u64>),
+        (&b"fc"[..], None),
+        (&b"dd"[..], None),
+        (&b"fh"[..], None),
+    ]);
+
+    let mut lens = vec![];
+    for when in 0.. {
+        let mut stack = VecDeque::new();
+        stack.push_back((&b"upstairs"[..], &b"broadcaster"[..], false));
+        while let Some((m, to, x)) = stack.pop_front() {
+            if !x && let Some(x) = from.get_mut(to) {
                 if let Some(y) = x {
                     lens.push(when - *y);
-                    root.remove(to);
+                    from.remove(to);
+                    if from.len() == 0 {
+                        return lens.iter().product();
+                    }
                 } else {
                     *x = Some(when);
                 }
@@ -183,13 +190,12 @@ pub fn run(i: &str) -> u64 {
                 o.pass(to, m, x, &mut stack)
             };
         }
-        (lo, hi)
     }
+    dang!()
+}
 
-    for x in 0..1000000 {
-        push(&mut modules, &mut from, &mut lens, x);
-    }
-    util::lcm(lens)
+pub fn run(i: &str) -> impl Display {
+    p1(i)
 }
 
 fn main() {
