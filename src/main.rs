@@ -17,27 +17,31 @@
 extern crate test;
 pub mod util;
 
+use std::mem::MaybeUninit;
+
+use arrayvec::ArrayVec;
 pub use util::prelude::*;
 
 #[derive(Eq, Debug, PartialEq)]
-enum ModuleT<'a> {
+enum ModuleT {
     Flip(bool),
-    Cj(HashMap<&'a [u8], bool>),
+    Cj(ArrayVec<(u16, bool), 11>),
     Untyped,
 }
 
-struct Module<'a> {
-    ty: ModuleT<'a>,
-    output: Box<[&'a [u8]]>,
+#[derive(Debug)]
+struct Module {
+    ty: ModuleT,
+    output: Box<[u16]>,
 }
 
-impl<'a> Module<'a> {
+impl Module {
     pub fn pass<'b>(
         &mut self,
-        myname: &'a [u8],
-        from: &[u8],
+        myname: u16,
+        from: u16,
         x: bool,
-        stack: &'b mut VecDeque<(&'a [u8], &'a [u8], bool)>,
+        stack: &'b mut VecDeque<(u16, u16, bool)>,
     ) {
         match self.ty {
             ModuleT::Flip(ref mut state) => {
@@ -45,19 +49,19 @@ impl<'a> Module<'a> {
                     return;
                 }
                 *state = !*state;
-                for o in &*self.output {
+                for &o in &*self.output {
                     stack.push_back((myname, o, *state));
                 }
             }
             ModuleT::Cj(ref mut mem) => {
-                *mem.get_mut(from).unwrap() = x;
-                let s = !mem.values().all(|&x| x);
-                for o in &*self.output {
+                mem.iter_mut().find(|(x, _)| x == &from).unwrap().1 = x;
+                let s = !mem.iter().all(|&(_, x)| x);
+                for &o in &*self.output {
                     stack.push_back((myname, o, s));
                 }
             }
             ModuleT::Untyped => {
-                for x in &*self.output {
+                for &x in &*self.output {
                     stack.push_back((myname, x, false));
                 }
             }
@@ -76,58 +80,108 @@ fn split<'a>(
     })
 }
 
-fn parse<'a>(
-    i: impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)>,
-) -> HashMap<&'a [u8], Module<'a>> {
-    let mut modules = HashMap::new();
+impl<'a, T> std::ops::IndexMut<u16> for Hold<T> {
+    fn index_mut(&mut self, index: u16) -> &mut Self::Output {
+        unsafe { self.names.get_unchecked_mut(index.nat()).assume_init_mut() }
+    }
+}
+
+impl<'a, T> std::ops::Index<u16> for Hold<T> {
+    type Output = T;
+    fn index(&self, index: u16) -> &Self::Output {
+        unsafe { self.names.get_unchecked(index.nat()).assume_init_ref() }
+    }
+}
+
+struct Hold<T> {
+    names: [MaybeUninit<T>; 26 * 26],
+}
+
+impl<'a, T> std::ops::IndexMut<&[u8]> for Hold<T> {
+    fn index_mut(&mut self, index: &[u8]) -> &mut Self::Output {
+        unsafe {
+            self.names
+                .get_unchecked_mut(hash(index).nat())
+                .assume_init_mut()
+        }
+    }
+}
+
+impl<'a, T> std::ops::Index<&[u8]> for Hold<T> {
+    type Output = T;
+
+    fn index(&self, index: &[u8]) -> &Self::Output {
+        unsafe {
+            self.names
+                .get_unchecked(hash(index).nat())
+                .assume_init_ref()
+        }
+    }
+}
+
+fn hash(x: &[u8]) -> u16 {
+    if let &[a, b] = x {
+        (a - b'a').widen() * 26 + (b - b'a').widen()
+    } else {
+        0
+    }
+}
+
+impl<T> Hold<T> {
+    #[inline]
+    fn new() -> Self {
+        Self {
+            names: [const { MaybeUninit::uninit() }; 26 * 26],
+        }
+    }
+
+    fn set(&mut self, index: u16, to: T) {
+        unsafe { self.names.get_unchecked_mut(index.nat()).write(to) };
+    }
+}
+
+fn parse<'a>(i: impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)>) -> Hold<Module> {
+    let mut modules = Hold::new();
+    let mut backwards = [const { vec![] }; 26 * 26];
     let mut rest = vec![];
     i.map(|(mut from, to)| {
-        let to: Box<_> = to.collect();
-        match from[0] {
+        let to: Box<[u16]> = to.map(hash).collect();
+        let t = match C! { from[0] } {
             b'%' => {
                 from.skip(1);
-                modules.insert(
-                    from,
-                    Module {
-                        ty: ModuleT::Flip(false),
-                        output: to,
-                    },
-                );
+                Some(ModuleT::Flip(false))
             }
             b'&' => {
                 from.skip(1);
-                rest.push((from, to));
-                return;
+                None
             }
-            _ => {
-                modules.insert(
-                    from,
-                    Module {
-                        ty: ModuleT::Untyped,
-                        output: to,
-                    },
-                );
-            }
+            _ => Some(ModuleT::Untyped),
         };
+        let f = hash(from);
+        for &elem in &*to {
+            let x = C! { &mut backwards[elem.nat()]};
+            if !x.contains(&f) {
+                x.push(f);
+            };
+        }
+
+        if let Some(ty) = t {
+            modules.set(f, Module { ty, output: to });
+        } else {
+            rest.push((f, to));
+        }
     })
     .Θ();
-    let r = rest.clone();
     for (name, output) in rest {
-        let mut inps: HashMap<&[u8], bool> = modules
-            .iter()
-            .filter(|(_, x)| x.output.contains(&name))
-            .map(|(x, _)| (*x, false))
-            .collect();
-        inps.extend(
-            r.iter()
-                .filter(|(x, _)| *x != name)
-                .filter(|(_, x)| x.contains(&name))
-                .map(|(x, _)| (*x, false)),
-        );
-        modules.insert(
+        modules.set(
             name,
             Module {
-                ty: ModuleT::Cj(inps),
+                ty: ModuleT::Cj(
+                    C! { backwards[name.nat()] }
+                        .iter()
+                        .map(|&x| (x, false))
+                        .collect(),
+                ),
                 output,
             },
         );
@@ -137,18 +191,18 @@ fn parse<'a>(
 
 fn p1(i: &str) -> usize {
     let mut modules = parse(split(i.行()));
-    fn push(modules: &mut HashMap<&[u8], Module<'_>>) -> (usize, usize) {
+    fn push(modules: &mut Hold<Module>) -> (usize, usize) {
         let (mut lo, mut hi) = (0, 0);
         let mut stack = VecDeque::new();
-        stack.push_back((&b"upstairs"[..], &b"broadcaster"[..], false));
+        stack.push_back((0, 0, false));
         while let Some((m, to, x)) = stack.pop_front() {
             if x {
                 hi += 1
             } else {
                 lo += 1;
             }
-            if let Some(o) = modules.get_mut(to) {
-                o.pass(to, m, x, &mut stack)
+            if to != hash(b"rx") {
+                modules[to].pass(to, m, x, &mut stack)
             };
         }
         (lo, hi)
@@ -164,21 +218,21 @@ fn p1(i: &str) -> usize {
 fn p2(i: &str) -> u64 {
     let mut modules = parse(split(i.行()));
     let mut from = HashMap::from([
-        (&b"xp"[..], None::<u64>),
-        (&b"fc"[..], None),
-        (&b"dd"[..], None),
-        (&b"fh"[..], None),
+        (hash(&b"xp"[..]), None::<u64>),
+        (hash(&b"fc"[..]), None),
+        (hash(&b"dd"[..]), None),
+        (hash(&b"fh"[..]), None),
     ]);
 
     let mut lens = vec![];
     for when in 0.. {
         let mut stack = VecDeque::new();
-        stack.push_back((&b"upstairs"[..], &b"broadcaster"[..], false));
+        stack.push_back((0, 0, false));
         while let Some((m, to, x)) = stack.pop_front() {
-            if !x && let Some(x) = from.get_mut(to) {
+            if !x && let Some(x) = from.get_mut(&to) {
                 if let Some(y) = x {
                     lens.push(when - *y);
-                    from.remove(to);
+                    from.remove(&to);
                     if from.len() == 0 {
                         return lens.iter().product();
                     }
@@ -186,8 +240,8 @@ fn p2(i: &str) -> u64 {
                     *x = Some(when);
                 }
             }
-            if let Some(o) = modules.get_mut(to) {
-                o.pass(to, m, x, &mut stack)
+            if to != hash(b"rx") {
+                modules[to].pass(to, m, x, &mut stack)
             };
         }
     }

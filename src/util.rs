@@ -46,7 +46,13 @@ macro_rules! C {
     ($buf:ident[$n:expr]) => {{
         #[allow(unused_unsafe)]
         unsafe {
-            *$buf.get_unchecked($n)
+            $buf.get_unchecked($n)
+        }
+    }};
+    (&mut $buf:ident[$n:expr]) => {{
+        #[allow(unused_unsafe)]
+        unsafe {
+            $buf.get_unchecked_mut($n)
         }
     }};
     ($buf:ident[$a:expr] = $rbuf:ident[$b:expr]) => {
@@ -1032,17 +1038,29 @@ impl std::fmt::Display for PrintU8s<'_> {
     }
 }
 
+struct PrintManyU8s<'a, T: AsRef<[u8]>>(&'a [T]);
+impl<T: AsRef<[u8]>> std::fmt::Display for PrintManyU8s<'_, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in self.0.as_ref() {
+            write!(f, "{},", row.as_ref().p())?;
+        }
+        Ok(())
+    }
+}
+impl Printable for [Vec<u8>] {
+    fn p(&self) -> impl std::fmt::Display {
+        PrintManyU8s(self)
+    }
+}
+
+impl Printable for [&&[u8]] {
+    fn p(&self) -> impl std::fmt::Display {
+        PrintManyU8s(self)
+    }
+}
+
 impl Printable for [&[u8]] {
     fn p(&self) -> impl std::fmt::Display {
-        struct PrintManyU8s<'a>(&'a [&'a [u8]]);
-        impl std::fmt::Display for PrintManyU8s<'_> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                for row in self.0 {
-                    write!(f, "{},", row.p())?;
-                }
-                Ok(())
-            }
-        }
         PrintManyU8s(self)
     }
 }
