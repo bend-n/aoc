@@ -82,8 +82,15 @@ impl<'a> Module<'a> {
     }
 }
 
-pub fn run(i: &str) -> usize {
+pub fn run(i: &str) -> u64 {
     let i = i.行();
+
+    let mut from = HashMap::from([
+        (&b"xp"[..], None::<u64>),
+        (&b"fc"[..], None),
+        (&b"dd"[..], None),
+        (&b"fh"[..], None),
+    ]);
 
     let mut modules = HashMap::new();
     let mut rest = vec![];
@@ -148,8 +155,13 @@ pub fn run(i: &str) -> usize {
             },
         );
     }
-
-    fn push(modules: &mut HashMap<&[u8], Module<'_>>) -> (usize, usize) {
+    let mut lens = vec![];
+    fn push(
+        modules: &mut HashMap<&[u8], Module<'_>>,
+        root: &mut HashMap<&[u8], Option<u64>>,
+        lens: &mut Vec<u64>,
+        when: u64,
+    ) -> (usize, usize) {
         let (mut lo, mut hi) = (0, 0);
         let mut stack = VecDeque::new();
         stack.push_back((&b"upstairs"[..], &b"broadcaster"[..], false));
@@ -159,6 +171,14 @@ pub fn run(i: &str) -> usize {
             } else {
                 lo += 1;
             }
+            if !x && let Some(x) = root.get_mut(to) {
+                if let Some(y) = x {
+                    lens.push(when - *y);
+                    root.remove(to);
+                } else {
+                    *x = Some(when);
+                }
+            }
             if let Some(o) = modules.get_mut(to) {
                 o.pass(to, m, x, &mut stack)
             };
@@ -166,11 +186,10 @@ pub fn run(i: &str) -> usize {
         (lo, hi)
     }
 
-    let (lo, hi) = (0..1000).fold((0, 0), |(lo, hi), _| {
-        let (lo2, hi2) = push(&mut modules);
-        (lo + lo2, hi + hi2)
-    });
-    lo * hi
+    for x in 0..1000000 {
+        push(&mut modules, &mut from, &mut lens, x);
+    }
+    util::lcm(lens)
 }
 
 fn main() {
