@@ -18,40 +18,83 @@
 extern crate test;
 pub mod util;
 
-use std::mem::MaybeUninit;
-
 pub use util::prelude::*;
 
 pub fn p2(i: &str) -> usize {
     let i = i.as_bytes();
-    // RNG src
-    let mut map: HashSet<(i64, i64)> = HashSet::from_iter([(65, 65)]);
-    let mut p = MaybeUninit::uninit_array::<3>();
-    let mut n = 0;
-    for s in 0..328u64 {
-        if s % 131 == 65 {
-            p[n].write(map.len());
-            n += 1;
+    let mut visited = HashMap::new();
+    let mut q = VecDeque::new();
+    q.push_back((65i64, 65i64, 0u64));
+    while let Some((x, y, g)) = q.pop_front() {
+        match visited.entry((x, y)) {
+            Entry::Occupied(_) => continue,
+            Entry::Vacant(x) => x.insert(g),
+        };
+
+        for (x, y, d) in [
+            Dir::N + (x, y),
+            Dir::E + (x, y),
+            Dir::S + (x, y),
+            Dir::W + (x, y),
+        ]
+        .into_iter()
+        .filter(|&(x, _)| x < 131 && x >= 0)
+        .filter(|&(_, y)| y < 131 && y >= 0)
+        .filter(|&(x, y)| C! { i[y as usize * 132 + x as usize] } != b'#')
+        .map(move |(x, y)| (x, y, g + 1))
+        {
+            q.push_back((x, y, d));
         }
-        map = [Dir::N, Dir::E, Dir::S, Dir::W]
-            .into_iter()
-            .flat_map(|x| map.iter().map(move |&y| x + y))
-            .filter(|&(x, y)| {
-                i[y.rem_euclid(131) as usize * 132 + x.rem_euclid(131) as usize] != b'#'
-            })
-            .collect();
     }
-    let n = 26501365 / 131;
-    let [a, b, c]: [usize; 3] = unsafe { rint(p) };
-    a + n * (b - a) + n * (n - 1) / 2 * ((c - b) - (b - a))
+    let mut even_corners = 0;
+    let mut odd_corners = 0;
+    let mut odd_all = 0;
+    let mut even_all = 0;
+    for &v in visited.values() {
+        if v % 2 == 0 {
+            if v > 65 {
+                even_corners += 1;
+            }
+            even_all += 1;
+        } else {
+            if v > 65 {
+                odd_corners += 1;
+            }
+            odd_all += 1;
+        }
+    }
+
+    let n = 202300;
+
+    let even = n * n;
+    let odd = (n + 1) * (n + 1);
+
+    odd * odd_all + even * even_all - ((n + 1) * odd_corners) + (n * even_corners)
 }
 
 pub fn p1(i: &str) -> usize {
-    let i = i.行().collect_vec();
-    let i = i.as_slice();
+    let i = i.as_bytes();
     let mut n = 0;
     let (x, y) = (65u8, 65u8);
-    util::countg(
+    pub fn countg<I: Iterator<Item = (u8, u8, u8)>>(
+        start: (u8, u8, u8),
+        graph: &mut impl Fn((u8, u8, u8)) -> I,
+        sum: &mut usize,
+        has: &mut HashSet<(u8, u8, u8)>,
+    ) {
+        if start.2 == 64 {
+            *sum += 1;
+        } else {
+            graph(start)
+                .map(|n| {
+                    if has.insert(n) {
+                        countg(n, graph, sum, has);
+                    }
+                })
+                .Θ();
+        }
+    }
+    countg(
         (x, y, 0),
         &mut |(x, y, n)| {
             [
@@ -64,11 +107,10 @@ pub fn p1(i: &str) -> usize {
             .flatten()
             .filter(|&(x, _)| x < i.len() as u8)
             .filter(|&(_, y)| y < i.len() as u8)
-            .filter(|(x, y)| i[y.nat()][x.nat()] != b'#')
+            .filter(|&(x, y)| C! { i[y.nat() * 132 + x.nat()] } != b'#')
             .map(move |(x, y)| (x, y, n + 1))
         },
         &mut n,
-        &mut |(_, _, n)| n == 64,
         &mut HashSet::new(),
     );
     n
