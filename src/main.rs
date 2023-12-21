@@ -22,13 +22,29 @@ pub use util::prelude::*;
 
 pub fn p2(i: &str) -> usize {
     let i = i.as_bytes();
-    let mut visited = HashMap::new();
+    let mut visited = HashSet::new();
     let mut q = VecDeque::new();
-    q.push_back((65i64, 65i64, 0u64));
+    q.push_back((65u8, 65u8, 0u8));
+    let mut even_corners = 0;
+    let mut odd_corners = 0;
+    let mut odd_all = 0;
+    let mut even_all = 0;
     while let Some((x, y, g)) = q.pop_front() {
-        match visited.entry((x, y)) {
-            Entry::Occupied(_) => continue,
-            Entry::Vacant(x) => x.insert(g),
+        match visited.insert((x, y)) {
+            false => continue,
+            true => {
+                if g % 2 == 0 {
+                    if g > 65 {
+                        even_corners += 1;
+                    }
+                    even_all += 1;
+                } else {
+                    if g > 65 {
+                        odd_corners += 1;
+                    }
+                    odd_all += 1;
+                }
+            }
         };
 
         for (x, y, d) in [
@@ -38,29 +54,13 @@ pub fn p2(i: &str) -> usize {
             Dir::W + (x, y),
         ]
         .into_iter()
-        .filter(|&(x, _)| x < 131 && x >= 0)
-        .filter(|&(_, y)| y < 131 && y >= 0)
+        .flatten()
+        .filter(|&(x, _)| x < 131)
+        .filter(|&(_, y)| y < 131)
         .filter(|&(x, y)| C! { i[y as usize * 132 + x as usize] } != b'#')
-        .map(move |(x, y)| (x, y, g + 1))
+        .map(move |(x, y)| (x as u8, y as u8, g + 1))
         {
             q.push_back((x, y, d));
-        }
-    }
-    let mut even_corners = 0;
-    let mut odd_corners = 0;
-    let mut odd_all = 0;
-    let mut even_all = 0;
-    for &v in visited.values() {
-        if v % 2 == 0 {
-            if v > 65 {
-                even_corners += 1;
-            }
-            even_all += 1;
-        } else {
-            if v > 65 {
-                odd_corners += 1;
-            }
-            odd_all += 1;
         }
     }
 
