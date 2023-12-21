@@ -17,281 +17,43 @@
 extern crate test;
 pub mod util;
 
-use std::mem::MaybeUninit;
-
-use arrayvec::ArrayVec;
 pub use util::prelude::*;
 
-#[derive(Eq, Debug, PartialEq)]
-enum ModuleT {
-    Flip(bool),
-    Cj(ArrayVec<(u16, bool), 11>),
-    Untyped,
-}
-
-#[derive(Debug)]
-struct Module {
-    ty: ModuleT,
-    output: Box<[u16]>,
-}
-
-impl Module {
-    pub fn pass<'b>(
-        &mut self,
-        myname: u16,
-        from: u16,
-        x: bool,
-        stack: &'b mut VecDeque<(u16, u16, bool)>,
-    ) {
-        match self.ty {
-            ModuleT::Flip(ref mut state) => {
-                if x {
-                    return;
-                }
-                *state = !*state;
-                for &o in &*self.output {
-                    stack.push_back((myname, o, *state));
-                }
-            }
-            ModuleT::Cj(ref mut mem) => {
-                mem.iter_mut().find(|(x, _)| x == &from).unwrap().1 = x;
-                let s = !mem.iter().all(|&(_, x)| x);
-                for &o in &*self.output {
-                    stack.push_back((myname, o, s));
-                }
-            }
-            ModuleT::Untyped => {
-                for &x in &*self.output {
-                    stack.push_back((myname, x, false));
-                }
-            }
+pub fn search(i: &[&[u8]]) -> (u8, u8) {
+    for (row, y) in i.iter().ι::<u8>() {
+        if let Some((_, x)) = row.iter().ι::<u8>().find(|&(&x, _)| x == b'S') {
+            return (x, y);
         }
     }
-}
-
-fn split<'a>(
-    i: impl Iterator<Item = &'a [u8]>,
-) -> impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)> {
-    i.map(|mut x| {
-        let n = x.iter().position(|&x| x == b' ').unwrap();
-        let a = &x[..n];
-        x.skip(n + 4);
-        (a, x.split(|&x| x == b',').map(<[u8]>::trim_ascii))
-    })
-}
-
-impl<'a, T> std::ops::IndexMut<u16> for Hold<T> {
-    fn index_mut(&mut self, index: u16) -> &mut Self::Output {
-        unsafe { self.names.get_unchecked_mut(index.nat()).assume_init_mut() }
-    }
-}
-
-impl<'a, T> std::ops::Index<u16> for Hold<T> {
-    type Output = T;
-    fn index(&self, index: u16) -> &Self::Output {
-        unsafe { self.names.get_unchecked(index.nat()).assume_init_ref() }
-    }
-}
-
-struct Hold<T> {
-    names: [MaybeUninit<T>; 26 * 26],
-}
-
-impl<'a, T> std::ops::IndexMut<&[u8]> for Hold<T> {
-    fn index_mut(&mut self, index: &[u8]) -> &mut Self::Output {
-        unsafe {
-            self.names
-                .get_unchecked_mut(hash(index).nat())
-                .assume_init_mut()
-        }
-    }
-}
-
-impl<'a, T> std::ops::Index<&[u8]> for Hold<T> {
-    type Output = T;
-
-    fn index(&self, index: &[u8]) -> &Self::Output {
-        unsafe {
-            self.names
-                .get_unchecked(hash(index).nat())
-                .assume_init_ref()
-        }
-    }
-}
-
-fn hash(x: &[u8]) -> u16 {
-    println!("{}", x.p());
-    if let &[a, b] = x {
-        (a - b'a').widen() * 26 + (b - b'a').widen()
-    } else {
-        0
-    }
-}
-
-impl<T> Hold<T> {
-    #[inline]
-    fn new() -> Self {
-        Self {
-            names: [const { MaybeUninit::uninit() }; 26 * 26],
-        }
-    }
-
-    fn set(&mut self, index: u16, to: T) {
-        unsafe { self.names.get_unchecked_mut(index.nat()).write(to) };
-    }
-}
-
-fn parse<'a>(i: impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)>) -> Hold<Module> {
-    let mut modules = Hold::new();
-    let mut backwards = [const { vec![] }; 26 * 26];
-    let mut rest = vec![];
-    i.map(|(mut from, to)| {
-        let to: Box<[u16]> = to.map(hash).collect();
-        let t = match C! { from[0] } {
-            b'%' => {
-                from.skip(1);
-                Some(ModuleT::Flip(false))
-            }
-            b'&' => {
-                from.skip(1);
-                None
-            }
-            _ => Some(ModuleT::Untyped),
-        };
-        let f = hash(from);
-        for &elem in &*to {
-            let x = C! { &mut backwards[elem.nat()]};
-            if !x.contains(&f) {
-                x.push(f);
-            };
-        }
-
-        if let Some(ty) = t {
-            modules.set(f, Module { ty, output: to });
-        } else {
-            rest.push((f, to));
-        }
-    })
-    .Θ();
-    for (name, output) in rest {
-        modules.set(
-            name,
-            Module {
-                ty: ModuleT::Cj(
-                    C! { &backwards[name.nat()] }
-                        .iter()
-                        .map(|&x| (x, false))
-                        .collect(),
-                ),
-                output,
-            },
-        );
-    }
-    modules
-}
-
-fn p1(i: &str) -> usize {
-    let mut modules = parse(split(i.行()));
-    fn push(modules: &mut Hold<Module>) -> (usize, usize) {
-        let (mut lo, mut hi) = (0, 0);
-        let mut stack = VecDeque::new();
-        stack.push_back((0, 0, false));
-        while let Some((m, to, x)) = stack.pop_front() {
-            if x {
-                hi += 1
-            } else {
-                lo += 1;
-            }
-            if to != hash(b"rx") {
-                modules[to].pass(to, m, x, &mut stack)
-            };
-        }
-        (lo, hi)
-    }
-
-    let (lo, hi) = (0..1000).fold((0, 0), |(lo, hi), _| {
-        let (lo2, hi2) = push(&mut modules);
-        (lo + lo2, hi + hi2)
-    });
-    lo * hi
-}
-
-fn p(x: [u8; 2]) -> [u8; 2] {
-    println!("{}", x.p());
-    x
-}
-
-fn p2(i: &str) -> u64 {
-    let mut broadcast = [0; 4];
-    let mut flip = [(u16::MAX, u16::MAX); 26 * 26];
-    let mut i = i.as_bytes();
-    while i.len() > 1 {
-        println!("it");
-        match i.by().ψ() {
-            b'%' => {
-                let from = hash(&i.rd::<2>().ψ());
-                i.skip(4);
-                let first = hash(&i.rd::<2>().ψ());
-                let second = if i.get(0).is_some_and(|&x| x != b'\n') {
-                    i.skip(2);
-                    let second = hash(&i.rd::<2>().ψ());
-                    second
-                } else {
-                    u16::MAX
-                };
-                _ = i.read(&mut [0]);
-                C! { flip[from.nat()] = (first, second) };
-            }
-            b'b' => {
-                println!("bro");
-                i.skip(14);
-                let a = hash(&i.rd::<2>().ψ());
-                i.skip(2);
-                let b = hash(&i.rd::<2>().ψ());
-                i.skip(2);
-                let c = hash(&i.rd::<2>().ψ());
-                i.skip(2);
-                let d = hash(&i.rd::<2>().ψ());
-                broadcast = [a, b, c, d];
-            }
-            _ => {
-                i.take_line();
-            }
-        };
-    }
-
-    fn quadrant(start: u16, flops: &[(u16, u16); 26 * 26]) -> u64 {
-        let mut period = (1 << 11) | 1;
-        let mut outputs = C! { flops[start.nat()] };
-        let mut i = 1;
-        loop {
-            let first = C! { flops[outputs.0.nat()] };
-            outputs = if first.0 == u16::MAX {
-                if outputs.1 == u16::MAX {
-                    return period;
-                }
-                C! { flops[outputs.1.nat()] }
-            } else {
-                first
-            };
-            if outputs.1 != u16::MAX {
-                bits!(period + i);
-            }
-            i += 1;
-        }
-    }
-    [
-        quadrant(broadcast[0], &flip),
-        quadrant(broadcast[1], &flip),
-        quadrant(broadcast[2], &flip),
-        quadrant(broadcast[3], &flip),
-    ]
-    .iter()
-    .product()
+    dang!();
 }
 
 pub fn run(i: &str) -> impl Display {
-    p2(i)
+    let i = i.行().collect_vec();
+    let i = i.as_slice();
+    let mut n = 0;
+    let (x, y) = search(i);
+    util::countg(
+        (x, y, 0),
+        &mut |(x, y, n)| {
+            [
+                Dir::N + (x, y),
+                Dir::E + (x, y),
+                Dir::S + (x, y),
+                Dir::W + (x, y),
+            ]
+            .into_iter()
+            .flatten()
+            .filter(|&(x, _)| x < i.len() as u8)
+            .filter(|&(_, y)| y < i.len() as u8)
+            .filter(|(x, y)| i[y.nat()][x.nat()] != b'#')
+            .map(move |(x, y)| (x, y, n + 1))
+        },
+        &mut n,
+        &mut |(_, _, n)| n == 64,
+        &mut HashSet::new(),
+    );
+    n
 }
 
 fn main() {

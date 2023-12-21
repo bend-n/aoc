@@ -242,6 +242,26 @@ where
     }
 }
 
+pub fn countg<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
+    start: N,
+    graph: &mut impl Fn(N) -> I,
+    sum: &mut usize,
+    end: &mut impl Fn(N) -> bool,
+    has: &mut HashSet<N>,
+) {
+    if end(start) {
+        *sum += 1;
+    } else {
+        graph(start)
+            .map(|x| {
+                if has.insert(x) {
+                    countg(x, graph, sum, end, has);
+                }
+            })
+            .Θ();
+    }
+}
+
 pub fn iterg<N: Debug + Copy, I: Iterator<Item = N>>(
     start: N,
     graph: &mut impl Fn(N) -> I,
