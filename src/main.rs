@@ -74,30 +74,14 @@ pub fn p2(i: &str) -> usize {
 
 pub fn p1(i: &str) -> usize {
     let i = i.as_bytes();
-    let mut n = 0;
-    let (x, y) = (65u8, 65u8);
-    pub fn countg<I: Iterator<Item = (u8, u8, u8)>>(
-        start: (u8, u8, u8),
-        graph: &mut impl Fn((u8, u8, u8)) -> I,
-        sum: &mut usize,
-        has: &mut HashSet<(u8, u8, u8)>,
-    ) {
-        if start.2 == 64 {
-            *sum += 1;
-        } else {
-            graph(start)
-                .map(|n| {
-                    if has.insert(n) {
-                        countg(n, graph, sum, has);
-                    }
-                })
-                .Θ();
-        }
-    }
-    countg(
-        (x, y, 0),
-        &mut |(x, y, n)| {
-            [
+    let mut state = vec![false; i.len() * 2];
+    let mut q = VecDeque::with_capacity(4096);
+    q.push_back((65u8, 65u8));
+    for step in 1..65 {
+        let is_odd = (step - 1) % 2;
+        for _ in 0..q.len() {
+            let (x, y) = q.pop_front().unwrap();
+            for (x, y) in [
                 Dir::N + (x, y),
                 Dir::E + (x, y),
                 Dir::S + (x, y),
@@ -105,19 +89,23 @@ pub fn p1(i: &str) -> usize {
             ]
             .into_iter()
             .flatten()
-            .filter(|&(x, _)| x < i.len() as u8)
-            .filter(|&(_, y)| y < i.len() as u8)
-            .filter(|&(x, y)| C! { i[y.nat() * 132 + x.nat()] } != b'#')
-            .map(move |(x, y)| (x, y, n + 1))
-        },
-        &mut n,
-        &mut HashSet::new(),
-    );
-    n
+            .filter(|&(x, _)| x < 131)
+            .filter(|&(_, y)| y < 131)
+            .filter(|&(x, y)| i[x.nat() * 132 + y.nat()] != b'#')
+            {
+                let cache_key = is_odd * i.len() + x.nat() * 132 + y.nat();
+                if !state[cache_key] {
+                    state[cache_key] = true;
+                    q.push_back((x, y));
+                }
+            }
+        }
+    }
+    state[i.len()..].iter().copied().filter(|&x| x).count()
 }
 
 pub fn run(i: &str) -> impl Display {
-    p2(i)
+    p1(i)
 }
 
 fn main() {
