@@ -15,7 +15,7 @@ pub mod prelude {
     pub use super::{
         even, gcd, lcm, pa, Dir, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
         ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3, TupleUtils,
-        UnifiedTupleUtils, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
+        UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -45,7 +45,7 @@ macro_rules! C {
     }};
     ($buf:ident[$n:expr]) => {{
         #[allow(unused_unsafe)]
-        unsafe {
+        *unsafe {
             $buf.get_unchecked($n)
         }
     }};
@@ -191,6 +191,29 @@ pub enum Dir {
     E = b'R',
     S = b'D',
     W = b'L',
+}
+
+pub trait UnsoundUtilities<T> {
+    fn ψ(self) -> T;
+}
+
+impl<T> UnsoundUtilities<T> for Option<T> {
+    fn ψ(self) -> T {
+        if cfg!(debug_assertions) && self.is_none() {
+            panic!();
+        }
+        unsafe { self.unwrap_unchecked() }
+    }
+}
+
+impl<T, E> UnsoundUtilities<T> for Result<T, E> {
+    #[track_caller]
+    fn ψ(self) -> T {
+        if cfg!(debug_assertions) && self.is_err() {
+            panic!();
+        }
+        unsafe { self.unwrap_unchecked() }
+    }
 }
 
 pub struct LMap<K, V, F>(HashMap<K, V>, F)

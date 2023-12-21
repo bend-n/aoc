@@ -120,6 +120,7 @@ impl<'a, T> std::ops::Index<&[u8]> for Hold<T> {
 }
 
 fn hash(x: &[u8]) -> u16 {
+    println!("{}", x.p());
     if let &[a, b] = x {
         (a - b'a').widen() * 26 + (b - b'a').widen()
     } else {
@@ -177,7 +178,7 @@ fn parse<'a>(i: impl Iterator<Item = (&'a [u8], impl Iterator<Item = &'a [u8]>)>
             name,
             Module {
                 ty: ModuleT::Cj(
-                    C! { backwards[name.nat()] }
+                    C! { &backwards[name.nat()] }
                         .iter()
                         .map(|&x| (x, false))
                         .collect(),
@@ -215,41 +216,82 @@ fn p1(i: &str) -> usize {
     lo * hi
 }
 
-fn p2(i: &str) -> u64 {
-    let mut modules = parse(split(i.行()));
-    let mut from = HashMap::from([
-        (hash(&b"xp"[..]), None::<u64>),
-        (hash(&b"fc"[..]), None),
-        (hash(&b"dd"[..]), None),
-        (hash(&b"fh"[..]), None),
-    ]);
+fn p(x: [u8; 2]) -> [u8; 2] {
+    println!("{}", x.p());
+    x
+}
 
-    let mut lens = vec![];
-    for when in 0.. {
-        let mut stack = VecDeque::new();
-        stack.push_back((0, 0, false));
-        while let Some((m, to, x)) = stack.pop_front() {
-            if !x && let Some(x) = from.get_mut(&to) {
-                if let Some(y) = x {
-                    lens.push(when - *y);
-                    from.remove(&to);
-                    if from.len() == 0 {
-                        return lens.iter().product();
-                    }
+fn p2(i: &str) -> u64 {
+    let mut broadcast = [0; 4];
+    let mut flip = [(u16::MAX, u16::MAX); 26 * 26];
+    let mut i = i.as_bytes();
+    while i.len() > 1 {
+        println!("it");
+        match i.by().ψ() {
+            b'%' => {
+                let from = hash(&i.rd::<2>().ψ());
+                i.skip(4);
+                let first = hash(&i.rd::<2>().ψ());
+                let second = if i.get(0).is_some_and(|&x| x != b'\n') {
+                    i.skip(2);
+                    let second = hash(&i.rd::<2>().ψ());
+                    second
                 } else {
-                    *x = Some(when);
-                }
+                    u16::MAX
+                };
+                _ = i.read(&mut [0]);
+                C! { flip[from.nat()] = (first, second) };
             }
-            if to != hash(b"rx") {
-                modules[to].pass(to, m, x, &mut stack)
+            b'b' => {
+                println!("bro");
+                i.skip(14);
+                let a = hash(&i.rd::<2>().ψ());
+                i.skip(2);
+                let b = hash(&i.rd::<2>().ψ());
+                i.skip(2);
+                let c = hash(&i.rd::<2>().ψ());
+                i.skip(2);
+                let d = hash(&i.rd::<2>().ψ());
+                broadcast = [a, b, c, d];
+            }
+            _ => {
+                i.take_line();
+            }
+        };
+    }
+
+    fn quadrant(start: u16, flops: &[(u16, u16); 26 * 26]) -> u64 {
+        let mut period = (1 << 11) | 1;
+        let mut outputs = C! { flops[start.nat()] };
+        let mut i = 1;
+        loop {
+            let first = C! { flops[outputs.0.nat()] };
+            outputs = if first.0 == u16::MAX {
+                if outputs.1 == u16::MAX {
+                    return period;
+                }
+                C! { flops[outputs.1.nat()] }
+            } else {
+                first
             };
+            if outputs.1 != u16::MAX {
+                bits!(period + i);
+            }
+            i += 1;
         }
     }
-    dang!()
+    [
+        quadrant(broadcast[0], &flip),
+        quadrant(broadcast[1], &flip),
+        quadrant(broadcast[2], &flip),
+        quadrant(broadcast[3], &flip),
+    ]
+    .iter()
+    .product()
 }
 
 pub fn run(i: &str) -> impl Display {
-    p1(i)
+    p2(i)
 }
 
 fn main() {
