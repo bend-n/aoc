@@ -357,6 +357,18 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>
     dang!()
 }
 
+impl std::ops::Add<(i64, i64)> for Dir {
+    type Output = (i64, i64);
+    fn add(self, (x, y): (i64, i64)) -> Self::Output {
+        match self {
+            Dir::N => (x, y - 1),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x - 1, y),
+        }
+    }
+}
+
 impl std::ops::Add<(i32, i32)> for Dir {
     type Output = (i32, i32);
     fn add(self, (x, y): (i32, i32)) -> Self::Output {
