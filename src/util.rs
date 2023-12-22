@@ -876,6 +876,29 @@ pub mod 読む {
             }
         }
     }
+    pub trait Ten {
+        fn ten() -> Self;
+    }
+    macro_rules! tenz {
+        ($for:ty) => {
+            impl Ten for $for {
+                fn ten() -> $for {
+                    10
+                }
+            }
+        };
+    }
+    tenz!(u8);
+    tenz!(u16);
+    tenz!(u32);
+    tenz!(u64);
+    tenz!(u128);
+    tenz!(i8);
+    tenz!(i16);
+    tenz!(i32);
+    tenz!(i64);
+    tenz!(i128);
+
     const DIG: [u8; 256] = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0,
@@ -910,16 +933,45 @@ pub mod 読む {
         }
         Ok(num)
     }
-
-    pub fn 不全の(x: &mut &[u8]) -> u64 {
-        let mut n = 0;
-        loop {
-            let byte = x[0];
-            x.skip(1);
-            if byte == b' ' {
+    pub fn 迄または完了<
+        T: Default
+            + std::ops::Mul<T, Output = T>
+            + std::ops::Add<T, Output = T>
+            + From<u8>
+            + Copy
+            + Ten,
+    >(
+        x: &mut &[u8],
+        until: u8,
+    ) -> T {
+        let mut n = T::default();
+        while let Ok(x) = x.by() {
+            if x == until {
                 return n;
             }
-            n = n * 10 + (byte - b'0') as u64;
+            n = n * T::ten() + T::from(x - b'0')
+        }
+        n
+    }
+
+    pub fn 迄<
+        T: Default
+            + std::ops::Mul<T, Output = T>
+            + std::ops::Add<T, Output = T>
+            + From<u8>
+            + Copy
+            + Ten,
+    >(
+        x: &mut &[u8],
+        until: u8,
+    ) -> T {
+        let mut n = T::default();
+        loop {
+            let byte = x.by().ψ();
+            if byte == until {
+                return n;
+            }
+            n = n * T::ten() + T::from(byte - b'0');
         }
     }
 
@@ -1272,5 +1324,11 @@ impl<const N: usize, T> Push<T, N> for [T; N] {
     fn and(self, and: T) -> [T; N + 1] {
         let mut iter = self.into_iter().chain(std::iter::once(and));
         std::array::from_fn(|_| iter.next().unwrap())
+    }
+}
+
+impl<T> Push<T, 1> for T {
+    fn and(self, and: T) -> [T; 2] {
+        [self, and]
     }
 }
