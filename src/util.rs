@@ -13,9 +13,10 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, lcm, lt, pa, Dir, FilterBy, GreekTools, IntoCombinations, IntoLines, IterͶ,
-        NumTupleIterTools, ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3,
-        TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, lcm, lt, pa, sort, Dir, FilterBy, GreekTools, IntoCombinations, IntoLines,
+        IterͶ, NumTupleIterTools, ParseIter, Printable, Push, Skip, TakeLine, Trunc,
+        TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils,
+        UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -717,6 +718,11 @@ pub trait TupleIterTools2<T, U>: Iterator {
     fn r(self) -> impl Iterator<Item = U>;
 }
 
+pub trait TupleIterTools2R<T, U>: Iterator {
+    fn l(self) -> impl Iterator<Item = T>;
+    fn r(self) -> impl Iterator<Item = U>;
+}
+
 pub trait FilterBy<T, U>: Iterator {
     fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U)>;
     fn fr(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U)>;
@@ -742,7 +748,17 @@ impl<I: Iterator<Item = (u64, u64)>> NumTupleIterTools for I {
     }
 }
 
-impl<'a, T: Copy + 'a, U: Copy + 'a, I: Iterator<Item = &'a (T, U)>> TupleIterTools2<T, U> for I {
+impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools2<T, U> for I {
+    fn l(self) -> impl Iterator<Item = T> {
+        self.map(|(x, _)| x)
+    }
+
+    fn r(self) -> impl Iterator<Item = U> {
+        self.map(|(_, x)| x)
+    }
+}
+
+impl<'a, T: Copy + 'a, U: Copy + 'a, I: Iterator<Item = &'a (T, U)>> TupleIterTools2R<T, U> for I {
     fn l(self) -> impl Iterator<Item = T> {
         self.map(|&(x, _)| x)
     }
@@ -907,10 +923,15 @@ pub mod 読む {
         }
     }
 
-    pub fn 完了(x: &[u8]) -> u64 {
-        let mut n = 0;
+    pub fn 完了<
+        T: Default + std::ops::Mul<T, Output = T> + std::ops::Add<T, Output = T> + From<u8> + Copy,
+    >(
+        x: &[u8],
+        ten: T,
+    ) -> T {
+        let mut n = T::default();
         for &byte in x {
-            n = n * 10 + (byte - b'0') as u64;
+            n = n * ten + T::from(byte - b'0');
         }
         n
     }
@@ -1155,6 +1176,11 @@ impl Printable for Vec<u8> {
     }
 }
 
+pub fn sort<T: Ord>(mut x: Vec<T>) -> Vec<T> {
+    x.sort_unstable();
+    x
+}
+
 pub trait TakeLine<'b> {
     fn take_line<'a>(&'a mut self) -> Option<&'b [u8]>;
 }
@@ -1224,5 +1250,27 @@ impl Skip for &str {
     #[track_caller]
     fn skip(&mut self, n: usize) {
         *self = &self[n..];
+    }
+}
+
+pub trait Trunc<T, const N: usize> {
+    /// it does `a[..a.len() - 1].try_into().unwrap()`.
+    fn trunc(&self) -> [T; N - 1];
+}
+
+impl<const N: usize, T: Copy> Trunc<T, N> for [T; N] {
+    fn trunc(&self) -> [T; N - 1] {
+        self[..N - 1].try_into().unwrap()
+    }
+}
+
+pub trait Push<T, const N: usize> {
+    fn and(self, and: T) -> [T; N + 1];
+}
+
+impl<const N: usize, T> Push<T, N> for [T; N] {
+    fn and(self, and: T) -> [T; N + 1] {
+        let mut iter = self.into_iter().chain(std::iter::once(and));
+        std::array::from_fn(|_| iter.next().unwrap())
     }
 }

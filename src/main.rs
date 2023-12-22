@@ -1,5 +1,11 @@
-#![allow(confusable_idents, uncommon_codepoints, mixed_script_confusables)]
+#![allow(
+    confusable_idents,
+    uncommon_codepoints,
+    mixed_script_confusables,
+    incomplete_features
+)]
 #![feature(
+    generic_const_exprs,
     maybe_uninit_uninit_array,
     inline_const,
     slice_flatten,
@@ -22,16 +28,8 @@ pub use util::prelude::*;
 
 #[derive(Copy, Clone)]
 struct Piece {
-    a: [u64; 3],
-    b: [u64; 3],
-}
-
-impl std::fmt::Debug for Piece {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let [x1, y1, z1] = self.a;
-        let [x2, y2, z2] = self.b;
-        write!(f, "[Vector3({x1}, {z1}, {y1}), Vector3({x2}, {z2}, {y2})]")
-    }
+    a: [u16; 3],
+    b: [u16; 3],
 }
 
 pub fn run(i: &str) -> impl Display {
@@ -40,13 +38,48 @@ pub fn run(i: &str) -> impl Display {
         .map(|x| {
             let (a, b) = x
                 .μ('~')
-                .mb(|x| x.split(|&x| x == b',').map(読む::完了).Ν::<3>());
+                .mb(|x| x.split(|&x| x == b',').map(|x| 読む::完了(x, 10)).Ν::<3>());
             pieces.push(Piece { a, b });
         })
         .Θ();
-    println!("{pieces:?}");
-    std::process::exit(0);
-    0
+
+    pieces.sort_unstable_by(|a, b| a.a[2].cmp(&b.a[2]));
+    let mut m: HashMap<(u16, u16), u16> = HashMap::new();
+    for p in pieces.iter_mut() {
+        let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
+        let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
+        for e in a {
+            m.insert(e, k + p.b[2] - p.a[2]);
+        }
+        *p = Piece {
+            a: p.a.trunc().and(k),
+            b: p.b.trunc().and(k + p.b[2] - p.a[2]),
+        };
+    }
+    let mut x = vec![0; pieces.len()];
+    for (elem, i) in x.iter_mut().ι::<usize>() {
+        let mut m: HashMap<(u16, u16), u16> = HashMap::new();
+        let mut n = 0;
+        for (p, j) in pieces.clone().iter_mut().ι::<usize>() {
+            if j == i {
+                continue;
+            }
+            let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
+            let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
+            for e in a {
+                m.insert(e, k + p.b[2] - p.a[2]);
+            }
+            let z = p.a[2];
+            *p = Piece {
+                a: p.a.trunc().and(k),
+                b: p.b.trunc().and(k + p.b[2] - p.a[2]),
+            };
+
+            n += (k < z) as u16;
+        }
+        *elem = n
+    }
+    x.into_iter().map(|x| x as u64).sum::<u64>()
 }
 
 fn main() {
