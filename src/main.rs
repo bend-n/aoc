@@ -20,92 +20,33 @@ pub mod util;
 
 pub use util::prelude::*;
 
-pub fn p2(i: &str) -> usize {
-    let i = i.as_bytes();
-    let mut visited = HashSet::new();
-    let mut q = VecDeque::new();
-    q.push_back((65u8, 65u8, 0u8));
-    let mut even_corners = 0;
-    let mut odd_corners = 0;
-    let mut odd_all = 0;
-    let mut even_all = 0;
-    while let Some((x, y, g)) = q.pop_front() {
-        match visited.insert((x, y)) {
-            false => continue,
-            true => {
-                if g % 2 == 0 {
-                    if g > 65 {
-                        even_corners += 1;
-                    }
-                    even_all += 1;
-                } else {
-                    if g > 65 {
-                        odd_corners += 1;
-                    }
-                    odd_all += 1;
-                }
-            }
-        };
-
-        for (x, y, d) in [
-            Dir::N + (x, y),
-            Dir::E + (x, y),
-            Dir::S + (x, y),
-            Dir::W + (x, y),
-        ]
-        .into_iter()
-        .flatten()
-        .fl(lt(131))
-        .fr(lt(131))
-        .filter(|&(x, y)| C! { i[y as usize * 132 + x as usize] } != b'#')
-        .map(move |(x, y)| (x as u8, y as u8, g + 1))
-        {
-            q.push_back((x, y, d));
-        }
-    }
-
-    let n = 202300;
-
-    let even = n * n;
-    let odd = (n + 1) * (n + 1);
-
-    odd * odd_all + even * even_all - ((n + 1) * odd_corners) + (n * even_corners)
+#[derive(Copy, Clone)]
+struct Piece {
+    a: [u64; 3],
+    b: [u64; 3],
 }
 
-pub fn p1(i: &str) -> usize {
-    let i = i.as_bytes();
-    let mut state = vec![false; i.len() * 2];
-    let mut q = VecDeque::with_capacity(4096);
-    q.push_back((65u8, 65u8));
-    for step in 1..65 {
-        let is_odd = (step - 1) % 2;
-        for _ in 0..q.len() {
-            let (x, y) = q.pop_front().unwrap();
-            for (x, y) in [
-                Dir::N + (x, y),
-                Dir::E + (x, y),
-                Dir::S + (x, y),
-                Dir::W + (x, y),
-            ]
-            .into_iter()
-            .flatten()
-            .fl(lt(131))
-            .fr(lt(131))
-            .filter(|&(x, y)| i[x.nat() * 132 + y.nat()] != b'#')
-            {
-                let cache_key = is_odd * i.len() + x.nat() * 132 + y.nat();
-                if !state[cache_key] {
-                    state[cache_key] = true;
-                    q.push_back((x, y));
-                }
-            }
-        }
+impl std::fmt::Debug for Piece {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let [x1, y1, z1] = self.a;
+        let [x2, y2, z2] = self.b;
+        write!(f, "[Vector3({x1}, {z1}, {y1}), Vector3({x2}, {z2}, {y2})]")
     }
-    state[i.len()..].iter().copied().filter(|&x| x).count()
 }
 
 pub fn run(i: &str) -> impl Display {
-    p1(i)
+    let mut pieces = vec![];
+    i.行()
+        .map(|x| {
+            let (a, b) = x
+                .μ('~')
+                .mb(|x| x.split(|&x| x == b',').map(読む::完了).Ν::<3>());
+            pieces.push(Piece { a, b });
+        })
+        .Θ();
+    println!("{pieces:?}");
+    std::process::exit(0);
+    0
 }
 
 fn main() {

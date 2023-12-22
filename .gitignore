@@ -6,3 +6,6 @@ Cargo.lock
 before
 prepare.sh
 prepared.rs
+gd/.godot
+*.x86_64
+export_presets.cfg

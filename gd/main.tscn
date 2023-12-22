@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3 uid="uid://d36fm0b8c6wga"]
+
+[ext_resource type="Script" path="res://aoc.gd" id="1_40nlf"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_5xprj"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+
+[sub_resource type="Sky" id="Sky_vx43c"]
+sky_material = SubResource("ProceduralSkyMaterial_5xprj")
+
+[sub_resource type="Environment" id="Environment_oii4q"]
+background_mode = 2
+sky = SubResource("Sky_vx43c")
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="Node3D" type="Node3D"]
+script = ExtResource("1_40nlf")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_oii4q")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(-0.026162, -0.703771, -0.709945, 0, 0.710188, -0.704012, 0.999658, -0.0184183, -0.0185799, -11.9685, 7.06814, 2.90534)
+
+[node name="flor" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.04012, 0)
+size = Vector3(200, 0.1, 200)
