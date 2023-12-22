@@ -23,7 +23,6 @@
 )]
 extern crate test;
 pub mod util;
-
 pub use util::prelude::*;
 
 #[derive(Copy, Clone)]
@@ -45,7 +44,7 @@ pub fn run(i: &str) -> impl Display {
         });
     }
     pieces.sort_unstable_by(|a, b| a.a[2].cmp(&b.a[2]));
-    let mut m: HashMap<(u16, u16), u16> = HashMap::new();
+    let mut m: HashMap<(u16, u16), u16> = HashMap::default();
     for p in pieces.iter_mut() {
         let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
         let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
@@ -57,11 +56,30 @@ pub fn run(i: &str) -> impl Display {
             b: p.b.trunc().and(k + p.b[2] - p.a[2]),
         };
     }
+    // (0..pieces.len())
+    //     .filter_map(|i| {
+    //         let mut m = HashMap::new();
+    //         for (p, j) in pieces.iter().ι::<usize>() {
+    //             if j == i {
+    //                 continue;
+    //             }
+    //             let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
+    //             let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
+    //             for e in a {
+    //                 m.insert(e, k + p.b[2] - p.a[2]);
+    //             }
+    //             if k < p.a[2] {
+    //                 return None;
+    //             }
+    //         }
+    //         return Some(1);
+    //     })
+    //     .sum::<u64>()
     (0..pieces.len())
         .map(|i| {
-            let mut m: HashMap<(u16, u16), u16> = HashMap::new();
+            let mut m = HashMap::new();
             let mut n = 0;
-            for (p, j) in pieces.clone().iter_mut().ι::<usize>() {
+            for (p, j) in pieces.iter().ι::<usize>() {
                 if j == i {
                     continue;
                 }
@@ -70,13 +88,7 @@ pub fn run(i: &str) -> impl Display {
                 for e in a {
                     m.insert(e, k + p.b[2] - p.a[2]);
                 }
-                let z = p.a[2];
-                *p = Piece {
-                    a: p.a.trunc().and(k),
-                    b: p.b.trunc().and(k + p.b[2] - p.a[2]),
-                };
-
-                n += (k < z) as u16;
+                n += (k < p.a[2]) as u16;
             }
             n as u64
         })
