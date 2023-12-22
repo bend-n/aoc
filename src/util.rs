@@ -13,9 +13,9 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, lcm, pa, Dir, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
-        ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3, TupleUtils,
-        UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, lcm, lt, pa, Dir, FilterBy, GreekTools, IntoCombinations, IntoLines, IterͶ,
+        NumTupleIterTools, ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools3,
+        TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -670,6 +670,14 @@ impl Μ for &[u8] {
     }
 }
 
+pub fn gt<A: std::cmp::PartialOrd<T>, T>(n: T) -> impl Fn(A) -> bool {
+    move |a| a > n
+}
+
+pub fn lt<A: std::cmp::PartialOrd<T>, T>(n: T) -> impl Fn(A) -> bool {
+    move |a| a < n
+}
+
 impl Μ for &str {
     fn μ(self, d: char) -> (Self, Self) {
         self.split_once(d)
@@ -709,6 +717,21 @@ pub trait TupleIterTools2<T, U>: Iterator {
     fn r(self) -> impl Iterator<Item = U>;
 }
 
+pub trait FilterBy<T, U>: Iterator {
+    fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U)>;
+    fn fr(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U)>;
+}
+
+impl<T: Copy, U: Copy, I: Iterator<Item = (T, U)>> FilterBy<T, U> for I {
+    fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U)> {
+        self.filter(move |(x, _)| f(*x))
+    }
+
+    fn fr(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U)> {
+        self.filter(move |(_, x)| f(*x))
+    }
+}
+
 pub trait NumTupleIterTools {
     fn πολλαπλασιάζω_και_αθροίζω(&mut self) -> u64;
 }
@@ -719,12 +742,12 @@ impl<I: Iterator<Item = (u64, u64)>> NumTupleIterTools for I {
     }
 }
 
-impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools2<T, U> for I {
+impl<'a, T: Copy + 'a, U: Copy + 'a, I: Iterator<Item = &'a (T, U)>> TupleIterTools2<T, U> for I {
     fn l(self) -> impl Iterator<Item = T> {
-        self.map(|(x, _)| x)
+        self.map(|&(x, _)| x)
     }
     fn r(self) -> impl Iterator<Item = U> {
-        self.map(|(_, x)| x)
+        self.map(|&(_, x)| x)
     }
 }
 

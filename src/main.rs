@@ -55,8 +55,8 @@ pub fn p2(i: &str) -> usize {
         ]
         .into_iter()
         .flatten()
-        .filter(|&(x, _)| x < 131)
-        .filter(|&(_, y)| y < 131)
+        .fl(lt(131))
+        .fr(lt(131))
         .filter(|&(x, y)| C! { i[y as usize * 132 + x as usize] } != b'#')
         .map(move |(x, y)| (x as u8, y as u8, g + 1))
         {
@@ -89,8 +89,8 @@ pub fn p1(i: &str) -> usize {
             ]
             .into_iter()
             .flatten()
-            .filter(|&(x, _)| x < 131)
-            .filter(|&(_, y)| y < 131)
+            .fl(lt(131))
+            .fr(lt(131))
             .filter(|&(x, y)| i[x.nat() * 132 + y.nat()] != b'#')
             {
                 let cache_key = is_odd * i.len() + x.nat() * 132 + y.nat();
