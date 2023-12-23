@@ -25,74 +25,75 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-#[derive(Copy, Clone)]
-struct Piece {
-    a: [u16; 3],
-    b: [u16; 3],
+pub fn iterg<I: Iterator<Item = (u8, u8, u16)>>(
+    start: (u8, u8, u16, HashSet<(u8, u8)>),
+    graph: &mut impl Fn((u8, u8, u16)) -> I,
+    end: &mut impl Fn((u8, u8)) -> bool,
+    finally: &mut impl FnMut(u16),
+    i: &[&[u8]],
+) {
+    if end((start.0, start.1)) {
+        finally(start.2);
+    } else {
+        graph((start.0, start.1, start.2))
+            .map(|(a, b, n)| {
+                let mut m = start.3.clone();
+                if m.insert((a, b)) {
+                    iterg((a, b, n, m), graph, end, finally, i)
+                } else {
+                    // if n > 60 {
+                    // for (line, y) in i.iter().ι::<u8>() {
+                    // for (&elem, x) in line.iter().ι::<u8>() {
+                    //     if m.contains(&(x, y)) {
+                    //         print!("O");
+                    //     } else {
+                    //         print!("{}", elem as char);
+                    //     }
+                    // }
+                    // println!();
+                    // }
+                    // }
+                }
+            })
+            .Θ();
+    };
 }
+
 pub fn run(i: &str) -> impl Display {
-    let mut pieces = vec![];
-    let mut i = i.as_bytes();
-    while i.len() > 0 {
-        pieces.push(Piece {
-            a: 読む::迄::<u16>(&mut i, b',')
-                .and(読む::迄(&mut i, b','))
-                .and(読む::迄(&mut i, b'~')),
-            b: 読む::迄::<u16>(&mut i, b',')
-                .and(読む::迄(&mut i, b','))
-                .and(読む::迄または完了(&mut i, b'\n')),
-        });
-    }
-    pieces.sort_unstable_by(|a, b| a.a[2].cmp(&b.a[2]));
-    let mut m: HashMap<(u16, u16), u16> = HashMap::default();
-    for p in pieces.iter_mut() {
-        let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
-        let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
-        for e in a {
-            m.insert(e, k + p.b[2] - p.a[2]);
-        }
-        *p = Piece {
-            a: p.a.trunc().and(k),
-            b: p.b.trunc().and(k + p.b[2] - p.a[2]),
-        };
-    }
-    // (0..pieces.len())
-    //     .filter_map(|i| {
-    //         let mut m = HashMap::new();
-    //         for (p, j) in pieces.iter().ι::<usize>() {
-    //             if j == i {
-    //                 continue;
-    //             }
-    //             let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
-    //             let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
-    //             for e in a {
-    //                 m.insert(e, k + p.b[2] - p.a[2]);
-    //             }
-    //             if k < p.a[2] {
-    //                 return None;
-    //             }
-    //         }
-    //         return Some(1);
-    //     })
-    //     .sum::<u64>()
-    (0..pieces.len())
-        .map(|i| {
-            let mut m = HashMap::new();
-            let mut n = 0;
-            for (p, j) in pieces.iter().ι::<usize>() {
-                if j == i {
-                    continue;
-                }
-                let a = (p.a[0]..=p.b[0]).flat_map(|x| (p.a[1]..=p.b[1]).map(move |y| (x, y)));
-                let k = a.clone().map(|x| *m.get(&x).unwrap_or(&0)).max().unwrap() + 1;
-                for e in a {
-                    m.insert(e, k + p.b[2] - p.a[2]);
-                }
-                n += (k < p.a[2]) as u16;
-            }
-            n as u64
-        })
-        .sum::<u64>()
+    let x = i.行().collect_vec();
+    let i = x.as_slice();
+    let end = (x.len() as u8 - 2, x.len() as u8 - 1);
+    let mut sum = 0;
+    iterg(
+        (1u8, 0u8, 0u16, HashSet::from_iter([(1, 0)])),
+        &mut |(x, y, n)| {
+            let v = match i[y.nat()][x.nat()] {
+                b'>' => vec![(x + 1, y, n + 1)],
+                b'<' => vec![(x - 1, y, n + 1)],
+                b'^' => vec![(x, y - 1, n + 1)],
+                b'v' => vec![(x, y + 1, n + 1)],
+                _ => [
+                    Dir::N + (x, y),
+                    Dir::E + (x, y),
+                    Dir::S + (x, y),
+                    Dir::W + (x, y),
+                ]
+                .into_iter()
+                .flatten()
+                .fl(lt(i.len() as u8))
+                .fr(lt(i.len() as u8))
+                .filter(|(x, y)| i[y.nat()][x.nat()] != b'#')
+                .map(|(x, y)| (x, y, n + 1))
+                .collect_vec(),
+            };
+
+            v.into_iter()
+        },
+        &mut |(x, y)| (x, y) == end,
+        &mut |x| sum = sum.max(x),
+        i,
+    );
+    sum
 }
 
 fn main() {
