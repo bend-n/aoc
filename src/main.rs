@@ -23,63 +23,60 @@
 )]
 extern crate test;
 pub mod util;
+use std::{io::BufRead, mem::MaybeUninit};
+
 pub use util::prelude::*;
 
-pub fn iterg<I: Iterator<Item = (u8, u8, u16)>>(
-    start: (u8, u8, u16, Box<[u64; 312]>),
-    graph: &mut impl Fn((u8, u8, u16)) -> I,
-    end: &mut impl Fn((u8, u8)) -> bool,
-    finally: &mut impl FnMut(u16),
-) {
-    if end((start.0, start.1)) {
-        finally(start.2);
-    } else {
-        graph((start.0, start.1, start.2))
-            .map(|(a, b, n)| {
-                let shift = (a.nat() * 141 + b.nat()) % 64;
-                let index = (a.nat() * 141 + b.nat()) / 64;
-                if start.3[index] & (1 << shift) == 0 {
-                    let mut m = start.3.clone();
-                    m[index] |= 1 << shift;
-                    iterg((a, b, n, m), graph, end, finally)
-                }
-            })
-            .Θ();
-    };
+pub fn intersect(
+    p0x: f64,
+    p0y: f64,
+    v0x: f64,
+    v0y: f64,
+    p1x: f64,
+    p1y: f64,
+    v1x: f64,
+    v1y: f64,
+) -> Option<(f64, f64)> {
+    let x = ((p1y - p0y) + p0x * (v0y / v0x) - p1x * (v1y / v1x)) / ((v0y / v0x) - (v1y / v1x));
+    let t0 = (x - p0x) / v0x;
+    let t1 = (x - p1x) / v1x;
+    (t0 > 0. && t1 > 0.).then_some((x, p0y + t0 * v0y))
 }
 
 pub fn run(i: &str) -> impl Display {
-    let x = i.行().collect_vec();
-    let i = x.as_slice();
-    let end = (x.len() as u8 - 2, x.len() as u8 - 1);
+    let mut v: [MaybeUninit::<_>; 300] =
+    // SAFETY: mu likes this
+    unsafe { MaybeUninit::uninit().assume_init() };
+    let mut x = i.as_bytes();
+    for i in 0..300 {
+        let α = 読む::迄::<i64>(&mut x, b',') as f64;
+        x.skip(1);
+        let β = 読む::迄::<i64>(&mut x, b',') as f64;
+        x.skip(2);
+        while x.by().ψ() != b' ' {}
+        x.skip(2);
+        let δ = 読む::負迄(&mut x, b',') as f64;
+        x.skip(1);
+        let ε = 読む::負迄(&mut x, b',') as f64;
+        x.skip(1);
+        if let Some(n) = memchr::memchr(b'\n', x) {
+            x.skip(n + 1);
+        }
+        v[i].write(([α, β], [δ, ε]));
+    }
+    let v = v.map(|elem| unsafe { elem.assume_init() });
     let mut sum = 0;
-    iterg(
-        (1u8, 0u8, 0u16, Box::new([0; 312])),
-        &mut |(x, y, n)| {
-            let v = match i[y.nat()][x.nat()] {
-                b'>' => vec![(x + 1, y, n + 1)],
-                b'<' => vec![(x - 1, y, n + 1)],
-                b'^' => vec![(x, y - 1, n + 1)],
-                b'v' => vec![(x, y + 1, n + 1)],
-                _ => [
-                    Dir::N + (x, y),
-                    Dir::E + (x, y),
-                    Dir::S + (x, y),
-                    Dir::W + (x, y),
-                ]
-                .into_iter()
-                .flatten()
-                .fl(lt(141))
-                .fr(lt(141))
-                .filter(|(x, y)| i[y.nat()][x.nat()] != b'#')
-                .map(|(x, y)| (x, y, n + 1))
-                .collect_vec(),
-            };
-            v.into_iter()
-        },
-        &mut |(x, y)| (x, y) == end,
-        &mut |x| sum = sum.max(x),
-    );
+    for (i, &([x0, y0], [v0x, v0y])) in v.iter().enumerate() {
+        for &([x1, y1], [v1x, v1y]) in &v[i..] {
+            if let Some((x, y)) = intersect(x0, y0, v0x, v0y, x1, y1, v1x, v1y) {
+                let min = 200000000000000.;
+                let max = 400000000000000.;
+                if x > min && x < max && y > min && y < max {
+                    sum += 1;
+                }
+            }
+        }
+    }
     sum
 }
 

@@ -979,6 +979,20 @@ pub mod 読む {
         n
     }
 
+    pub fn 負迄(x: &mut &[u8], until: u8) -> i64 {
+        let (sign, mut n) = match x.by().ψ() {
+            b'-' => (-1, 0),
+            b => (1, i64::from(b - b'0')),
+        };
+        loop {
+            let byte = x.by().ψ();
+            if byte == until {
+                return n * sign as i64;
+            }
+            n = n * 10 + i64::from(byte - b'0');
+        }
+    }
+
     pub fn 迄<
         T: Default
             + std::ops::Mul<T, Output = T>
@@ -1001,14 +1015,18 @@ pub mod 読む {
     }
 
     pub fn 完了<
-        T: Default + std::ops::Mul<T, Output = T> + std::ops::Add<T, Output = T> + From<u8> + Copy,
+        T: Default
+            + std::ops::Mul<T, Output = T>
+            + std::ops::Add<T, Output = T>
+            + From<u8>
+            + Copy
+            + Ten,
     >(
         x: &[u8],
-        ten: T,
     ) -> T {
         let mut n = T::default();
         for &byte in x {
-            n = n * ten + T::from(byte - b'0');
+            n = n * T::ten() + T::from(byte - b'0');
         }
         n
     }
@@ -1319,14 +1337,22 @@ pub trait Skip {
 impl<T> Skip for &[T] {
     #[track_caller]
     fn skip(&mut self, n: usize) {
-        *self = &self[n..];
+        if cfg!(debug_assertions) {
+            *self = &self[n..];
+        } else {
+            *self = C! { &self[n..] };
+        }
     }
 }
 
 impl Skip for &str {
     #[track_caller]
     fn skip(&mut self, n: usize) {
-        *self = &self[n..];
+        if cfg!(debug_assertions) {
+            *self = &self[n..];
+        } else {
+            *self = C! { &self[n..] };
+        }
     }
 }
 
