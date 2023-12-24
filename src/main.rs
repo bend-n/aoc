@@ -24,32 +24,25 @@
     byte_slice_trim_ascii
 )]
 extern crate test;
-use core::intrinsics::{fadd_fast as af, fdiv_fast as df, fmul_fast as mf, fsub_fast as sf};
 pub mod util;
 use std::mem::MaybeUninit;
 
 pub use util::prelude::*;
 
 pub unsafe fn intersect(
-    p0x: f64,
-    p0y: f64,
-    v0x: f64,
-    v0y: f64,
-    p1x: f64,
-    p1y: f64,
-    v1x: f64,
-    v1y: f64,
-) -> Option<(f64, f64)> {
-    let x = df(
-        sf(
-            af(sf(p1y, p0y), mf(p0x, df(v0y, v0x))),
-            mf(p1x, df(v1y, v1x)),
-        ),
-        sf(df(v0y, v0x), df(v1y, v1x)),
-    );
-    let t0 = df(sf(x, p0x), v0x);
-    let t1 = df(sf(x, p1x), v1x);
-    (t0 > 0. && t1 > 0.).then_some((x, af(p0y, mf(t0, v0y))))
+    p0x: f32,
+    p0y: f32,
+    v0x: f32,
+    v0y: f32,
+    p1x: f32,
+    p1y: f32,
+    v1x: f32,
+    v1y: f32,
+) -> Option<(f32, f32)> {
+    let x = ((p1y - p0y) + p0x * (v0y / v0x) - p1x * (v1y / v1x)) / ((v0y / v0x) - (v1y / v1x));
+    let t0 = (x - p0x) / v0x;
+    let t1 = (x - p1x) / v1x;
+    (t0 > 0. && t1 > 0.).then_some((x, p0y + t0 * v0y))
 }
 
 pub fn run(i: &str) -> impl Display {
@@ -58,16 +51,16 @@ pub fn run(i: &str) -> impl Display {
     unsafe { MaybeUninit::uninit().assume_init() };
     let mut x = i.as_bytes();
     for i in 0..300 {
-        let α = 読む::迄::<i64>(&mut x, b',') as f64;
+        let α = 読む::迄::<i64>(&mut x, b',') as f32;
         x.skip(1);
-        let β = 読む::迄::<i64>(&mut x, b',') as f64;
+        let β = 読む::迄::<i64>(&mut x, b',') as f32;
         x.skip(2);
         // memchr bad here
         while x.by().ψ() != b' ' {}
         x.skip(2);
-        let δ = 読む::負迄(&mut x, b',') as f64;
+        let δ = 読む::負迄(&mut x, b',') as f32;
         x.skip(1);
-        let ε = 読む::負迄(&mut x, b',') as f64;
+        let ε = 読む::負迄(&mut x, b',') as f32;
         x.skip(1);
         if let Some(n) = memchr::memchr(b'\n', x) {
             x.skip(n + 1);
