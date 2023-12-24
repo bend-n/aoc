@@ -26,33 +26,22 @@ pub mod util;
 pub use util::prelude::*;
 
 pub fn iterg<I: Iterator<Item = (u8, u8, u16)>>(
-    start: (u8, u8, u16, HashSet<(u8, u8)>),
+    start: (u8, u8, u16, Box<[u64; 312]>),
     graph: &mut impl Fn((u8, u8, u16)) -> I,
     end: &mut impl Fn((u8, u8)) -> bool,
     finally: &mut impl FnMut(u16),
-    i: &[&[u8]],
 ) {
     if end((start.0, start.1)) {
         finally(start.2);
     } else {
         graph((start.0, start.1, start.2))
             .map(|(a, b, n)| {
-                let mut m = start.3.clone();
-                if m.insert((a, b)) {
-                    iterg((a, b, n, m), graph, end, finally, i)
-                } else {
-                    // if n > 60 {
-                    // for (line, y) in i.iter().ι::<u8>() {
-                    // for (&elem, x) in line.iter().ι::<u8>() {
-                    //     if m.contains(&(x, y)) {
-                    //         print!("O");
-                    //     } else {
-                    //         print!("{}", elem as char);
-                    //     }
-                    // }
-                    // println!();
-                    // }
-                    // }
+                let shift = (a.nat() * 141 + b.nat()) % 64;
+                let index = (a.nat() * 141 + b.nat()) / 64;
+                if start.3[index] & (1 << shift) == 0 {
+                    let mut m = start.3.clone();
+                    m[index] |= 1 << shift;
+                    iterg((a, b, n, m), graph, end, finally)
                 }
             })
             .Θ();
@@ -65,7 +54,7 @@ pub fn run(i: &str) -> impl Display {
     let end = (x.len() as u8 - 2, x.len() as u8 - 1);
     let mut sum = 0;
     iterg(
-        (1u8, 0u8, 0u16, HashSet::from_iter([(1, 0)])),
+        (1u8, 0u8, 0u16, Box::new([0; 312])),
         &mut |(x, y, n)| {
             let v = match i[y.nat()][x.nat()] {
                 b'>' => vec![(x + 1, y, n + 1)],
@@ -80,18 +69,16 @@ pub fn run(i: &str) -> impl Display {
                 ]
                 .into_iter()
                 .flatten()
-                .fl(lt(i.len() as u8))
-                .fr(lt(i.len() as u8))
+                .fl(lt(141))
+                .fr(lt(141))
                 .filter(|(x, y)| i[y.nat()][x.nat()] != b'#')
                 .map(|(x, y)| (x, y, n + 1))
                 .collect_vec(),
             };
-
             v.into_iter()
         },
         &mut |(x, y)| (x, y) == end,
         &mut |x| sum = sum.max(x),
-        i,
     );
     sum
 }

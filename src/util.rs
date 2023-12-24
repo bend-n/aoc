@@ -13,10 +13,10 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, lcm, lt, pa, sort, Dir, FilterBy, GreekTools, IntoCombinations, IntoLines,
-        IterͶ, NumTupleIterTools, ParseIter, Printable, Push, Skip, TakeLine, Trunc,
-        TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils,
-        UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, l, lcm, lt, pa, r, sort, Dir, FilterBy, FilterBy3, GreekTools,
+        IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter, Printable, Push, Skip,
+        TakeLine, Trunc, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
+        UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -723,6 +723,31 @@ pub trait TupleIterTools2R<T, U>: Iterator {
     fn r(self) -> impl Iterator<Item = U>;
 }
 
+pub fn l<R, T, U>(f: impl Fn(T) -> R) -> impl Fn((T, U)) -> R {
+    move |(x, _)| f(x)
+}
+pub fn r<R, T, U>(f: impl Fn(U) -> R) -> impl Fn((T, U)) -> R {
+    move |(_, x)| f(x)
+}
+
+pub trait FilterBy3<T, U, V>: Iterator {
+    fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U, V)>;
+    fn fm(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U, V)>;
+    fn fr(self, f: impl Fn(V) -> bool) -> impl Iterator<Item = (T, U, V)>;
+}
+
+impl<T: Copy, U: Copy, V: Copy, I: Iterator<Item = (T, U, V)>> FilterBy3<T, U, V> for I {
+    fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U, V)> {
+        self.filter(move |(x, _, _)| f(*x))
+    }
+
+    fn fm(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U, V)> {
+        self.filter(move |(_, x, _)| f(*x))
+    }
+    fn fr(self, f: impl Fn(V) -> bool) -> impl Iterator<Item = (T, U, V)> {
+        self.filter(move |(_, _, x)| f(*x))
+    }
+}
 pub trait FilterBy<T, U>: Iterator {
     fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U)>;
     fn fr(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U)>;
