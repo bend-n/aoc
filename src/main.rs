@@ -6,6 +6,7 @@
     incomplete_features
 )]
 #![feature(
+    slice_swap_unchecked,
     generic_const_exprs,
     maybe_uninit_uninit_array,
     inline_const,
@@ -27,8 +28,8 @@ extern crate test;
 pub mod util;
 use std::mem::MaybeUninit;
 
+use umath::{generic_float::Constructors, FF64};
 pub use util::prelude::*;
-use z3::ast::{Ast, Int};
 
 pub unsafe fn intersect(
     p0x: f32,
@@ -46,67 +47,70 @@ pub unsafe fn intersect(
     (t0 > 0. && t1 > 0.).then_some((x, p0y + t0 * v0y))
 }
 
+#[no_mangle]
 pub fn p2(i: &str) -> impl Display {
-    let mut v: [MaybeUninit::<_>; 300] =
+    let mut v: [MaybeUninit::<_>; 3] =
     // SAFETY: mu likes this
     unsafe { MaybeUninit::uninit().assume_init() };
     let mut x = i.as_bytes();
-    for i in 0..300 {
-        let α = 読む::迄::<i64>(&mut x, b',');
+    for i in 0..3 {
+        let α = unsafe { FF64::new(読む::迄::<i64>(&mut x, b',') as f64) };
         x.skip(1);
-        let β = 読む::迄::<i64>(&mut x, b',');
+        let β = unsafe { FF64::new(読む::迄::<i64>(&mut x, b',') as f64) };
         x.skip(1);
-        let γ = 読む::迄::<i64>(&mut x, b' ');
+        let γ = unsafe { FF64::new(読む::迄::<i64>(&mut x, b' ') as f64) };
         x.skip(2);
-        let δ = 読む::負迄(&mut x, b',');
+        let δ = unsafe { FF64::new(読む::負迄(&mut x, b',') as f64) };
         x.skip(1);
-        let ε = 読む::負迄(&mut x, b',');
+        let ε = unsafe { FF64::new(読む::負迄(&mut x, b',') as f64) };
         x.skip(1);
-        let ζ = {
-            let (sign, mut n) = match x.by().ψ() {
-                b'-' => (-1, 0),
-                b => (1, i64::from(b - b'0')),
-            };
-            while let Ok(b) = x.by()
-                && b != b'\n'
-            {
-                n = n * 10 + i64::from(b - b'0');
-            }
-            n * sign as i64
-        };
+        let ζ = unsafe { FF64::new(読む::負迄(&mut x, b'\n') as f64) };
         v[i].write(([α, β, γ], [δ, ε, ζ]));
     }
-    let v = v.map(|elem| unsafe { elem.assume_init() });
-    let c = z3::Context::new(&z3::Config::new());
-    let s = z3::Solver::new(&c);
-    macro_rules! dec {
-        (from $($x:ident)+) => {
-            $(let $x = z3::ast::Int::from_i64(&c, $x);)+
-        };
-        ($($x:ident)+) => {
-            $(let $x = z3::ast::Int::new_const(&c, stringify!($x));)+
-        };
+    let [([x0, y0, z0], [v0x, v0y, v0z]), ([x1, y1, z1], [v1x, v1y, v1z]), ([x2, y2, z2], [v3x, v3y, v3z])] =
+        v.map(|elem| unsafe { elem.assume_init() });
+
+    // credit: giooschi
+    let z = unsafe { FF64::zero() };
+    #[rustfmt::skip]
+    let mut coeffs = [
+        [z, -v0z + v1z, v0y - v1y, z, z0 - z1, -y0 + y1,  v0y * z0 - v1y * z1 - v0z * y0 + v1z * y1],
+        [v0z - v1z, z, -v0x + v1x, -z0 + z1, z, x0 - x1, -v0x * z0 + v1x * z1 + v0z * x0 - v1z * x1],
+        [-v0y + v1y, v0x - v1x, z, y0 - y1, -x0 + x1, z,  v0x * y0 - v1x * y1 - v0y * x0 + v1y * x1],
+        [z, -v1z + v3z, v1y - v3y, z, z1 - z2, -y1 + y2,  v1y * z1 - v3y * z2 - v1z * y1 + v3z * y2],
+        [v1z - v3z, z, -v1x + v3x, -z1 + z2, z, x1 - x2, -v1x * z1 + v3x * z2 + v1z * x1 - v3z * x2],
+        [-v1y + v3y, v1x - v3x, z, y1 - y2, -x1 + x2, z,  v1x * y1 - v3x * y2 - v1y * x1 + v3y * x2],
+    ];
+
+    for i in 0..6 {
+        let j = (i..6)
+            .max_by(|&j, &k| unsafe {
+                FF64::cmp(
+                    &FF64::new(coeffs[j][i].abs()),
+                    &FF64::new(coeffs[k][i].abs()),
+                )
+            })
+            .ψ();
+        unsafe { coeffs.swap_unchecked(i, j) };
+        (i..7).rev().for_each(|j| coeffs[i][j] /= coeffs[i][i]);
+        for j in i + 1..6 {
+            for k in (i..7).rev() {
+                coeffs[j][k] -= coeffs[i][k] * coeffs[j][i];
+            }
+        }
     }
-    dec!(x y z vx vy vz);
-    for (([xi, yi, zi], [vxi, vyi, vzi]), i) in v.into_iter().ι::<u16>() {
-        dec!(from xi yi zi vxi vyi vzi);
-        let ti = Int::new_const(&c, format!("t{i}"));
-        s.assert(&(xi + vxi * &ti)._eq(&(&x + &vx * &ti)));
-        s.assert(&(yi + vyi * &ti)._eq(&(&y + &vy * &ti)));
-        s.assert(&(zi + vzi * &ti)._eq(&(&z + &vz * &ti)));
+
+    for i in (1..6).rev() {
+        for j in 0..i {
+            coeffs[j][6] -= coeffs[j][i] * coeffs[i][6];
+            coeffs[j][i] = z;
+        }
     }
-    s.check();
-    let r = s
-        .get_model()
-        .unwrap()
-        .eval(&(x + y + z), true)
-        .unwrap()
-        .as_i64()
-        .unwrap();
-    r
+
+    *(coeffs[0][6] + coeffs[1][6] + coeffs[2][6]) as u64
 }
 
-pub fn run(i: &str) -> impl Display {
+pub fn p1(i: &str) -> impl Display {
     let mut v: [MaybeUninit::<_>; 300] =
     // SAFETY: mu likes this
     unsafe { MaybeUninit::uninit().assume_init() };
@@ -142,6 +146,10 @@ pub fn run(i: &str) -> impl Display {
         }
     }
     sum
+}
+
+pub fn run(i: &str) -> impl Display {
+    p2(i)
 }
 
 fn main() {
