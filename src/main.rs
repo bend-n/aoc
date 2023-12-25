@@ -119,17 +119,18 @@ pub fn p1(i: &str) -> impl Display {
         let α = 読む::迄::<i64>(&mut x, b',') as f32;
         x.skip(1);
         let β = 読む::迄::<i64>(&mut x, b',') as f32;
-        x.skip(2);
-        // memchr bad here
-        while x.by().ψ() != b' ' {}
+        x.skip(14);
+        if x.by().ψ() != b' ' {
+            if x.by().ψ() != b' ' {
+                shucks!(if x.by().ψ() != b' ');
+            }
+        }
         x.skip(2);
         let δ = 読む::負迄(&mut x, b',') as f32;
         x.skip(1);
         let ε = 読む::負迄(&mut x, b',') as f32;
         x.skip(1);
-        if let Some(n) = memchr::memchr(b'\n', x) {
-            x.skip(n + 1);
-        }
+        x.skip(memchr::memchr(b'\n', x).map_or(0, |x| x + 1));
         v[i].write(([α, β], [δ, ε]));
     }
     let v = v.map(|elem| unsafe { elem.assume_init() });
@@ -149,7 +150,7 @@ pub fn p1(i: &str) -> impl Display {
 }
 
 pub fn run(i: &str) -> impl Display {
-    p2(i)
+    p1(i)
 }
 
 fn main() {
