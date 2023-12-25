@@ -538,14 +538,26 @@ pub trait Ͷ {
     fn ͷ(self) -> impl Iterator<Item = u8>;
 }
 
-impl Ͷ for u64 {
-    fn ͷ(self) -> impl Iterator<Item = u8> {
-        let digits = (self.ilog10() + 1) as u8;
-        (0..digits)
-            .rev()
-            .map(move |n| ((self / 10u64.pow(u32::from(n))) % 10) as u8)
-    }
+macro_rules! digs {
+    ($for:ty) => {
+        impl Ͷ for $for {
+            fn ͷ(self) -> impl Iterator<Item = u8> {
+                let digits = (self.ilog10() + 1) as u8;
+                (0..digits)
+                    .rev()
+                    .map(move |n| ((self / (10 as $for).pow(n as _)) % 10) as u8)
+            }
+        }
+    };
 }
+digs!(u64);
+digs!(i64);
+digs!(i32);
+digs!(u32);
+digs!(u16);
+digs!(i16);
+digs!(u8);
+digs!(i8);
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub struct Ronge {
