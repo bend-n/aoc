@@ -26,131 +26,164 @@
 )]
 extern crate test;
 pub mod util;
-use std::mem::MaybeUninit;
-
-use umath::{generic_float::Constructors, FF64};
 pub use util::prelude::*;
 
-pub unsafe fn intersect(
-    p0x: f32,
-    p0y: f32,
-    v0x: f32,
-    v0y: f32,
-    p1x: f32,
-    p1y: f32,
-    v1x: f32,
-    v1y: f32,
-) -> Option<(f32, f32)> {
-    let x = ((p1y - p0y) + p0x * (v0y / v0x) - p1x * (v1y / v1x)) / ((v0y / v0x) - (v1y / v1x));
-    let t0 = (x - p0x) / v0x;
-    let t1 = (x - p1x) / v1x;
-    (t0 > 0. && t1 > 0.).then_some((x, p0y + t0 * v0y))
+pub struct Graph {
+    pub v: usize,
+    pub edges: Vec<(usize, usize)>,
 }
 
-#[no_mangle]
-pub fn p2(i: &str) -> impl Display {
-    let mut v: [MaybeUninit::<_>; 3] =
-    // SAFETY: mu likes this
-    unsafe { MaybeUninit::uninit().assume_init() };
-    let mut x = i.as_bytes();
-    for i in 0..3 {
-        let α = unsafe { FF64::new(読む::迄::<i64>(&mut x, b',') as f64) };
-        x.skip(1);
-        let β = unsafe { FF64::new(読む::迄::<i64>(&mut x, b',') as f64) };
-        x.skip(1);
-        let γ = unsafe { FF64::new(読む::迄::<i64>(&mut x, b' ') as f64) };
-        x.skip(2);
-        let δ = unsafe { FF64::new(読む::負迄(&mut x, b',') as f64) };
-        x.skip(1);
-        let ε = unsafe { FF64::new(読む::負迄(&mut x, b',') as f64) };
-        x.skip(1);
-        let ζ = unsafe { FF64::new(読む::負迄(&mut x, b'\n') as f64) };
-        v[i].write(([α, β, γ], [δ, ε, ζ]));
-    }
-    let [([x0, y0, z0], [v0x, v0y, v0z]), ([x1, y1, z1], [v1x, v1y, v1z]), ([x2, y2, z2], [v3x, v3y, v3z])] =
-        v.map(|elem| unsafe { elem.assume_init() });
-
-    // credit: giooschi
-    let z = unsafe { FF64::zero() };
-    #[rustfmt::skip]
-    let mut coeffs = [
-        [z, -v0z + v1z, v0y - v1y, z, z0 - z1, -y0 + y1,  v0y * z0 - v1y * z1 - v0z * y0 + v1z * y1],
-        [v0z - v1z, z, -v0x + v1x, -z0 + z1, z, x0 - x1, -v0x * z0 + v1x * z1 + v0z * x0 - v1z * x1],
-        [-v0y + v1y, v0x - v1x, z, y0 - y1, -x0 + x1, z,  v0x * y0 - v1x * y1 - v0y * x0 + v1y * x1],
-        [z, -v1z + v3z, v1y - v3y, z, z1 - z2, -y1 + y2,  v1y * z1 - v3y * z2 - v1z * y1 + v3z * y2],
-        [v1z - v3z, z, -v1x + v3x, -z1 + z2, z, x1 - x2, -v1x * z1 + v3x * z2 + v1z * x1 - v3z * x2],
-        [-v1y + v3y, v1x - v3x, z, y1 - y2, -x1 + x2, z,  v1x * y1 - v3x * y2 - v1y * x1 + v3y * x2],
-    ];
-
-    for i in 0..6 {
-        let j = (i..6)
-            .max_by(|&j, &k| unsafe {
-                FF64::cmp(
-                    &FF64::new(coeffs[j][i].abs()),
-                    &FF64::new(coeffs[k][i].abs()),
-                )
-            })
-            .ψ();
-        unsafe { coeffs.swap_unchecked(i, j) };
-        (i..7).rev().for_each(|j| coeffs[i][j] /= coeffs[i][i]);
-        for j in i + 1..6 {
-            for k in (i..7).rev() {
-                coeffs[j][k] -= coeffs[i][k] * coeffs[j][i];
-            }
-        }
-    }
-
-    for i in (1..6).rev() {
-        for j in 0..i {
-            coeffs[j][6] -= coeffs[j][i] * coeffs[i][6];
-            coeffs[j][i] = z;
-        }
-    }
-
-    *(coeffs[0][6] + coeffs[1][6] + coeffs[2][6]) as u64
+pub struct UnionFind {
+    p: Vec<usize>,
+    s: Vec<usize>,
 }
 
-pub fn p1(i: &str) -> impl Display {
-    let mut v: [MaybeUninit::<_>; 300] =
-    // SAFETY: mu likes this
-    unsafe { MaybeUninit::uninit().assume_init() };
-    let mut x = i.as_bytes();
-    for i in 0..300 {
-        let α = 読む::迄::<i64>(&mut x, b',') as f32;
-        x.skip(1);
-        let β = 読む::迄::<i64>(&mut x, b',') as f32;
-        x.skip(14);
-        if x.by().ψ() != b' ' {
-            if x.by().ψ() != b' ' {
-                shucks!(if x.by().ψ() != b' ');
-            }
-        }
-        x.skip(2);
-        let δ = 読む::負迄(&mut x, b',') as f32;
-        x.skip(1);
-        let ε = 読む::負迄(&mut x, b',') as f32;
-        x.skip(1);
-        x.skip(memchr::memchr(b'\n', x).map_or(0, |x| x + 1));
-        v[i].write(([α, β], [δ, ε]));
-    }
-    let v = v.map(|elem| unsafe { elem.assume_init() });
-    let mut sum = 0;
-    for (i, &([x0, y0], [v0x, v0y])) in v.iter().enumerate() {
-        for &([x1, y1], [v1x, v1y]) in &v[i..] {
-            if let Some((x, y)) = unsafe { intersect(x0, y0, v0x, v0y, x1, y1, v1x, v1y) } {
-                let min = 200000000000000.;
-                let max = 400000000000000.;
-                if x > min && x < max && y > min && y < max {
-                    sum += 1;
-                }
-            }
+impl UnionFind {
+    pub fn new(size: usize) -> Self {
+        Self {
+            s: vec![1; size],
+            p: (0..size).collect(),
         }
     }
-    sum
+
+    fn reset(&mut self) {
+        self.s.fill(1);
+        self.p
+            .iter_mut()
+            .enumerate()
+            .for_each(|(idx, val)| *val = idx);
+    }
+
+    pub fn find(&mut self, key: usize) -> usize {
+        if self.p[key] == key {
+            return key;
+        }
+        let parent = self.find(self.p[key]);
+        self.p[key] = parent;
+        parent
+    }
+
+    pub fn union(&mut self, a: usize, b: usize) -> bool {
+        let α = self.find(a);
+        let β = self.find(b);
+        if α == β {
+            return false;
+        }
+        let a = self.s[α];
+        let b = self.s[β];
+        if a >= b {
+            self.s[α] += b;
+            self.p[β] = α;
+        } else {
+            self.s[β] += a;
+            self.p[α] = β;
+        }
+        true
+    }
+
+    fn group_size(&self, group: usize) -> usize {
+        self.s[group]
+    }
+}
+
+/// WYRAND
+unsafe fn rng() -> u64 {
+    static mut STATE: u64 = 0;
+    STATE = STATE.wrapping_add(0x60bee2bee120fc15);
+    let tmp = (STATE as u128).wrapping_mul(0xa3b195354a39b70d);
+    let m1 = (tmp >> 64) ^ tmp;
+    let tmp = m1.wrapping_mul(0x1b03738712fad5c9);
+    let m2 = ((tmp >> 64) ^ tmp) as u64;
+    return m2;
+}
+
+pub fn karg(graph: &Graph) -> Option<usize> {
+    let mut v = graph.v;
+    let mut s = UnionFind::new(v);
+    while v > 2 {
+        let i = ((unsafe { rng() as u128 }.wrapping_mul(graph.edges.len() as u128)) >> 64) as u64;
+        let α = s.find(graph.edges[i.nat()].0);
+        let β = s.find(graph.edges[i.nat()].1);
+        if α == β {
+            continue;
+        }
+        v -= 1;
+        s.union(α, β);
+    }
+
+    let chop = graph
+        .edges
+        .iter()
+        .filter(|&&(src, dest)| s.find(src) != s.find(dest))
+        .count();
+
+    if chop == 3 {
+        let root = s.find(0);
+        let size = s.group_size(root);
+        return Some((graph.v - size) * size);
+    }
+    None
+}
+
+fn base26([a, b, c]: [u8; 3]) -> u32 {
+    a.widen().widen() + b.widen().widen() * 26 + c.widen().widen() * 26 * 26
 }
 
 pub fn run(i: &str) -> impl Display {
-    p1(i)
+    let mut z = 0;
+    let mut n = HashMap::new();
+    let mut e: HashMap<u32, HashSet<u32>> = HashMap::new();
+    i.行()
+        .map(|x| {
+            let (k, v) = x
+                .μ(':')
+                .mr(|x| {
+                    x.split(|&x| x == b' ')
+                        .map(<[u8]>::trim_ascii)
+                        .filter(|x| !x.is_empty())
+                        .map(|x| base26(x.try_into().unwrap()))
+                        .collect_vec()
+                })
+                .ml(<[u8]>::trim_ascii)
+                .ml(|x| base26(x.try_into().unwrap()));
+            match n.entry(k) {
+                Entry::Occupied(_) => {}
+                Entry::Vacant(x) => {
+                    x.insert(z);
+                    z += 1;
+                }
+            }
+            for j in v {
+                match e.entry(k) {
+                    Entry::Occupied(x) => {
+                        x.into_mut().insert(j);
+                    }
+                    Entry::Vacant(x) => {
+                        x.insert(HashSet::from_iter([j]));
+                    }
+                }
+                match n.entry(j) {
+                    Entry::Occupied(_) => {}
+                    Entry::Vacant(x) => {
+                        x.insert(z);
+                        z += 1;
+                    }
+                }
+            }
+        })
+        .Θ();
+    let mut edges = vec![];
+    for (from, to) in e {
+        for to in to {
+            edges.push((n[&from], n[&to]));
+        }
+    }
+    let g = Graph { edges, v: z };
+    loop {
+        if let Some(x) = karg(&g) {
+            return x;
+        }
+    }
 }
 
 fn main() {
