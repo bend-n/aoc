@@ -883,7 +883,10 @@ macro_rules! ι {
 ι!(usize);
 
 pub mod 読む {
-    use std::io::{self, Read};
+    use std::{
+        io::{self, Read},
+        ops::{Add, BitOrAssign, Shl},
+    };
     pub trait Ext {
         fn rd<const N: usize>(&mut self) -> io::Result<[u8; N]>;
         fn by(&mut self) -> io::Result<u8> {
@@ -953,13 +956,17 @@ pub mod 読む {
         // (b & 0xF) + 9 * (b >> 6)
     }
 
-    // i wonder if this is genericable
-    pub fn hex5([a, b, c, d, e]: [u8; 5]) -> u32 {
-        (hex_dig(a).widen().widen() << 16)
-            | (hex_dig(b).widen().widen() << 12)
-            | (hex_dig(c).widen().widen() << 8)
-            | (hex_dig(d).widen().widen() << 4)
-            | (hex_dig(e).widen().widen())
+    pub fn hexN<
+        T: From<u8> + TryFrom<usize> + Shl<T, Output = T> + BitOrAssign<T>,
+        const N: usize,
+    >(
+        a: [u8; N],
+    ) -> T {
+        let mut c = T::from(hex_dig(a[0])) << T::try_from((N - 1) * 4).ψ();
+        for (&n, sh) in a[1..].iter().zip((0..N - 1).rev()) {
+            c |= T::from(hex_dig(n)) << T::try_from(sh * 4).ψ();
+        }
+        c
     }
 
     pub fn hex(mut d: &[u8]) -> Result<u32, ()> {
@@ -970,13 +977,9 @@ pub mod 読む {
         }
         Ok(num)
     }
+
     pub fn 迄または完了<
-        T: Default
-            + std::ops::Mul<T, Output = T>
-            + std::ops::Add<T, Output = T>
-            + From<u8>
-            + Copy
-            + Ten,
+        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
     >(
         x: &mut &[u8],
         until: u8,
@@ -1006,12 +1009,7 @@ pub mod 読む {
     }
 
     pub fn 迄<
-        T: Default
-            + std::ops::Mul<T, Output = T>
-            + std::ops::Add<T, Output = T>
-            + From<u8>
-            + Copy
-            + Ten,
+        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
     >(
         x: &mut &[u8],
         until: u8,
@@ -1027,12 +1025,7 @@ pub mod 読む {
     }
 
     pub fn 完了<
-        T: Default
-            + std::ops::Mul<T, Output = T>
-            + std::ops::Add<T, Output = T>
-            + From<u8>
-            + Copy
-            + Ten,
+        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
     >(
         x: &[u8],
     ) -> T {
