@@ -208,7 +208,7 @@ impl<T> UnsoundUtilities<T> for Option<T> {
 }
 
 impl<T, E> UnsoundUtilities<T> for Result<T, E> {
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn ψ(self) -> T {
         if cfg!(debug_assertions) && self.is_err() {
             panic!();
@@ -514,7 +514,7 @@ pub trait Α<T> {
 }
 
 impl<T, E: std::fmt::Display> Α<T> for Result<T, E> {
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn α(self) -> T {
         match self {
             Ok(v) => v,
@@ -525,7 +525,7 @@ impl<T, E: std::fmt::Display> Α<T> for Result<T, E> {
     }
 }
 impl<T> Α<T> for Option<T> {
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn α(self) -> T {
         match self {
             Some(v) => v,
@@ -1042,12 +1042,12 @@ pub fn even(x: &usize) -> bool {
 }
 
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn Δ(&mut self) -> T {
         self.next().α()
     }
 
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn Ν<const N: usize>(&mut self) -> [T; N] {
         let mut array: [MaybeUninit<Self::Item>; N] =
             // SAFETY: mu likes this
@@ -1340,7 +1340,7 @@ pub trait Skip {
 }
 
 impl<T> Skip for &[T] {
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn skip(&mut self, n: usize) {
         if cfg!(debug_assertions) {
             *self = &self[n..];
@@ -1351,7 +1351,7 @@ impl<T> Skip for &[T] {
 }
 
 impl Skip for &str {
-    #[track_caller]
+    #[cfg_attr(debug_assertions, track_caller)]
     fn skip(&mut self, n: usize) {
         if cfg!(debug_assertions) {
             *self = &self[n..];
