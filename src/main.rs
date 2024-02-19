@@ -86,22 +86,11 @@ impl UnionFind {
     }
 }
 
-/// WYRAND
-unsafe fn rng() -> u64 {
-    static mut STATE: u64 = 0;
-    STATE = STATE.wrapping_add(0x60bee2bee120fc15);
-    let tmp = (STATE as u128).wrapping_mul(0xa3b195354a39b70d);
-    let m1 = (tmp >> 64) ^ tmp;
-    let tmp = m1.wrapping_mul(0x1b03738712fad5c9);
-    let m2 = ((tmp >> 64) ^ tmp) as u64;
-    return m2;
-}
-
 pub fn karg(graph: &Graph) -> Option<usize> {
     let mut v = graph.v;
     let mut s = UnionFind::new(v);
     while v > 2 {
-        let i = ((unsafe { rng() as u128 }.wrapping_mul(graph.edges.len() as u128)) >> 64) as u64;
+        let i = rand::limit::u64(graph.edges.len() as u64);
         let α = s.find(graph.edges[i.nat()].0);
         let β = s.find(graph.edges[i.nat()].1);
         if α == β {

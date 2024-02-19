@@ -13,7 +13,7 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, l, lcm, lt, pa, r, sort, Dir, FilterBy, FilterBy3, GreekTools,
+        even, gcd, gt, l, lcm, lt, pa, r, rand, sort, Dir, FilterBy, FilterBy3, GreekTools,
         IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter, Printable, Push, Skip,
         TakeLine, Trunc, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
         UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
@@ -1386,5 +1386,45 @@ impl<const N: usize, T> Push<T, N> for [T; N] {
 impl<T> Push<T, 1> for T {
     fn and(self, and: T) -> [T; 2] {
         [self, and]
+    }
+}
+
+/// WYRAND based rng's
+pub mod rand {
+    /// WYRAND
+    pub fn u64() -> u64 {
+        static mut STATE: u64 = 0;
+        let tmp = unsafe {
+            STATE = STATE.wrapping_add(0x60bee2bee120fc15);
+            (STATE as u128).wrapping_mul(0xa3b195354a39b70d)
+        };
+        let m1 = (tmp >> 64) ^ tmp;
+        let tmp = m1.wrapping_mul(0x1b03738712fad5c9);
+        ((tmp >> 64) ^ tmp) as u64
+    }
+
+    /// 0..N
+    pub mod limit {
+        use crate::Widen;
+
+        pub fn u64(of: u64) -> u64 {
+            ((super::u64().widen().wrapping_mul(of.widen())) >> 64) as u64
+        }
+    }
+
+    pub fn u32() -> u32 {
+        u64() as u32
+    }
+
+    pub fn u16() -> u16 {
+        u64() as u16
+    }
+
+    pub fn f32() -> f32 {
+        (1.0 / ((1u32 << 24) as f32)) * ((u32() >> 8) as f32)
+    }
+
+    pub fn f64() -> f64 {
+        (1.0 / ((1u64 << 53) as f64)) * ((u64() >> 11) as f64)
     }
 }
