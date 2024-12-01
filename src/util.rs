@@ -1,10 +1,13 @@
 #![allow(non_snake_case, unused_macros)]
+
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 use std::{
     cmp::Reverse,
-    collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
+    collections::{hash_map::Entry, BinaryHeap},
     fmt::{Debug, Display, Write},
     hash::Hash,
-    mem::{swap, MaybeUninit},
+    mem::swap,
     ops::RangeInclusive,
     str::FromStr,
 };
@@ -13,17 +16,19 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, l, lcm, lt, pa, r, rand, sort, Dir, FilterBy, FilterBy3, GreekTools,
-        IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter, Printable, Push, Skip,
-        TakeLine, Trunc, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
-        UnifiedTupleUtils, UnsoundUtilities, Widen, 読む, 読む::Ext, Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, l, lcm, lt, pa, r, rand, reading, reading::Ext, sort, Dir, FilterBy,
+        FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter,
+        Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
+        UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
+    pub use rustc_hash::FxHashMap as HashMap;
+    pub use rustc_hash::FxHashSet as HashSet;
     pub use std::{
         cmp::Ordering::*,
         cmp::{max, min},
-        collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
+        collections::{hash_map::Entry, VecDeque},
         fmt::{Debug, Display},
         hint::black_box as boxd,
         io::{self, Read, Write},
@@ -227,7 +232,7 @@ where
 {
     pub fn new(f: F) -> Self {
         Self {
-            0: HashMap::new(),
+            0: HashMap::default(),
             1: f,
         }
     }
@@ -263,6 +268,8 @@ pub fn countg<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
     }
 }
 
+// pub fn appearances(x: )
+
 pub fn iterg<N: Debug + Copy, I: Iterator<Item = N>>(
     start: N,
     graph: &mut impl Fn(N) -> I,
@@ -283,7 +290,7 @@ pub fn show<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>, D: 
     name: impl Fn(N) -> D,
 ) {
     println!("digraph {{");
-    let mut s = HashSet::new();
+    let mut s = HashSet::default();
     let mut q = BinaryHeap::new();
     q.push(Reverse((0, start)));
     while let Some(Reverse((c, n))) = q.pop() {
@@ -314,7 +321,7 @@ pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)
     h: impl Fn(N) -> u16,
 ) -> u16 {
     let mut q = BinaryHeap::new();
-    let mut s = HashSet::new();
+    let mut s = HashSet::default();
     q.push(Reverse((h(start), 0, start)));
     while let Some(Reverse((_, c, n))) = q.pop() {
         if end(n) {
@@ -339,7 +346,7 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>
     end: impl Fn(N) -> bool,
 ) -> u16 {
     let mut q = BinaryHeap::new();
-    let mut s = HashSet::new();
+    let mut s = HashSet::default();
     q.push(Reverse((0, start)));
     while let Some(Reverse((c, n))) = q.pop() {
         if end(n) {
@@ -480,7 +487,7 @@ impl Λ for &str {
                 panic!(
                     "{e}: {self} should parse into {}",
                     std::any::type_name::<T>()
-                );
+                )
             }
         }
     }
@@ -593,6 +600,12 @@ impl PartialEq<RangeInclusive<u16>> for Ronge {
 }
 
 impl Ronge {
+    pub fn sane(self) -> bool {
+        self.end >= self.begin
+    }
+    pub fn checked_len(self) -> Option<u16> {
+        self.sane().then(|| self.len())
+    }
     pub fn len(self) -> u16 {
         self.end - self.begin
     }
@@ -838,7 +851,6 @@ pub trait GreekTools<T>: Iterator {
     fn ι1<N>(&mut self) -> impl Iterator<Item = (T, N)>
     where
         Self: Ι<T, N>;
-    fn Ν<const N: usize>(&mut self) -> [T; N];
     fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize;
     fn Θ(&mut self);
 }
@@ -882,7 +894,37 @@ macro_rules! ι {
 ι!(u64);
 ι!(usize);
 
-pub mod 読む {
+pub fn nail<const N: usize>(x: &[u8]) -> [u8; N] {
+    unsafe { (x.as_ptr() as *const [u8; N]).read() }
+}
+
+pub mod reading {
+    #[inline]
+    pub fn 八(n: u64) -> u64 {
+        // reinterpret as u64 ("92233721" => 92233721)
+        // let n = u64::from_le_bytes(s);
+        // combine 4 pairs of single digits:
+        // split pieces into odd and even
+        //  1_7_3_2_ (le repr)
+        // _2_3_2_9
+        // then combine
+        // _21_37_23_92 (le repr, each byte as 2 digits)
+        let n = ((n & 0x0f000f000f000f00) >> 8) + ((n & 0x000f000f000f000f) * 10);
+        // combine 2 pairs of 2 digits:
+        // split again
+        // _21___23__
+        // ___37___92
+        // then combine
+        // __14|137__36|7 (le repr, pipes separating bytes)
+        let n = ((n & 0x00ff000000ff0000) >> 16) + ((n & 0x000000ff000000ff) * 100);
+        // combine pair of 4 digits
+        // split again
+        // __14|137____ (then moved to ______14|137, as u64:3721)
+        // ______36|07 (as u64: 9223)
+        // then combine
+        ((n & 0x0000ffff00000000) >> 32) + ((n & 0x000000000000ffff) * 10000)
+    }
+
     use std::{
         io::{self, Read},
         ops::{Add, BitOrAssign, Shl},
@@ -1024,7 +1066,7 @@ pub mod 読む {
         }
     }
 
-    pub fn 完了<
+    pub fn all<
         T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
     >(
         x: &[u8],
@@ -1045,20 +1087,6 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
     #[cfg_attr(debug_assertions, track_caller)]
     fn Δ(&mut self) -> T {
         self.next().α()
-    }
-
-    #[cfg_attr(debug_assertions, track_caller)]
-    fn Ν<const N: usize>(&mut self) -> [T; N] {
-        let mut array: [MaybeUninit<Self::Item>; N] =
-            // SAFETY: mu likes this
-            unsafe { MaybeUninit::uninit().assume_init() };
-
-        for i in 0..array.len() {
-            array[i].write(self.Δ());
-        }
-
-        // SAFETY: init
-        array.map(|elem| unsafe { elem.assume_init() })
     }
 
     fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize {
@@ -1178,21 +1206,6 @@ macro_rules! bits {
 }
 pub(crate) use bits;
 
-#[test]
-fn do_bits() {
-    let mut bitset = 0u128;
-    bits!(bitset + 5);
-    assert!(bits!(bitset[5]));
-    bits!(bitset ! 5);
-    assert!(!bits!(bitset[5]));
-    bits!(bitset ! 5);
-    assert!(bits!(bitset[5]));
-    bits!(bitset - 5);
-    assert!(!bits!(bitset[5]));
-    bits!(bitset[4] = true);
-    assert!(bits!(bitset[4]));
-}
-
 pub struct Lines<'a> {
     bytes: &'a [u8],
 }
@@ -1206,6 +1219,13 @@ impl<'a> Iterator for Lines<'a> {
 }
 
 impl<'a> std::iter::FusedIterator for Lines<'a> {}
+
+impl<'a> DoubleEndedIterator for Lines<'a> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.bytes.take_backline()
+    }
+}
 
 pub trait IntoLines {
     fn 行(&self) -> Lines<'_>;
@@ -1283,20 +1303,29 @@ pub fn sort<T: Ord>(mut x: Vec<T>) -> Vec<T> {
 
 pub trait TakeLine<'b> {
     fn take_line<'a>(&'a mut self) -> Option<&'b [u8]>;
+    fn take_backline<'a>(&'a mut self) -> Option<&'b [u8]>;
 }
 
 impl<'b> TakeLine<'b> for &'b [u8] {
     fn take_line<'a>(&'a mut self) -> Option<&'b [u8]> {
         match memchr::memchr(b'\n', self) {
             None if self.is_empty() => None,
-            None => {
-                let line = *self;
-                *self = b"";
-                Some(line)
-            }
+            None => Some(std::mem::replace(self, b"")),
             Some(end) => {
                 let line = &self[..end];
                 *self = &self[end + 1..];
+                Some(line)
+            }
+        }
+    }
+
+    fn take_backline<'a>(&'a mut self) -> Option<&'b [u8]> {
+        let end = self.len().checked_sub(1)?;
+        match memchr::memrchr(b'\n', &self[..end]) {
+            None => Some(std::mem::replace(self, b"")),
+            Some(end) => {
+                let line = &self[end + 1..];
+                *self = &self[..end];
                 Some(line)
             }
         }
@@ -1307,15 +1336,23 @@ impl<'b> TakeLine<'b> for &'b str {
     fn take_line<'a>(&'a mut self) -> Option<&'b [u8]> {
         match memchr::memchr(b'\n', self.as_bytes()) {
             None if self.is_empty() => None,
-            None => {
-                let line = self.as_bytes();
-                *self = "";
-                Some(line)
-            }
+            None => Some(std::mem::replace(self, "").as_bytes()),
             Some(end) => {
                 let line = self[..end].as_bytes();
                 *self = &self[end + 1..];
                 Some(line)
+            }
+        }
+    }
+
+    fn take_backline<'a>(&'a mut self) -> Option<&'b [u8]> {
+        let end = self.len().checked_sub(1)?;
+        match memchr::memrchr(b'\n', &self.as_bytes()[..end]) {
+            None => Some(std::mem::replace(self, "").as_bytes()),
+            Some(end) => {
+                let line = &self[end + 1..];
+                *self = &self[..end];
+                Some(line.as_bytes())
             }
         }
     }
@@ -1358,34 +1395,6 @@ impl Skip for &str {
         } else {
             *self = C! { &self[n..] };
         }
-    }
-}
-
-pub trait Trunc<T, const N: usize> {
-    /// it does `a[..a.len() - 1].try_into().unwrap()`.
-    fn trunc(&self) -> [T; N - 1];
-}
-
-impl<const N: usize, T: Copy> Trunc<T, N> for [T; N] {
-    fn trunc(&self) -> [T; N - 1] {
-        self[..N - 1].try_into().unwrap()
-    }
-}
-
-pub trait Push<T, const N: usize> {
-    fn and(self, and: T) -> [T; N + 1];
-}
-
-impl<const N: usize, T> Push<T, N> for [T; N] {
-    fn and(self, and: T) -> [T; N + 1] {
-        let mut iter = self.into_iter().chain(std::iter::once(and));
-        std::array::from_fn(|_| iter.next().unwrap())
-    }
-}
-
-impl<T> Push<T, 1> for T {
-    fn and(self, and: T) -> [T; 2] {
-        [self, and]
     }
 }
 
