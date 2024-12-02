@@ -894,8 +894,8 @@ macro_rules! ι {
 ι!(u64);
 ι!(usize);
 
-pub fn nail<const N: usize>(x: &[u8]) -> [u8; N] {
-    unsafe { (x.as_ptr() as *const [u8; N]).read() }
+pub fn nail<const N: usize, T: Copy>(x: &[T]) -> [T; N] {
+    unsafe { (x.as_ptr() as *const [T; N]).read() }
 }
 
 pub mod reading {

@@ -27,72 +27,122 @@
 extern crate test;
 pub mod util;
 use atools::prelude::*;
-use hinted::HintExt;
+// use hinted::HintExt;
 pub use util::prelude::*;
-fn p1(i: &str) -> impl Display {
-    static mut a: [i32; 1000] = [0; 1000];
-    static mut b: [i32; 1000] = [0; 1000];
 
-    let i = i.as_bytes();
-    unsafe {
-        for n in 0..1000 {
-            let i = C! { &i[n * 14..] };
-            let n1 = reading::八(
-                u64::from_le_bytes(util::nail(C! { &i[..8] })) << 24 | (0x3030303030303030 & !24),
-            ) as i32;
-            let n2 = reading::八(u64::from_le_bytes(util::nail(C! { &i[5..]}))) as i32;
-
-            *a.get_unchecked_mut(n) = n1;
-            *b.get_unchecked_mut(n) = n2;
+// 3rd iteration https://godbolt.org/z/bz8qraE56
+fn check(x: &[i8]) -> bool {
+    let mut array = [0i8; 7];
+    let mut set = 0xffu8;
+    let n = x.array_windows::<2>().map(|[a, b]| a - b).ν(&mut array);
+    let array = &array[..n];
+    match array[0] {
+        i8::MIN..=-1 => {
+            array
+                .iter()
+                .zip(0..8u8)
+                .map(|(x, index)| !(-3..=-1).contains(x) as u8 * (1 << index))
+                .for_each(|x| set &= !x);
         }
-        radsort::sort(&mut a);
-        radsort::sort(&mut b);
-        a.iter()
-            .copied()
-            .zip(b)
-            .map(|(x, y)| (x - y).abs())
-            .sum::<i32>()
+        1.. => {
+            array
+                .iter()
+                .zip(0..8u8)
+                .map(|(x, index)| !(1..=3).contains(x) as u8 * (1 << index))
+                .for_each(|x| set &= !x);
+        }
+        0 => return false,
     }
+    set.count_zeros() == 0
 }
 
 pub fn run(i: &str) -> impl Display {
-    static mut a: [u32; 1000] = [0; 1000];
-    static mut map: [u32; 100000] = [0; 100000];
-    let i = i.as_bytes();
+    let mut items = [0; 8];
+    i.行()
+        .filter(|x| {
+            let mut len = 0;
+            let mut s = 0;
+            for &b in *x {
+                match b {
+                    b' ' => {
+                        C! { items[len] = s as i8 };
+                        len += 1;
+                        s = 0;
+                    }
+                    b => s = s * 10 + (b - b'0'),
+                }
+            }
+            C! { items[len] = s as i8 };
+            let slice = C! { &items[..len + 1] };
+            check(slice)
+            // (0..items.len()).any(|n| {
+            //     let mut items = items.clone();
+            //     items.remove(n);
+            //     check2(&items)
+            // })
+        })
+        .count()
+}
 
-    unsafe {
-        let x = C! { &i[..14] };
-        let (x, y) = (reading::all(&x[0..5]), reading::all::<u32>(&x[8..13]));
-        *a.get_unchecked_mut(0) = x;
-        *map.get_unchecked_mut(y as usize) += 1;
-
-        for n in 1..1000 {
-            let x = util::reading::八(
-                u64::from_le_bytes(util::nail::<8>(i.get_unchecked(n * 14 - 3..)))
-                    & 0xffffffffff000000,
-            );
-            let y = util::reading::八(u64::from_le_bytes(util::nail::<8>(
-                i.get_unchecked(n * 14 + 5..),
-            )));
-            *a.get_unchecked_mut(n) = x as u32;
-            *map.get_unchecked_mut(y as usize) += 1;
+fn check_pof(x: &[i8]) -> Result<(), u8> {
+    let state = match x.first_chunk::<2>().map(|[a, b]| a.cmp(b)).ψ() {
+        Equal => return Err(0),
+        Greater => false,
+        Less => true,
+    };
+    // windows at home 😔
+    for i in 1..x.len() as u8 - 1 {
+        let [a, b] = util::nail(C! { &x[i as usize..=i as usize ] });
+        match state {
+            true if !(1..=3).contains(&(b - a)) => return Err(i),
+            false if !(1..=3).contains(&(a - b)) => return Err(i),
+            _ => (),
         }
-        a.iter()
-            .copied()
-            .map(|x| x * map.get_unchecked(x as usize))
-            .sum::<u32>()
     }
+    Ok(())
+}
+#[no_mangle]
+pub fn p2(i: &str) -> impl Display {
+    let mut items = [0; 8];
 
-    // let (mut a, b) = i
-    //     .行()
-    //     .map(|x| x.κ::<u32>().carr().tuple())
-    //     .collect::<(Vec<_>, Vec<u32>)>();
-    // let mut map = HashMap::<u32, u32>::default();
-    // for elem in b {
-    //     map.entry(elem).and_modify(|x| *x += 1).or_insert(1);
-    // }
-    // a.sort_unstable();
-    // a.iter().map(|x| x * map.get(x).unwrap_or(&0)).sum::<u32>()
+    i.行()
+        .filter(|x| {
+            let mut len = 0;
+            let mut s = 0;
+            for &b in *x {
+                match b {
+                    b' ' => {
+                        C! { items[len] = s as i8 };
+                        len += 1;
+                        s = 0;
+                    }
+                    b => {
+                        s = s * 10 + (b - b'0');
+                    }
+                }
+            }
+            C! { items[len] = s as i8 };
+            let slice = C! { &items[..len + 1] };
+            match check_pof(slice) {
+                Ok(()) => true,
+                Err(i) => {
+                    let i = i as usize;
+                    let mut place = [0i8; 7];
+                    macro_rules! rmv {
+                        ($i:expr, $si: expr) => {{
+                            place[..$i].copy_from_slice(&slice[..$i]);
+                            let put = &slice[$si..];
+                            place[$i..$i + put.len()].copy_from_slice(put);
+                            &place[..slice.len() - 1]
+                        }};
+                    }
+                    check(rmv!(i, i + 1)) // [1, 2, >i<, 4, 5]
+                        || check(rmv!(i + 1, i + 2)) // [1, 2, i, >4<, 5]
+                        || (i > 0 && check(rmv!(i - 1, i))) // [1, >2<, i, 4, 5]
+                }
+            }
+        })
+        .count()
 }
 
 fn main() {
@@ -102,9 +152,9 @@ fn main() {
     //     s.push_str(i);
     // }
     // std::fs::write("src/inp.txt", s);
-    println!("{}", p1(i));
-    // println!("{}", experiment(i));
+    // println!("{}", p1(i));
     println!("{}", run(i));
+    println!("{}", p2(i));
 }
 
 #[bench]
@@ -114,7 +164,7 @@ fn bench(b: &mut test::Bencher) {
 }
 
 #[bench]
-fn bench2(b: &mut test::Bencher) {
+fn p21(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt").trim());
-    b.iter(|| p1(i));
+    b.iter(|| p2(i));
 }
