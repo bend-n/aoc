@@ -1066,6 +1066,7 @@ pub mod reading {
         }
     }
 
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn all<
         T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
     >(
