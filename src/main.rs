@@ -27,117 +27,78 @@
 extern crate test;
 pub mod util;
 use atools::prelude::*;
-// use hinted::HintExt;
+use logos::{Lexer as RealLexer, Logos, SpannedIter};
+#[derive(Logos, Debug, PartialEq, Clone)]
+#[logos(skip r"[\n\s]+")]
+#[allow(dead_code)]
+pub enum P2 {
+    #[token("do()")]
+    Do,
+    #[token("don't()")]
+    Dont,
+    #[regex(r"mul\([0-9]+,[0-9]+\)", |lex| lex.slice().μ(',').array().map(|x| x.as_bytes().iter().filter(|x| x.is_ascii_digit()).fold(0, |acc, x| acc * 10 + (x -b'0') as u32)))]
+    Mul([u32; 2]),
+}
+
+#[derive(Logos, Debug, PartialEq, Clone)]
+#[logos(skip r"[\n\s]+")]
+#[allow(dead_code)]
+pub enum P1 {
+    #[regex(r"mul\([0-9]+,[0-9]+\)", |lex| lex.slice().μ(',').array().map(|x| x.as_bytes().iter().filter(|x| x.is_ascii_digit()).fold(0, |acc, x| acc * 10 + (x -b'0') as u32)))]
+    Mul([u32; 2]),
+}
+
 pub use util::prelude::*;
 
-#[no_mangle]
-fn check(x: &[i8]) -> bool {
-    if x.len() > 8 {
-        unsafe { std::hint::unreachable_unchecked() }
-    }
-    let state = unsafe { x.first_chunk::<2>().map(|[a, b]| a < b).unwrap_unchecked() };
-    x.array_windows::<2>().all(|[a, b]| match state {
-        true if !(1..=3).contains(&(b - a)) => return false,
-        false if !(1..=3).contains(&(a - b)) => return false,
-        _ => true,
-    })
+pub fn p1(i: &str) -> impl Display {
+    P1::lexer(i)
+        .filter_map(Result::ok)
+        .map(|P1::Mul(a)| a.product())
+        .sum::<u32>()
+    // let re = regex::Regex::new("mul\\(([0-9]+),([0-9]+)\\)").unwrap();
+    // re.captures_iter(i)
+    //     .map(|find| {
+    //         reading::all::<u32>(find.get(1).ψ().as_str().as_bytes())
+    //             * reading::all::<u32>(find.get(2).ψ().as_str().as_bytes())
+    //     })
+    //     .sum::<u32>()
+
+    // i.行()
+    //     .filter(|x| {
+    //         // let x = x.κ::<u64>().collect_vec();
+    //     })
+    //     .count()
 }
 
 pub fn run(i: &str) -> impl Display {
-    let mut items = [0; 8];
-    i.行()
-        .filter(|x| {
-            let mut len = 0;
-            let mut s = 0;
-            for &b in *x {
-                match b {
-                    b' ' => {
-                        C! { items[len] = s as i8 };
-                        len += 1;
-                        s = 0;
-                    }
-                    b => s = s * 10 + (b - b'0'),
-                }
+    let mut state = true;
+    P2::lexer(i)
+        .filter_map(Result::ok)
+        .map(|x| {
+            match x {
+                P2::Mul([a, b]) => return a * b * state as u32,
+                P2::Do => state = true,
+                P2::Dont => state = false,
             }
-            C! { items[len] = s as i8 };
-            let slice = C! { &items[..len + 1] };
-            check(slice)
-            // (0..items.len()).any(|n| {
-            //     let mut items = items.clone();
-            //     items.remove(n);
-            //     check2(&items)
-            // })
+            0
         })
-        .count()
-}
-
-#[no_mangle]
-fn check_pof(x: &[i8]) -> Result<(), u8> {
-    if x.len() > 8 {
-        unsafe { std::hint::unreachable_unchecked() }
-    }
-    let state = match unsafe {
-        x.first_chunk::<2>()
-            .map(|[a, b]| a.cmp(b))
-            .unwrap_unchecked()
-    } {
-        std::cmp::Ordering::Equal => return Err(0),
-        std::cmp::Ordering::Greater => false,
-        std::cmp::Ordering::Less => true,
-    };
-    // windows at home 😔
-    for i in 1..x.len() as u8 - 1 {
-        let [a, b] = util::nail(&x[i as usize..]);
-        match state {
-            true if !(1..=3).contains(&(b - a)) => return Err(i),
-            false if !(1..=3).contains(&(a - b)) => return Err(i),
-            _ => (),
-        }
-    }
-    Ok(())
-}
-#[no_mangle]
-pub fn p2(i: &str) -> impl Display {
-    let mut items = [0; 8];
-
-    i.行()
-        .filter(|x| {
-            let mut len = 0;
-            let mut s = 0;
-            for &b in *x {
-                match b {
-                    b' ' => {
-                        C! { items[len] = s as i8 };
-                        len += 1;
-                        s = 0;
-                    }
-                    b => {
-                        s = s * 10 + (b - b'0');
-                    }
-                }
-            }
-            C! { items[len] = s as i8 };
-            let slice = C! { &items[..len + 1] };
-            match check_pof(slice) {
-                Ok(()) => true,
-                Err(i) => {
-                    let i = i as usize;
-                    let mut place = [0i8; 7];
-                    macro_rules! rmv {
-                        ($i:expr, $si: expr) => {{
-                            place[..$i].copy_from_slice(&slice[..$i]);
-                            let put = &slice[$si..];
-                            place[$i..$i + put.len()].copy_from_slice(put);
-                            &place[..slice.len() - 1]
-                        }};
-                    }
-                    check(rmv!(i, i + 1)) // [1, 2, >i<, 4, 5]
-                        || check(rmv!(i + 1, i + 2)) // [1, 2, i, >4<, 5]
-                        || (i > 0 && check(rmv!(i - 1, i))) // [1, >2<, i, 4, 5]
-                }
-            }
-        })
-        .count()
+        .sum::<u32>()
+    // let re = regex::Regex::new(r"mul\(([0-9]+),([0-9]+)\)|don't\(\)|do\(\)").unwrap();
+    // let mut on = true;
+    // re.captures_iter(i)
+    //     .map(|find| unsafe {
+    //         match find.get(0).unwrap_unchecked().as_str() {
+    //             "don't()" => on = false,
+    //             "do()" => on = true,
+    //             _ if on => {
+    //                 return reading::all::<u32>(find.get(1).ψ().as_str().as_bytes())
+    //                     * reading::all::<u32>(find.get(2).ψ().as_str().as_bytes())
+    //             }
+    //             _ => (),
+    //         };
+    //         0
+    //     })
+    //     .sum::<u32>()
 }
 
 fn main() {
@@ -147,9 +108,9 @@ fn main() {
     //     s.push_str(i);
     // }
     // std::fs::write("src/inp.txt", s);
-    // println!("{}", p1(i));
+    println!("{}", p1(i));
     println!("{}", run(i));
-    println!("{}", p2(i));
+    // println!("{}", p2(i));
 }
 
 #[bench]
@@ -159,7 +120,7 @@ fn bench(b: &mut test::Bencher) {
 }
 
 #[bench]
-fn p21(b: &mut test::Bencher) {
+fn bench2(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt").trim());
-    b.iter(|| p2(i));
+    b.iter(|| run(i));
 }

@@ -9,7 +9,9 @@ edition = "2021"
 atools = "0.1.5"
 # hinted = "0.0.1"
 itertools = "0.12.0"
+logos = "0.14.3"
 memchr = "2.6.4"
+regex = "1.11.1"
 # radsort = "0.1.1"
 rustc-hash = { version = "2.1.0", features = ["nightly"] }
 [profile.release]
