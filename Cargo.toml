@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 atools = "0.1.5"
-hinted = "0.0.1"
+# hinted = "0.0.1"
 itertools = "0.12.0"
 memchr = "2.6.4"
 # radsort = "0.1.1"

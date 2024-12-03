@@ -30,30 +30,17 @@ use atools::prelude::*;
 // use hinted::HintExt;
 pub use util::prelude::*;
 
-// 3rd iteration https://godbolt.org/z/bz8qraE56
+#[no_mangle]
 fn check(x: &[i8]) -> bool {
-    let mut array = [0i8; 7];
-    let mut set = 0xffu8;
-    let n = x.array_windows::<2>().map(|[a, b]| a - b).ν(&mut array);
-    let array = &array[..n];
-    match array[0] {
-        i8::MIN..=-1 => {
-            array
-                .iter()
-                .zip(0..8u8)
-                .map(|(x, index)| !(-3..=-1).contains(x) as u8 * (1 << index))
-                .for_each(|x| set &= !x);
-        }
-        1.. => {
-            array
-                .iter()
-                .zip(0..8u8)
-                .map(|(x, index)| !(1..=3).contains(x) as u8 * (1 << index))
-                .for_each(|x| set &= !x);
-        }
-        0 => return false,
+    if x.len() > 8 {
+        unsafe { std::hint::unreachable_unchecked() }
     }
-    set.count_zeros() == 0
+    let state = unsafe { x.first_chunk::<2>().map(|[a, b]| a < b).unwrap_unchecked() };
+    x.array_windows::<2>().all(|[a, b]| match state {
+        true if !(1..=3).contains(&(b - a)) => return false,
+        false if !(1..=3).contains(&(a - b)) => return false,
+        _ => true,
+    })
 }
 
 pub fn run(i: &str) -> impl Display {
@@ -84,15 +71,23 @@ pub fn run(i: &str) -> impl Display {
         .count()
 }
 
+#[no_mangle]
 fn check_pof(x: &[i8]) -> Result<(), u8> {
-    let state = match x.first_chunk::<2>().map(|[a, b]| a.cmp(b)).ψ() {
-        Equal => return Err(0),
-        Greater => false,
-        Less => true,
+    if x.len() > 8 {
+        unsafe { std::hint::unreachable_unchecked() }
+    }
+    let state = match unsafe {
+        x.first_chunk::<2>()
+            .map(|[a, b]| a.cmp(b))
+            .unwrap_unchecked()
+    } {
+        std::cmp::Ordering::Equal => return Err(0),
+        std::cmp::Ordering::Greater => false,
+        std::cmp::Ordering::Less => true,
     };
     // windows at home 😔
     for i in 1..x.len() as u8 - 1 {
-        let [a, b] = util::nail(C! { &x[i as usize..=i as usize ] });
+        let [a, b] = util::nail(&x[i as usize..]);
         match state {
             true if !(1..=3).contains(&(b - a)) => return Err(i),
             false if !(1..=3).contains(&(a - b)) => return Err(i),
