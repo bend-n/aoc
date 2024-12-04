@@ -27,27 +27,6 @@
 extern crate test;
 pub mod util;
 use atools::prelude::*;
-use logos::{Lexer as RealLexer, Logos, SpannedIter};
-#[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"[\n\s]+")]
-#[allow(dead_code)]
-pub enum P2 {
-    #[token("do()")]
-    Do,
-    #[token("don't()")]
-    Dont,
-    #[regex(r"mul\([0-9]+,[0-9]+\)", |lex| lex.slice().μ(',').array().map(|x| x.as_bytes().iter().filter(|x| x.is_ascii_digit()).fold(0, |acc, x| acc * 10 + (x -b'0') as u32)))]
-    Mul([u32; 2]),
-}
-
-#[derive(Logos, Debug, PartialEq, Clone)]
-#[logos(skip r"[\n\s]+")]
-#[allow(dead_code)]
-pub enum P1 {
-    #[regex(r"mul\([0-9]+,[0-9]+\)", |lex| lex.slice().μ(',').array().map(|x| x.as_bytes().iter().filter(|x| x.is_ascii_digit()).fold(0, |acc, x| acc * 10 + (x -b'0') as u32)))]
-    Mul([u32; 2]),
-}
-
 pub use util::prelude::*;
 
 fn manual_n<const N: usize>(n: [&u8; N]) -> u32 {
@@ -98,34 +77,60 @@ pub fn p1(i: &str) -> impl Display {
 }
 
 pub fn run(i: &str) -> impl Display {
-    let mut state = true;
-    P2::lexer(i)
-        .filter_map(Result::ok)
-        .map(|x| {
-            match x {
-                P2::Mul([a, b]) => return a * b * state as u32,
-                P2::Do => state = true,
-                P2::Dont => state = false,
+    let mut i = i.as_bytes();
+    let mut sum = 0;
+    let mut on = 1;
+    while let Some(idx) = memchr::memchr2(b'm', b'd', i) {
+        i = C! { &i[idx + 1..] };
+        match i {
+            [b'u', b'l', b'(', rest @ ..] => {
+                macro_rules! cases {
+                ($([$($i:ident)+,$($t:ident)+])+) => {
+                    match rest {
+                        $(
+                            [$($i @ b'0'..=b'9'),+, b',', $($t @ b'0'..=b'9'),+, b')', rest @ ..] => {
+                                (manual_n([$($i),+]) * manual_n([$($t),+]) * on, rest)
+                            }
+                        )+
+                        _ => (0, i),
+                    }
+
+                };
             }
-            0
-        })
-        .sum::<u32>()
-    // let re = regex::Regex::new(r"mul\(([0-9]+),([0-9]+)\)|don't\(\)|do\(\)").unwrap();
-    // let mut on = true;
-    // re.captures_iter(i)
-    //     .map(|find| unsafe {
-    //         match find.get(0).unwrap_unchecked().as_str() {
-    //             "don't()" => on = false,
-    //             "do()" => on = true,
-    //             _ if on => {
-    //                 return reading::all::<u32>(find.get(1).ψ().as_str().as_bytes())
-    //                     * reading::all::<u32>(find.get(2).ψ().as_str().as_bytes())
-    //             }
-    //             _ => (),
-    //         };
-    //         0
-    //     })
-    //     .sum::<u32>()
+                let (res, rest) = cases!(
+                    [a b c , d e f]
+                    [a b c , d e]
+                    [a b c , d]
+                    [a b , d e f]
+                    [a b , d e]
+                    [a b , d]
+                    [a , d e f]
+                    [a , d e]
+                    [a , d]
+                );
+                sum += res;
+                i = rest;
+            }
+            _ => mat! { on {
+                0 => match i {
+                    [b'o', b'(', rest @ ..] => {
+                        on = 1;
+                        i = rest;
+                    }
+                    _ => {}
+                },
+                1 => match i {
+                    [b'o', b'n', rest @ ..] => {
+                        on = 0;
+                        i =rest;
+                    },
+                    _ => {},
+                },
+            }},
+        }
+    }
+
+    sum
 }
 
 fn main() {
