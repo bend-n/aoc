@@ -28,20 +28,33 @@
 )]
 extern crate test;
 pub mod util;
-use rustc_hash::FxBuildHasher;
 pub use util::prelude::*;
+struct Setz {
+    bits: [u128; 100],
+}
+impl Setz {
+    fn new() -> Self {
+        Self { bits: [0; 100] }
+    }
+    fn insert(&mut self, a: u8, b: u8) {
+        unsafe { *self.bits.get_unchecked_mut(a as usize) |= 1 << b };
+    }
+    fn test(&self, a: u8, b: u8) -> bool {
+        unsafe { (*self.bits.get_unchecked(a as usize) & 1 << b) != 0 }
+    }
+}
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
     let i = i.as_bytes();
     let c = unsafe { C! { &i[..1176 * 6]}.as_chunks_unchecked::<6>() };
-    let mut rules = HashSet::<[u8; 2]>::with_capacity_and_hasher(1176, FxBuildHasher::default());
+    let mut bitsets = Setz::new();
     for i in 0..1176 {
         let [a, b, _, c, d, _] = C! { c[i] };
-        rules.insert([(a - b'0') * 10 + (b - b'0'), (c - b'0') * 10 + (d - b'0')]);
+        bitsets.insert((a - b'0') * 10 + (b - b'0'), (c - b'0') * 10 + (d - b'0'));
     }
     let mut sum = 0;
-    let mut v = Vec::with_capacity(20);
+    let mut v = Vec::with_capacity(25);
     'out: for mut pages in C!(&i[1176 * 6 + 1..]).行() {
         v.clear();
         let [a, b, rest @ ..] = pages else {
@@ -56,7 +69,7 @@ pub fn run(i: &str) -> impl Display {
                     v.push((a - b'0') * 10 + (b - b'0'));
                     if let &[a, b] = &v[i..] {
                         // valid ones always have a rule
-                        if !rules.contains(&[a, b]) {
+                        if !bitsets.test(a, b) {
                             continue 'out;
                         }
                         i += 1;
@@ -76,13 +89,13 @@ pub fn run(i: &str) -> impl Display {
 pub fn p2(i: &str) -> impl Display {
     let i = i.as_bytes();
     let c = unsafe { C! { &i[..1176 * 6]}.as_chunks_unchecked::<6>() };
-    let mut rules = HashSet::<[u8; 2]>::with_capacity_and_hasher(1176, FxBuildHasher::default());
+    let mut bitsets = Setz::new();
     for i in 0..1176 {
         let [a, b, _, c, d, _] = C! { c[i]};
-        rules.insert([(a - b'0') * 10 + (b - b'0'), (c - b'0') * 10 + (d - b'0')]);
+        bitsets.insert((a - b'0') * 10 + (b - b'0'), (c - b'0') * 10 + (d - b'0'));
     }
     let mut sum = 0;
-    let mut v = Vec::with_capacity(20);
+    let mut v = Vec::with_capacity(25);
     for mut pages in C!(&i[1176 * 6 + 1..]).行() {
         v.clear();
         let [a, b, rest @ ..] = pages else {
@@ -97,7 +110,7 @@ pub fn p2(i: &str) -> impl Display {
                 [b',', a, b, rest @ ..] => {
                     v.push((a - b'0') * 10 + (b - b'0'));
                     if let &[a, b] = &v[i..] {
-                        if !rules.contains(&[a, b]) {
+                        if !bitsets.test(a, b) {
                             faults += 1;
                         }
                         i += 1;
@@ -112,7 +125,7 @@ pub fn p2(i: &str) -> impl Display {
         }
         let mid = (v.len() - 1) / 2;
         let (_, &mut mid, _) = v.select_nth_unstable_by(mid, |&a, &b| {
-            if rules.contains(&[a, b]) {
+            if bitsets.test(a, b) {
                 std::cmp::Ordering::Greater
             } else {
                 std::cmp::Ordering::Less
