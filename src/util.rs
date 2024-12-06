@@ -427,6 +427,17 @@ impl std::ops::Add<(u8, u8)> for Dir {
     }
 }
 
+impl Dir {
+    pub fn turn_90(&mut self) {
+        match self {
+            Dir::N => *self = Dir::E,
+            Dir::E => *self = Dir::S,
+            Dir::S => *self = Dir::W,
+            Dir::W => *self = Dir::N,
+        }
+    }
+}
+
 pub fn pa<T: std::fmt::Debug>(a: &[T]) {
     for e in a {
         print!("{e:?}");

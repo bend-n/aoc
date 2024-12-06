@@ -29,112 +29,133 @@
 extern crate test;
 pub mod util;
 pub use util::prelude::*;
-struct Setz {
-    bits: [u128; 100],
-}
-impl Setz {
+
+const SIZE: usize = 130;
+
+#[derive(Clone, Copy)]
+struct bitset16960([u64; 265]);
+impl bitset16960 {
     fn new() -> Self {
-        Self { bits: [0; 100] }
+        Self([0; 265])
     }
-    fn insert(&mut self, a: u8, b: u8) {
-        unsafe { *self.bits.get_unchecked_mut(a as usize) |= 1 << b };
+    #[inline(always)]
+    fn set(&mut self, index: usize) {
+        unsafe { *self.0.get_unchecked_mut(index >> 6) |= 1u64.wrapping_shl(index as u32) };
     }
-    fn test(&self, a: u8, b: u8) -> bool {
-        unsafe { (*self.bits.get_unchecked(a as usize) & 1 << b) != 0 }
+    #[inline(always)]
+    fn get(&self, index: usize) -> bool {
+        unsafe { *self.0.get_unchecked(index >> 6) & 1u64.wrapping_shl(index as u32) != 0 }
+    }
+    #[inline(always)]
+    fn popcnt(self) -> u32 {
+        self.0.into_iter().map(u64::count_ones).sum::<u32>()
+    }
+}
+
+// type bits = bitvec::BitArr!(for 16960, in u64);
+// #[derive(Clone, Copy)]
+// struct bitset16960(bits);
+// impl bitset16960 {
+//     fn new() -> Self {
+//         Self(bits::default())
+//     }
+//     #[inline(always)]
+//     #[no_mangle]
+//     fn set(&mut self, index: usize) {
+//         unsafe { self.0.set_unchecked(index, true) };
+//     }
+//     #[inline(always)]
+//     #[no_mangle]
+//     fn get(&self, index: usize) -> bool {
+//         unsafe { *self.0.get_unchecked(index) }
+//     }
+//     #[inline(always)]
+//     fn popcnt(self) -> u32 {
+//         self.0.count_ones() as _
+//     }
+// }
+
+fn follow(i: &[u8]) -> bitset16960 {
+    let mut marked = bitset16960::new();
+    let grid = unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() };
+    let guard = memchr::memchr(b'^', i).ψ();
+    let mut y = (guard / SIZE) as i64;
+    let mut x = (guard % (SIZE + 1)) as i64;
+    let mut pointing = 0u8;
+    loop {
+        marked.set(y as usize * SIZE + x as usize);
+        let (check_x, check_y) = mat!(pointing {
+            0 => (x, y - 1),
+            1 => (x + 1, y),
+            2 => (x, y + 1),
+            3 => (x - 1, y),
+        });
+        if (check_y >= SIZE as i64) || (check_y < 0) || (check_x >= SIZE as i64) || (check_x < 0) {
+            return marked;
+        }
+        if C! { grid[check_y as usize] [check_x as usize] } != b'#' {
+            (x, y) = (check_x, check_y);
+        } else {
+            pointing += 1;
+            pointing %= 4;
+        }
     }
 }
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    let i = i.as_bytes();
-    let c = unsafe { C! { &i[..1176 * 6]}.as_chunks_unchecked::<6>() };
-    let mut bitsets = Setz::new();
-    for i in 0..1176 {
-        let [a, b, _, c, d, _] = C! { c[i] };
-        bitsets.insert((a - b'0') * 10 + (b - b'0'), (c - b'0') * 10 + (d - b'0'));
-    }
-    let mut sum = 0;
-    let mut v = Vec::with_capacity(25);
-    'out: for mut pages in C!(&i[1176 * 6 + 1..]).行() {
-        v.clear();
-        let [a, b, rest @ ..] = pages else {
-            unsafe { std::hint::unreachable_unchecked() }
-        };
-        pages = rest;
-        v.push((a - b'0') * 10 + (b - b'0'));
-        let mut i = 0;
-        loop {
-            mat!(pages {
-                [b',', a, b, rest @ ..] => {
-                    v.push((a - b'0') * 10 + (b - b'0'));
-                    if let &[a, b] = &v[i..] {
-                        // valid ones always have a rule
-                        if !bitsets.test(a, b) {
-                            continue 'out;
-                        }
-                        i += 1;
-                    }
-                    pages = rest;
-                },
-                [] => break,
-            })
-        }
-        sum += C! { v[(v.len() - 1) / 2] } as u32;
-    }
-    leek!(v);
-    sum
+    follow(i.as_bytes()).popcnt()
 }
 
 #[no_mangle]
 pub fn p2(i: &str) -> impl Display {
     let i = i.as_bytes();
-    let c = unsafe { C! { &i[..1176 * 6]}.as_chunks_unchecked::<6>() };
-    let mut bitsets = Setz::new();
-    for i in 0..1176 {
-        let [a, b, _, c, d, _] = C! { c[i]};
-        bitsets.insert((a - b'0') * 10 + (b - b'0'), (c - b'0') * 10 + (d - b'0'));
-    }
-    let mut sum = 0;
-    let mut v = Vec::with_capacity(25);
-    for mut pages in C!(&i[1176 * 6 + 1..]).行() {
-        v.clear();
-        let [a, b, rest @ ..] = pages else {
-            unsafe { std::hint::unreachable_unchecked() }
-        };
-        pages = rest;
-        v.push((a - b'0') * 10 + (b - b'0'));
-        let mut i = 0;
-        let mut faults = 0;
+    fn run(i: &[u8], obstacle: (i64, i64)) -> bool {
+        let mut marked = [bitset16960::new(); 4];
+        let grid = unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() };
+        let guard = memchr::memchr(b'^', i).ψ();
+        let mut y = (guard / SIZE) as i64;
+        let mut x = (guard % (SIZE + 1)) as i64;
+        let mut pointing = 0u8;
         loop {
-            mat!(pages {
-                [b',', a, b, rest @ ..] => {
-                    v.push((a - b'0') * 10 + (b - b'0'));
-                    if let &[a, b] = &v[i..] {
-                        if !bitsets.test(a, b) {
-                            faults += 1;
-                        }
-                        i += 1;
-                    }
-                    pages = rest;
-                },
-                [] => break,
-            })
-        }
-        if faults == 0 {
-            continue;
-        }
-        let mid = (v.len() - 1) / 2;
-        let (_, &mut mid, _) = v.select_nth_unstable_by(mid, |&a, &b| {
-            if bitsets.test(a, b) {
-                std::cmp::Ordering::Greater
+            let i = y as usize * SIZE + x as usize;
+            if C! { &marked[pointing as usize] }.get(i) {
+                return true;
             } else {
-                std::cmp::Ordering::Less
+                C! { &mut marked[pointing as usize] }.set(i);
             }
-        });
-        sum += mid as u32;
+            let (check_x, check_y) = mat!(pointing {
+                0 => (x, y - 1),
+                1 => (x + 1, y),
+                2 => (x, y + 1),
+                3 => (x - 1, y),
+            });
+            if (check_y >= SIZE as i64)
+                || (check_y < 0)
+                || (check_x >= SIZE as i64)
+                || (check_x < 0)
+            {
+                return false;
+            }
+            if C! { grid[check_y as usize] [check_x as usize] } != b'#'
+                && (check_x, check_y) != obstacle
+            {
+                (x, y) = (check_x, check_y);
+            } else {
+                pointing += 1;
+                pointing %= 4;
+            }
+        }
     }
-    leek!(v);
-    sum
+    let marked = follow(&i);
+    use rayon::prelude::*;
+    (0..SIZE)
+        .flat_map(|x| (0..SIZE).map(move |y| (x, y)))
+        .filter(|&(x, y)| marked.get(y * SIZE + x))
+        .filter(|&(x, y)| i[y * (SIZE + 1) + x] == b'.')
+        .par_bridge()
+        .filter(|&(x, y)| run(&i, (x as i64, y as i64)))
+        .count()
 }
 
 fn main() {
