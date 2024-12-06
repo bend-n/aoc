@@ -77,28 +77,57 @@ impl bitset16960 {
 
 fn follow(i: &[u8]) -> bitset16960 {
     let mut marked = bitset16960::new();
-    let grid = unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() };
-    let guard = memchr::memchr(b'^', i).ψ();
-    let mut y = (guard / SIZE) as i64;
-    let mut x = (guard % (SIZE + 1)) as i64;
+    let mut position = memchr::memchr(b'^', i).ψ() as i64;
     let mut pointing = 0u8;
+    marked.set(position as usize);
     loop {
-        marked.set(y as usize * SIZE + x as usize);
-        let (check_x, check_y) = mat!(pointing {
-            0 => (x, y - 1),
-            1 => (x + 1, y),
-            2 => (x, y + 1),
-            3 => (x - 1, y),
-        });
-        if (check_y >= SIZE as i64) || (check_y < 0) || (check_x >= SIZE as i64) || (check_x < 0) {
-            return marked;
+        match pointing {
+            0 => loop {
+                let check = position - SIZE as i64 - 1;
+                if check < 0 {
+                    return marked;
+                }
+                match C! { i[check as usize] } {
+                    b'\n' => return marked,
+                    b'#' => break,
+                    _ => position = check,
+                };
+                marked.set(position as usize);
+            },
+            1 => loop {
+                let check = position + 1;
+                match C! { i[check as usize] } {
+                    b'\n' => return marked,
+                    b'#' => break,
+                    _ => position = check,
+                };
+                marked.set(position as usize);
+            },
+            2 => loop {
+                let check = position + SIZE as i64 + 1;
+                match C! { i[check as usize] } {
+                    b'\n' => return marked,
+                    b'#' => break,
+                    _ => position = check,
+                };
+                marked.set(position as usize);
+            },
+            3 => loop {
+                let check = position - 1;
+                if check < 0 {
+                    return marked;
+                }
+                match C! { i[check as usize] } {
+                    b'\n' => return marked,
+                    b'#' => break,
+                    _ => position = check,
+                };
+                marked.set(position as usize);
+            },
+            _ => shucks!(),
         }
-        if C! { grid[check_y as usize] [check_x as usize] } != b'#' {
-            (x, y) = (check_x, check_y);
-        } else {
-            pointing += 1;
-            pointing %= 4;
-        }
+        pointing += 1;
+        pointing %= 4;
     }
 }
 
@@ -166,7 +195,7 @@ fn main() {
     // }
     // std::fs::write("src/inp.txt", s);
     println!("{}", run(i));
-    println!("{}", p2(i));
+    // println!("{}", p2(i));
 }
 
 #[bench]
