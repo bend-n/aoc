@@ -30,185 +30,73 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-const SIZE: usize = 130;
+const SIZE: usize = 10;
 
-#[derive(Clone, Copy)]
-struct bitset17030([u64; 267]);
-impl bitset17030 {
-    const fn new() -> Self {
-        Self([0; 267])
-    }
-    #[inline(always)]
-    fn set(&mut self, index: usize) {
-        unsafe { *self.0.get_unchecked_mut(index >> 6) |= 1u64.wrapping_shl(index as u32) };
-    }
-    #[inline(always)]
-    fn get(&self, index: usize) -> bool {
-        unsafe { *self.0.get_unchecked(index >> 6) & 1u64.wrapping_shl(index as u32) != 0 }
-    }
-    #[inline(always)]
-    fn popcnt(self) -> u32 {
-        self.0.into_iter().map(u64::count_ones).sum::<u32>()
-    }
+fn concat(a: u64, b: u64) -> u64 {
+    a * 10u64.pow(b.ilog10() + 1) + b
 }
 
-// type bits = bitvec::BitArr!(for 16960, in u64);
-// #[derive(Clone, Copy)]
-// struct bitset17030(bits);
-// impl bitset17030 {
-//     fn new() -> Self {
-//         Self(bits::default())
-//     }
-//     #[inline(always)]
-//     #[no_mangle]
-//     fn set(&mut self, index: usize) {
-//         unsafe { self.0.set_unchecked(index, true) };
-//     }
-//     #[inline(always)]
-//     #[no_mangle]
-//     fn get(&self, index: usize) -> bool {
-//         unsafe { *self.0.get_unchecked(index) }
-//     }
-//     #[inline(always)]
-//     fn popcnt(self) -> u32 {
-//         self.0.count_ones() as _
-//     }
-// }
-
-fn follow(i: &[u8]) -> (i64, bitset17030) {
-    let mut marked = bitset17030::new();
-    let mut position = memchr::memchr(b'^', i).ψ() as i64;
-    let guard = position;
-    let mut pointing = 0u8;
-
-    'outer: loop {
-        match pointing {
-            0 => loop {
-                marked.set(position as usize);
-                let check = position - SIZE as i64 - 1;
-                if check < 0 {
-                    break 'outer;
-                }
-                match C! { i[check as usize] } {
-                    b'\n' => break 'outer,
-                    b'#' => break,
-                    _ => position = check,
-                };
-            },
-            1 => loop {
-                marked.set(position as usize);
-                let check = position + 1;
-                match C! { i[check as usize] } {
-                    b'\n' => break 'outer,
-                    b'#' => break,
-                    _ => position = check,
-                };
-            },
-            2 => loop {
-                marked.set(position as usize);
-                let check = position + SIZE as i64 + 1;
-                match C! { i[check as usize] } {
-                    b'\n' => break 'outer,
-                    b'#' => break,
-                    _ => position = check,
-                };
-            },
-            3 => loop {
-                marked.set(position as usize);
-                let check = position - 1;
-                if check < 0 {
-                    break 'outer;
-                }
-                match C! { i[check as usize] } {
-                    b'\n' => break 'outer,
-                    b'#' => break,
-                    _ => position = check,
-                };
-            },
-            _ => shucks!(),
+fn search(mut nums: &[u64], should: u64, current: u64, ops: &[fn(u64, u64) -> u64]) -> bool {
+    let Some(&a) = nums.take_first() else {
+        return current == should;
+    };
+    for op in ops {
+        let result = op(current, a);
+        if result > should {
+            continue;
         }
-        pointing += 1;
-        pointing %= 4;
+        if search(nums, should, result, ops) {
+            return true;
+        }
     }
-    (guard, marked)
+    false
 }
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    follow(i.as_bytes()).1.popcnt()
+    i.行()
+        .map(|x| {
+            let (a, b) = x.μ(':');
+            let should = a.λ::<u64>();
+            let nums = b.κ::<u64>().collect_vec();
+            let mut nums = &*nums;
+            let &first = nums.take_first().ψ();
+            should
+                * search(
+                    nums,
+                    should,
+                    first,
+                    &[
+                        (std::ops::Add::<u64>::add),
+                        (std::ops::Mul::<u64>::mul as fn(u64, u64) -> u64),
+                    ],
+                ) as u64
+        })
+        .sum::<u64>()
 }
 
 #[no_mangle]
 pub fn p2(i: &str) -> impl Display {
-    let i = i.as_bytes();
-    fn run(i: &[u8], guard: i64, obstacle: i64) -> bool {
-        let mut marked = [bitset17030::new(); 4];
-        let mut position = guard;
-        let mut pointing = 0u8;
-
-        macro_rules! check {
-            () => {
-                if marked[pointing as usize].get(position as usize) {
-                    return true;
-                } else {
-                    marked[pointing as usize].set(position as usize)
-                }
-            };
-        }
-        macro_rules! entry {
-            (sub $check:expr) => {
-                loop {
-                    check!();
-                    let check = $check;
-                    if check < 0 {
-                        return false;
-                    }
-                    if check == obstacle {
-                        break;
-                    }
-                    match C! { i[check as usize] } {
-                        b'\n' => return false,
-                        b'#' => break,
-                        _ => position = check,
-                    };
-                }
-            };
-            (add $check:expr) => {
-                loop {
-                    check!();
-                    let check = $check;
-                    if check == obstacle {
-                        break;
-                    }
-                    match i.get(check as usize) {
-                        None | Some(b'\n') => return false,
-                        Some(b'#') => break,
-                        _ => position = check,
-                    };
-                }
-            };
-        }
-
-        loop {
-            match pointing {
-                0 => entry!(sub position - SIZE as i64 - 1),
-                1 => entry!(add position + 1),
-                2 => entry!(add position + SIZE as i64 + 1),
-                3 => entry!(sub position - 1),
-                _ => shucks!(),
-            }
-            pointing += 1;
-            pointing %= 4;
-        }
-    }
-    let (guard, marked) = follow(&i);
-    use rayon::prelude::*;
-    (0..SIZE * (SIZE + 1))
-        .filter(|&i| marked.get(i))
-        .filter(|&j| C! { i[j] } == b'.')
-        .par_bridge()
-        .filter(|&j| run(&i, guard, j as i64))
-        .count()
+    i.行()
+        .map(|x| {
+            let (a, b) = x.μ(':');
+            let should = a.λ::<u64>();
+            let nums = b.κ::<u64>().collect_vec();
+            let mut nums = &*nums;
+            let &first = nums.take_first().ψ();
+            should
+                * search(
+                    nums,
+                    should,
+                    first,
+                    &[
+                        (std::ops::Add::<u64>::add),
+                        (std::ops::Mul::<u64>::mul as fn(u64, u64) -> u64),
+                        concat,
+                    ],
+                ) as u64
+        })
+        .sum::<u64>()
 }
 
 fn main() {
