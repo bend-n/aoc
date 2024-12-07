@@ -16,10 +16,10 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, Dir, FilterBy,
-        FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools, ParseIter,
-        Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
-        UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, DigiCount, Dir,
+        FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
+        ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3,
+        TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -552,30 +552,72 @@ impl<T> Α<T> for Option<T> {
     }
 }
 
-pub trait Ͷ {
+pub trait DigiCount {
+    fn ͱ(self) -> u32;
+}
+
+pub const powers: [u64; 20] = car::from_fn!(|x| 10u64.pow(x as u32));
+// https://stackoverflow.com/a/9721570
+impl DigiCount for u64 {
+    fn ͱ(self) -> u32 {
+        static powers: [u64; 20] = car::from_fn!(|x| 10u64.pow(x as u32));
+        static mdigs: [u32; 65] = car::from_fn!(|x| 2u128.pow(x as u32).ilog10() + 1);
+        let bit = std::mem::size_of::<Self>() * 8 - self.leading_zeros() as usize;
+        let mut digs = mdigs[bit];
+        if self < powers[digs as usize - 1] {
+            digs -= 1;
+        }
+        digs
+    }
+}
+
+impl DigiCount for u32 {
+    fn ͱ(self) -> Self {
+        static powers: [u32; 10] = car::from_fn!(|x| 10u32.pow(x as u32));
+        static mdigs: [u32; 33] = car::from_fn!(|x| 2u128.pow(x as u32).ilog10() + 1);
+        let bit = std::mem::size_of::<Self>() * 8 - self.leading_zeros() as usize;
+        let mut digs = mdigs[bit];
+        if self < powers[digs as usize - 1] {
+            digs -= 1;
+        }
+        digs
+    }
+}
+
+impl DigiCount for u16 {
+    fn ͱ(self) -> u32 {
+        self.checked_ilog10().ψ() + 1
+    }
+}
+
+impl DigiCount for u8 {
+    fn ͱ(self) -> u32 {
+        self.checked_ilog10().ψ() + 1
+    }
+}
+
+pub trait Ͷ: DigiCount {
     fn ͷ(self) -> impl Iterator<Item = u8>;
+    fn Ͷ(self, i: u8) -> u8;
 }
 
 macro_rules! digs {
     ($for:ty) => {
         impl Ͷ for $for {
             fn ͷ(self) -> impl Iterator<Item = u8> {
-                let digits = (self.ilog10() + 1) as u8;
-                (0..digits)
-                    .rev()
-                    .map(move |n| ((self / (10 as $for).pow(n as _)) % 10) as u8)
+                let digits = self.ͱ() as u8;
+                (0..digits).rev().map(move |n| self.Ͷ(n))
+            }
+            fn Ͷ(self, i: u8) -> u8 {
+                ((self / (10 as $for).pow(i as _)) % 10) as u8
             }
         }
     };
 }
 digs!(u64);
-digs!(i64);
-digs!(i32);
 digs!(u32);
 digs!(u16);
-digs!(i16);
 digs!(u8);
-digs!(i8);
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub struct Ronge {
@@ -955,16 +997,21 @@ pub mod reading {
         }
     }
     use crate::util::prelude::*;
-    pub fn κ(x: &[u8], v: &mut Vec<u64>) {
-        let mut s = 0;
+    pub fn κ<
+        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
+    >(
+        x: &[u8],
+        v: &mut Vec<T>,
+    ) {
+        let mut s = T::default();
         for &b in x {
             match b {
                 b' ' => {
                     v.push(s);
-                    s = 0;
+                    s = T::default();
                 }
                 b => {
-                    s = s * 10 + (b - b'0') as u64;
+                    s = s * T::ten() + T::from(b - b'0');
                 }
             }
         }

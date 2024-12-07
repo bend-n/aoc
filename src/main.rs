@@ -30,36 +30,8 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-// https://stackoverflow.com/a/9721570
-fn digs(x: u64) -> u64 {
-    static powers: [u64; 20] = car::from_fn!(|x| 10u64.pow(x as u32));
-    static mdigs: [u32; 65] = car::from_fn!(|x| 2u128.pow(x as u32).ilog10() + 1);
-    let bit = std::mem::size_of::<u64>() * 8 - x.leading_zeros() as usize;
-    let mut digs = mdigs[bit];
-    if x < powers[digs as usize - 1] {
-        digs -= 1;
-    }
-    powers[digs as usize]
-}
-
-fn search(mut nums: &[u64], should: u64, current: u64, ops: &[fn(u64, u64) -> u64]) -> bool {
-    let Some(&a) = nums.take_first() else {
-        return current == should;
-    };
-    for op in ops {
-        let result = op(current, a);
-        if result > should {
-            continue;
-        }
-        if search(nums, should, result, ops) {
-            return true;
-        }
-    }
-    false
-}
-
 #[inline]
-fn do_(ops: &[fn(u64, u64) -> u64], i: &str) -> u64 {
+fn do_(i: &str, search: fn(&[u64], u64) -> bool) -> u64 {
     let mut v = Vec::with_capacity(10);
     i.行()
         .map(|x| {
@@ -67,35 +39,57 @@ fn do_(ops: &[fn(u64, u64) -> u64], i: &str) -> u64 {
             let (a, b) = x.μ(':');
             let should = reading::all(a);
             reading::κ(C! { &b[1..] }, &mut v);
-            let mut nums = &*v;
-            let &first = nums.take_first().ψ();
-            should * search(nums, should, first, ops) as u64
+            should * search(&v, should) as u64
         })
         .sum::<u64>()
 }
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    do_(
-        &[
-            (std::ops::Add::<u64>::add),
-            (std::ops::Mul::<u64>::mul as fn(u64, u64) -> u64),
-        ],
-        i,
-    )
+    // go backwards for extreme pruning ability
+    fn search(nums: &[u64], tv: u64) -> bool {
+        match nums {
+            &[tail] => tv == tail,
+            [head @ .., tail] => {
+                let (q, r) = (tv / tail, tv % tail);
+                if r == 0 && search(head, q) {
+                    return true;
+                }
+                let Some(result) = tv.checked_sub(*tail) else {
+                    return false;
+                };
+                search(head, result)
+            }
+            [] => unreachable!(),
+        }
+    }
+    do_(i, search)
 }
 
 #[no_mangle]
 pub fn p2(i: &str) -> impl Display {
-    do_(
-        &[
-            (std::ops::Add::<u64>::add),
-            (std::ops::Mul::<u64>::mul as fn(u64, u64) -> u64),
-            |a, b| a * digs(b) + b,
-            // |a, b| a * 10u64.pow(b.checked_ilog10().ψ() + 1) + b,
-        ],
-        i,
-    )
+    fn search(nums: &[u64], tv: u64) -> bool {
+        match nums {
+            &[tail] => tv == tail,
+            [head @ .., tail] => {
+                let (q, r) = (tv / tail, tv % tail);
+                if r == 0 && search(head, q) {
+                    return true;
+                }
+                let Some(result) = tv.checked_sub(*tail) else {
+                    return false;
+                };
+                if (tv - *tail) % util::powers[tail.ͱ() as usize] == 0
+                    && search(head, tv / util::powers[tail.ͱ() as usize])
+                {
+                    return true;
+                }
+                search(head, result)
+            }
+            [] => unreachable!(),
+        }
+    }
+    do_(i, |n, should| search(n, should))
 }
 
 fn main() {
@@ -106,6 +100,7 @@ fn main() {
     //     s.push_str(i);
     // }
     // std::fs::write("src/inp.txt", s);
+    // println!("{}", p2(i));
     assert_eq!(run(i).to_string(), 663613490587u64.to_string());
     assert_eq!(p2(i).to_string(), 110365987435001u64.to_string());
 }
