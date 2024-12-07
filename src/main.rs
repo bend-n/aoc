@@ -75,21 +75,22 @@ impl bitset17030 {
 //     }
 // }
 
-fn follow(i: &[u8]) -> bitset17030 {
+fn follow(i: &[u8]) -> (i64, bitset17030) {
     let mut marked = bitset17030::new();
     let mut position = memchr::memchr(b'^', i).ψ() as i64;
+    let guard = position;
     let mut pointing = 0u8;
 
-    loop {
+    'outer: loop {
         match pointing {
             0 => loop {
                 marked.set(position as usize);
                 let check = position - SIZE as i64 - 1;
                 if check < 0 {
-                    return marked;
+                    break 'outer;
                 }
                 match C! { i[check as usize] } {
-                    b'\n' => return marked,
+                    b'\n' => break 'outer,
                     b'#' => break,
                     _ => position = check,
                 };
@@ -98,7 +99,7 @@ fn follow(i: &[u8]) -> bitset17030 {
                 marked.set(position as usize);
                 let check = position + 1;
                 match C! { i[check as usize] } {
-                    b'\n' => return marked,
+                    b'\n' => break 'outer,
                     b'#' => break,
                     _ => position = check,
                 };
@@ -107,7 +108,7 @@ fn follow(i: &[u8]) -> bitset17030 {
                 marked.set(position as usize);
                 let check = position + SIZE as i64 + 1;
                 match C! { i[check as usize] } {
-                    b'\n' => return marked,
+                    b'\n' => break 'outer,
                     b'#' => break,
                     _ => position = check,
                 };
@@ -116,10 +117,10 @@ fn follow(i: &[u8]) -> bitset17030 {
                 marked.set(position as usize);
                 let check = position - 1;
                 if check < 0 {
-                    return marked;
+                    break 'outer;
                 }
                 match C! { i[check as usize] } {
-                    b'\n' => return marked,
+                    b'\n' => break 'outer,
                     b'#' => break,
                     _ => position = check,
                 };
@@ -129,19 +130,20 @@ fn follow(i: &[u8]) -> bitset17030 {
         pointing += 1;
         pointing %= 4;
     }
+    (guard, marked)
 }
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    follow(i.as_bytes()).popcnt()
+    follow(i.as_bytes()).1.popcnt()
 }
 
 #[no_mangle]
 pub fn p2(i: &str) -> impl Display {
     let i = i.as_bytes();
-    fn run(i: &[u8], obstacle: i64) -> bool {
+    fn run(i: &[u8], guard: i64, obstacle: i64) -> bool {
         let mut marked = [bitset17030::new(); 4];
-        let mut position = memchr::memchr(b'^', i).ψ() as i64;
+        let mut position = guard;
         let mut pointing = 0u8;
 
         macro_rules! check {
@@ -199,14 +201,13 @@ pub fn p2(i: &str) -> impl Display {
             pointing %= 4;
         }
     }
-    let marked = follow(&i);
+    let (guard, marked) = follow(&i);
     use rayon::prelude::*;
-    (0..SIZE)
-        .flat_map(|x| (0..SIZE).map(move |y| (y * (SIZE + 1) + x)))
+    (0..SIZE * (SIZE + 1))
         .filter(|&i| marked.get(i))
-        .filter(|&j| i[j] == b'.')
+        .filter(|&j| C! { i[j] } == b'.')
         .par_bridge()
-        .filter(|&j| run(&i, j as i64))
+        .filter(|&j| run(&i, guard, j as i64))
         .count()
 }
 
