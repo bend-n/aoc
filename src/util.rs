@@ -968,6 +968,7 @@ pub mod reading {
                 }
             }
         }
+        v.push(s);
     }
     pub trait Ten {
         fn ten() -> Self;
