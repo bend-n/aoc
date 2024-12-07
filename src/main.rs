@@ -33,10 +33,10 @@ pub use util::prelude::*;
 const SIZE: usize = 130;
 
 #[derive(Clone, Copy)]
-struct bitset16960([u64; 265]);
-impl bitset16960 {
-    fn new() -> Self {
-        Self([0; 265])
+struct bitset17030([u64; 267]);
+impl bitset17030 {
+    const fn new() -> Self {
+        Self([0; 267])
     }
     #[inline(always)]
     fn set(&mut self, index: usize) {
@@ -54,8 +54,8 @@ impl bitset16960 {
 
 // type bits = bitvec::BitArr!(for 16960, in u64);
 // #[derive(Clone, Copy)]
-// struct bitset16960(bits);
-// impl bitset16960 {
+// struct bitset17030(bits);
+// impl bitset17030 {
 //     fn new() -> Self {
 //         Self(bits::default())
 //     }
@@ -75,14 +75,15 @@ impl bitset16960 {
 //     }
 // }
 
-fn follow(i: &[u8]) -> bitset16960 {
-    let mut marked = bitset16960::new();
+fn follow(i: &[u8]) -> bitset17030 {
+    let mut marked = bitset17030::new();
     let mut position = memchr::memchr(b'^', i).ψ() as i64;
     let mut pointing = 0u8;
-    marked.set(position as usize);
+
     loop {
         match pointing {
             0 => loop {
+                marked.set(position as usize);
                 let check = position - SIZE as i64 - 1;
                 if check < 0 {
                     return marked;
@@ -92,27 +93,27 @@ fn follow(i: &[u8]) -> bitset16960 {
                     b'#' => break,
                     _ => position = check,
                 };
-                marked.set(position as usize);
             },
             1 => loop {
+                marked.set(position as usize);
                 let check = position + 1;
                 match C! { i[check as usize] } {
                     b'\n' => return marked,
                     b'#' => break,
                     _ => position = check,
                 };
-                marked.set(position as usize);
             },
             2 => loop {
+                marked.set(position as usize);
                 let check = position + SIZE as i64 + 1;
                 match C! { i[check as usize] } {
                     b'\n' => return marked,
                     b'#' => break,
                     _ => position = check,
                 };
-                marked.set(position as usize);
             },
             3 => loop {
+                marked.set(position as usize);
                 let check = position - 1;
                 if check < 0 {
                     return marked;
@@ -122,7 +123,6 @@ fn follow(i: &[u8]) -> bitset16960 {
                     b'#' => break,
                     _ => position = check,
                 };
-                marked.set(position as usize);
             },
             _ => shucks!(),
         }
@@ -139,51 +139,74 @@ pub fn run(i: &str) -> impl Display {
 #[no_mangle]
 pub fn p2(i: &str) -> impl Display {
     let i = i.as_bytes();
-    fn run(i: &[u8], obstacle: (i64, i64)) -> bool {
-        let mut marked = [bitset16960::new(); 4];
-        let grid = unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() };
-        let guard = memchr::memchr(b'^', i).ψ();
-        let mut y = (guard / SIZE) as i64;
-        let mut x = (guard % (SIZE + 1)) as i64;
+    fn run(i: &[u8], obstacle: i64) -> bool {
+        let mut marked = [bitset17030::new(); 4];
+        let mut position = memchr::memchr(b'^', i).ψ() as i64;
         let mut pointing = 0u8;
+
+        macro_rules! check {
+            () => {
+                if marked[pointing as usize].get(position as usize) {
+                    return true;
+                } else {
+                    marked[pointing as usize].set(position as usize)
+                }
+            };
+        }
+        macro_rules! entry {
+            (sub $check:expr) => {
+                loop {
+                    check!();
+                    let check = $check;
+                    if check < 0 {
+                        return false;
+                    }
+                    if check == obstacle {
+                        break;
+                    }
+                    match C! { i[check as usize] } {
+                        b'\n' => return false,
+                        b'#' => break,
+                        _ => position = check,
+                    };
+                }
+            };
+            (add $check:expr) => {
+                loop {
+                    check!();
+                    let check = $check;
+                    if check == obstacle {
+                        break;
+                    }
+                    match i.get(check as usize) {
+                        None | Some(b'\n') => return false,
+                        Some(b'#') => break,
+                        _ => position = check,
+                    };
+                }
+            };
+        }
+
         loop {
-            let i = y as usize * SIZE + x as usize;
-            if C! { &marked[pointing as usize] }.get(i) {
-                return true;
-            } else {
-                C! { &mut marked[pointing as usize] }.set(i);
+            match pointing {
+                0 => entry!(sub position - SIZE as i64 - 1),
+                1 => entry!(add position + 1),
+                2 => entry!(add position + SIZE as i64 + 1),
+                3 => entry!(sub position - 1),
+                _ => shucks!(),
             }
-            let (check_x, check_y) = mat!(pointing {
-                0 => (x, y - 1),
-                1 => (x + 1, y),
-                2 => (x, y + 1),
-                3 => (x - 1, y),
-            });
-            if (check_y >= SIZE as i64)
-                || (check_y < 0)
-                || (check_x >= SIZE as i64)
-                || (check_x < 0)
-            {
-                return false;
-            }
-            if C! { grid[check_y as usize] [check_x as usize] } != b'#'
-                && (check_x, check_y) != obstacle
-            {
-                (x, y) = (check_x, check_y);
-            } else {
-                pointing += 1;
-                pointing %= 4;
-            }
+            pointing += 1;
+            pointing %= 4;
         }
     }
     let marked = follow(&i);
     use rayon::prelude::*;
     (0..SIZE)
-        .flat_map(|x| (0..SIZE).map(move |y| (x, y)))
-        .filter(|&(x, y)| marked.get(y * SIZE + x))
-        .filter(|&(x, y)| i[y * (SIZE + 1) + x] == b'.')
+        .flat_map(|x| (0..SIZE).map(move |y| (y * (SIZE + 1) + x)))
+        .filter(|&i| marked.get(i))
+        .filter(|&j| i[j] == b'.')
         .par_bridge()
-        .filter(|&(x, y)| run(&i, (x as i64, y as i64)))
+        .filter(|&j| run(&i, j as i64))
         .count()
 }
 
@@ -195,7 +218,7 @@ fn main() {
     // }
     // std::fs::write("src/inp.txt", s);
     println!("{}", run(i));
-    // println!("{}", p2(i));
+    println!("{}", p2(i));
 }
 
 #[bench]
