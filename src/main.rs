@@ -32,38 +32,50 @@ pub mod util;
 pub use util::prelude::*;
 
 const SIZE: usize = 50;
-fn split(x: usize) -> (isize, isize) {
-    (
-        x as isize / (SIZE as isize + 1),
-        x as isize % (SIZE as isize + 1),
-    )
+fn split(x: usize) -> (u8, u8) {
+    ((x / (SIZE + 1)) as u8, (x % (SIZE + 1)) as u8)
 }
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
     let i = i.as_bytes();
+    let mut big: [[(u8, u8); 4]; 123] = [[(0, 0); 4]; 123];
+    let mut lengths = [0; 123];
+    for (row_, i) in unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() }
+        .iter()
+        .ι::<u8>()
+    {
+        let row = u8x64::load_or_default(row_);
+        let mut row = row.simd_ne(Simd::splat(b'.')).to_bitmask() & ((1 << 50) - 1);
+        while row != 0 {
+            let x = row.trailing_zeros();
+            row &= !(1 << x);
+            let &el = &row_[x as usize];
+            let l = unsafe { lengths.get_unchecked_mut(el as usize) };
+            C! { big[el as usize][*l] = (i, x as u8) };
+            *l += 1;
+        }
+    }
     let mut anti = [0u64; SIZE];
-    for character in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
-        let mut memchr = memchr::Memchr::new(character, i);
-        let a = match memchr.next() {
-            None => continue,
-            Some(a) => a,
+    for char in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
+        // let memchr = memchr::Memchr::new(char, i);
+        // let wat = memchr.map(split).collect_vec();
+        let all = unsafe {
+            big.get_unchecked(char as usize)
+                .get_unchecked(..*lengths.get_unchecked(char as usize))
         };
-        let b = memchr.Δ();
-        let c = memchr.Δ();
-        let d = memchr.next();
         let mut anti = |(x1, y1), (x2, y2)| {
             let mut x3 = x2 + (x2 - x1);
             let mut y3 = y2 + (y2 - y1);
             *C! { &mut anti[y2 as usize] } |= 1 << x2 as u64;
-            while (x3 >= 0) & (x3 < SIZE as isize) & (y3 >= 0) & (y3 < SIZE as isize) {
+            while (x3 < SIZE as u8) & (y3 < SIZE as u8) {
                 anti[y3 as usize] |= 1 << x3 as u64;
                 x3 += x2 - x1;
                 y3 += y2 - y1;
             }
         };
-        match d {
-            Some(d) => {
-                let [a, b, c, d] = [a, b, c, d].map(split);
+        match all {
+            &[] => continue,
+            &[a, b, c, d] => {
                 let mut one = |i, j| {
                     anti(i, j);
                     anti(j, i);
@@ -75,9 +87,8 @@ pub fn run(i: &str) -> impl Display {
                 one(d, b);
                 one(d, c);
             }
-            None => {
-                let [a, b, c] = [a, b, c].map(split);
-                let mut one = |i: (isize, isize), j: (isize, isize)| {
+            &[a, b, c] => {
+                let mut one = |i: (u8, u8), j: (u8, u8)| {
                     anti(i, j);
                     anti(j, i);
                 };
@@ -85,51 +96,71 @@ pub fn run(i: &str) -> impl Display {
                 one(c, a);
                 one(c, b);
             }
+            _ => shucks!(),
         }
     }
     anti.into_iter().map(u64::count_ones).sum::<u32>()
 }
+use std::simd::prelude::*;
 #[no_mangle]
 pub fn p1(i: &str) -> u32 {
+    let mut big: [[(u8, u8); 4]; 123] = [[(0, 0); 4]; 123];
+    let mut lengths = [0; 123];
     let i = i.as_bytes();
+    for (row_, i) in unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() }
+        .iter()
+        .ι::<u8>()
+    {
+        let row = u8x64::load_or_default(row_);
+        let mut row = row.simd_ne(Simd::splat(b'.')).to_bitmask() & ((1 << 50) - 1);
+        while row != 0 {
+            let x = row.trailing_zeros();
+            row &= !(1 << x);
+            let &el = &row_[x as usize];
+            let l = unsafe { lengths.get_unchecked_mut(el as usize) };
+            C! { big[el as usize][*l] = (i, x as u8) };
+            *l += 1;
+        }
+    }
     let mut anti = [0u64; SIZE];
-    for character in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
-        let mut memchr = memchr::Memchr::new(character, i);
-        let a = match memchr.next() {
-            None => continue,
-            Some(a) => a,
+    for char in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
+        // let memchr = memchr::Memchr::new(char, i);
+        // let wat = memchr.map(split).collect_vec();
+        let all = unsafe {
+            big.get_unchecked(char as usize)
+                .get_unchecked(..*lengths.get_unchecked(char as usize))
         };
-        let b = memchr.Δ();
-        let c = memchr.Δ();
-        let d = memchr.next();
-        let mut anti = |(x1, y1), (x2, y2)| {
-            let x3 = x2 + (x2 - x1);
-            let y3 = y2 + (y2 - y1);
-            if (x3 >= 0) & (x3 < SIZE as isize) & (y3 >= 0) & (y3 < SIZE as isize) {
+        // assert_eq!(wat, all);
+        let mut anti = |(x1, y1), (x2, y2): (u8, u8)| {
+            let x3 = x2.wrapping_add(x2.wrapping_sub(x1));
+            let y3 = y2.wrapping_add(y2.wrapping_sub(y1));
+            if (x3 < SIZE as u8) & (y3 < SIZE as u8) {
                 anti[y3 as usize] |= 1 << x3 as u64;
             }
         };
-        match d {
-            Some(d) => {
+        match all.len() {
+            0 => continue,
+            4 => {
                 for i in 0..4 {
                     for j in 0..i {
-                        let i = split([a, b, c, d][i]);
-                        let j = split([a, b, c, d][j]);
+                        let i = all[i];
+                        let j = all[j];
                         anti(i, j);
                         anti(j, i);
                     }
                 }
             }
-            None => {
+            3 => {
                 for i in 0..3 {
                     for j in 0..i {
-                        let i = split([a, b, c][i]);
-                        let j = split([a, b, c][j]);
+                        let i = all[i];
+                        let j = all[j];
                         anti(i, j);
                         anti(j, i);
                     }
                 }
             }
+            _ => shucks!(),
         }
     }
     anti.into_iter().map(u64::count_ones).sum::<u32>()
