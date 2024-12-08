@@ -43,13 +43,14 @@ pub fn run(i: &str) -> impl Display {
     let i = i.as_bytes();
     let mut anti = [0u64; SIZE];
     for character in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
-        let a = match memchr::memchr(character, i) {
+        let mut memchr = memchr::Memchr::new(character, i);
+        let a = match memchr.next() {
             None => continue,
             Some(a) => a,
         };
-        let b = memchr::memchr(character, C! { &i[a + 1..] }).ψ() + a + 1;
-        let c = memchr::memchr(character, C! { &i[b + 1..] }).ψ() + b + 1;
-        let d = memchr::memchr(character, C! { &i[c + 1..] }).map(|x| x + c + 1);
+        let b = memchr.Δ();
+        let c = memchr.Δ();
+        let d = memchr.next();
         let mut anti = |(x1, y1), (x2, y2)| {
             let mut x3 = x2 + (x2 - x1);
             let mut y3 = y2 + (y2 - y1);
@@ -88,18 +89,19 @@ pub fn run(i: &str) -> impl Display {
     }
     anti.into_iter().map(u64::count_ones).sum::<u32>()
 }
-
+#[no_mangle]
 pub fn p1(i: &str) -> u32 {
     let i = i.as_bytes();
     let mut anti = [0u64; SIZE];
     for character in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
-        let a = match memchr::memchr(character, i) {
+        let mut memchr = memchr::Memchr::new(character, i);
+        let a = match memchr.next() {
             None => continue,
             Some(a) => a,
         };
-        let b = memchr::memchr(character, C! { &i[a + 1..] }).ψ() + a + 1;
-        let c = memchr::memchr(character, C! { &i[b + 1..] }).ψ() + b + 1;
-        let d = memchr::memchr(character, C! { &i[c + 1..] }).map(|x| x + c + 1);
+        let b = memchr.Δ();
+        let c = memchr.Δ();
+        let d = memchr.next();
         let mut anti = |(x1, y1), (x2, y2)| {
             let x3 = x2 + (x2 - x1);
             let y3 = y2 + (y2 - y1);
