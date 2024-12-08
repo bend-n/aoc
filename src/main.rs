@@ -53,7 +53,7 @@ pub fn run(i: &str) -> impl Display {
         match nums {
             &[tail] => tv == tail,
             [head @ .., tail] => {
-                let &tail = tail;
+                let tail = *tail;
                 unsafe { core::hint::assert_unchecked(tail != 0) };
                 (tv % tail == 0 && search(head, tv / tail))
                     || (tv > tail && search(head, tv - tail))
@@ -70,17 +70,14 @@ pub fn p2(i: &str) -> impl Display {
         match nums {
             &[tail] => tv == tail,
             [head @ .., tail] => {
-                if tv % tail == 0 && search(head, tv / tail) {
-                    return true;
-                }
-                let &d = unsafe { util::powers.get_unchecked(tail.ͱ() as usize) };
-                if (tv - tail) % d == 0 && search(head, tv / d) {
-                    return true;
-                }
-                if tv > *tail && search(head, tv - tail) {
-                    return true;
-                }
-                return false;
+                let &d = unsafe {
+                    util::powers
+                        .get_unchecked((((tail + 0xbf6) & (tail + 0x79c)) >> 10) as usize + 1)
+                };
+                let tail = *tail;
+                (tv % tail == 0 && search(head, tv / tail))
+                    || ((tv - tail) % d == 0 && search(head, tv / d))
+                    || (tv > tail && search(head, tv - tail))
             }
             [] => shucks!(),
         }
