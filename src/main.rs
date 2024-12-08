@@ -31,58 +31,106 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-#[inline]
-fn do_(i: &str, search: fn(&[u64], u64) -> bool) -> u64 {
-    let mut v = [0u64; 12];
-    let mut i = i.as_bytes();
-    let mut sum = 0;
-    while !i.is_empty() {
-        let should = reading::until(&mut i, b':');
-        i.skip(1);
-        let i = i.take_line().ψ();
-        let read = reading::κ(i, &mut v);
-        sum += should * search(C! { &v[..read] }, should) as u64;
-    }
-    sum
+const SIZE: usize = 50;
+fn split(x: usize) -> (isize, isize) {
+    (
+        x as isize / (SIZE as isize + 1),
+        x as isize % (SIZE as isize + 1),
+    )
 }
-
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    // go backwards for extreme pruning ability
-    fn search(nums: &[u64], tv: u64) -> bool {
-        match nums {
-            &[tail] => tv == tail,
-            [head @ .., tail] => {
-                let tail = *tail;
-                unsafe { core::hint::assert_unchecked(tail != 0) };
-                (tv % tail == 0 && search(head, tv / tail))
-                    || (tv > tail && search(head, tv - tail))
+    let i = i.as_bytes();
+    let mut anti = [0u64; SIZE];
+    for character in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
+        let a = match memchr::memchr(character, i) {
+            None => continue,
+            Some(a) => a,
+        };
+        let b = memchr::memchr(character, C! { &i[a + 1..] }).ψ() + a + 1;
+        let c = memchr::memchr(character, C! { &i[b + 1..] }).ψ() + b + 1;
+        let d = memchr::memchr(character, C! { &i[c + 1..] }).map(|x| x + c + 1);
+        let mut anti = |(x1, y1), (x2, y2)| {
+            let mut x3 = x2 + (x2 - x1);
+            let mut y3 = y2 + (y2 - y1);
+            *C! { &mut anti[y2 as usize] } |= 1 << x2 as u64;
+            while (x3 >= 0) & (x3 < SIZE as isize) & (y3 >= 0) & (y3 < SIZE as isize) {
+                anti[y3 as usize] |= 1 << x3 as u64;
+                x3 += x2 - x1;
+                y3 += y2 - y1;
             }
-            [] => shucks!(),
+        };
+        match d {
+            Some(d) => {
+                let [a, b, c, d] = [a, b, c, d].map(split);
+                let mut one = |i, j| {
+                    anti(i, j);
+                    anti(j, i);
+                };
+                one(b, a);
+                one(c, a);
+                one(c, b);
+                one(d, a);
+                one(d, b);
+                one(d, c);
+            }
+            None => {
+                let [a, b, c] = [a, b, c].map(split);
+                let mut one = |i: (isize, isize), j: (isize, isize)| {
+                    anti(i, j);
+                    anti(j, i);
+                };
+                one(b, a);
+                one(c, a);
+                one(c, b);
+            }
         }
     }
-    do_(i, search)
+    anti.into_iter().map(u64::count_ones).sum::<u32>()
 }
 
-#[no_mangle]
-pub fn p2(i: &str) -> impl Display {
-    fn search(nums: &[u64], tv: u64) -> bool {
-        match nums {
-            &[tail] => tv == tail,
-            [head @ .., tail] => {
-                let &d = unsafe {
-                    util::powers
-                        .get_unchecked((((tail + 0xbf6) & (tail + 0x79c)) >> 10) as usize + 1)
-                };
-                let tail = *tail;
-                (tv % tail == 0 && search(head, tv / tail))
-                    || ((tv - tail) % d == 0 && search(head, tv / d))
-                    || (tv > tail && search(head, tv - tail))
+pub fn p1(i: &str) -> u32 {
+    let i = i.as_bytes();
+    let mut anti = [0u64; SIZE];
+    for character in (b'A'..=b'Z').chain(b'a'..=b'z').chain(b'0'..=b'9') {
+        let a = match memchr::memchr(character, i) {
+            None => continue,
+            Some(a) => a,
+        };
+        let b = memchr::memchr(character, C! { &i[a + 1..] }).ψ() + a + 1;
+        let c = memchr::memchr(character, C! { &i[b + 1..] }).ψ() + b + 1;
+        let d = memchr::memchr(character, C! { &i[c + 1..] }).map(|x| x + c + 1);
+        let mut anti = |(x1, y1), (x2, y2)| {
+            let x3 = x2 + (x2 - x1);
+            let y3 = y2 + (y2 - y1);
+            if (x3 >= 0) & (x3 < SIZE as isize) & (y3 >= 0) & (y3 < SIZE as isize) {
+                anti[y3 as usize] |= 1 << x3 as u64;
             }
-            [] => shucks!(),
+        };
+        match d {
+            Some(d) => {
+                for i in 0..4 {
+                    for j in 0..i {
+                        let i = split([a, b, c, d][i]);
+                        let j = split([a, b, c, d][j]);
+                        anti(i, j);
+                        anti(j, i);
+                    }
+                }
+            }
+            None => {
+                for i in 0..3 {
+                    for j in 0..i {
+                        let i = split([a, b, c][i]);
+                        let j = split([a, b, c][j]);
+                        anti(i, j);
+                        anti(j, i);
+                    }
+                }
+            }
         }
     }
-    do_(i, |n, should| search(n, should))
+    anti.into_iter().map(u64::count_ones).sum::<u32>()
 }
 
 fn main() {
@@ -94,8 +142,8 @@ fn main() {
     // }
     // std::fs::write("src/inp.txt", s);
     // println!("{}", p2(i));
-    assert_eq!(run(i).to_string(), 663613490587u64.to_string());
-    assert_eq!(p2(i).to_string(), 110365987435001u64.to_string());
+    println!("{}", run(i));
+    println!("{}", p1(i));
 }
 
 #[bench]
