@@ -14,6 +14,7 @@
     get_many_mut,
     maybe_uninit_uninit_array,
     iter_collect_into,
+    hint_assert_unchecked,
     let_chains,
     anonymous_lifetime_in_impl_trait,
     array_windows,
@@ -32,16 +33,17 @@ pub use util::prelude::*;
 
 #[inline]
 fn do_(i: &str, search: fn(&[u64], u64) -> bool) -> u64 {
-    let mut v = Vec::with_capacity(10);
-    i.行()
-        .map(|x| {
-            v.clear();
-            let (a, b) = x.μ(':');
-            let should = reading::all(a);
-            reading::κ(C! { &b[1..] }, &mut v);
-            should * search(&v, should) as u64
-        })
-        .sum::<u64>()
+    let mut v = [0u64; 12];
+    let mut i = i.as_bytes();
+    let mut sum = 0;
+    while !i.is_empty() {
+        let should = reading::until(&mut i, b':');
+        i.skip(1);
+        let i = i.take_line().ψ();
+        let read = reading::κ(i, &mut v);
+        sum += should * search(C! { &v[..read] }, should) as u64;
+    }
+    sum
 }
 
 #[no_mangle]
@@ -51,16 +53,12 @@ pub fn run(i: &str) -> impl Display {
         match nums {
             &[tail] => tv == tail,
             [head @ .., tail] => {
-                let (q, r) = (tv / tail, tv % tail);
-                if r == 0 && search(head, q) {
-                    return true;
-                }
-                let Some(result) = tv.checked_sub(*tail) else {
-                    return false;
-                };
-                search(head, result)
+                let &tail = tail;
+                unsafe { core::hint::assert_unchecked(tail != 0) };
+                (tv % tail == 0 && search(head, tv / tail))
+                    || (tv > tail && search(head, tv - tail))
             }
-            [] => unreachable!(),
+            [] => shucks!(),
         }
     }
     do_(i, search)
@@ -72,21 +70,19 @@ pub fn p2(i: &str) -> impl Display {
         match nums {
             &[tail] => tv == tail,
             [head @ .., tail] => {
-                let (q, r) = (tv / tail, tv % tail);
-                if r == 0 && search(head, q) {
+                if tv % tail == 0 && search(head, tv / tail) {
                     return true;
                 }
-                let Some(result) = tv.checked_sub(*tail) else {
-                    return false;
-                };
-                if (tv - *tail) % util::powers[tail.ͱ() as usize] == 0
-                    && search(head, tv / util::powers[tail.ͱ() as usize])
-                {
+                let &d = unsafe { util::powers.get_unchecked(tail.ͱ() as usize) };
+                if (tv - tail) % d == 0 && search(head, tv / d) {
                     return true;
                 }
-                search(head, result)
+                if tv > *tail && search(head, tv - tail) {
+                    return true;
+                }
+                return false;
             }
-            [] => unreachable!(),
+            [] => shucks!(),
         }
     }
     do_(i, |n, should| search(n, should))

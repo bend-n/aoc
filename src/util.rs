@@ -564,7 +564,7 @@ impl DigiCount for u64 {
         static mdigs: [u32; 65] = car::from_fn!(|x| 2u128.pow(x as u32).ilog10() + 1);
         let bit = std::mem::size_of::<Self>() * 8 - self.leading_zeros() as usize;
         let mut digs = mdigs[bit];
-        if self < powers[digs as usize - 1] {
+        if self < C! { powers[digs as usize - 1] } {
             digs -= 1;
         }
         digs
@@ -577,7 +577,7 @@ impl DigiCount for u32 {
         static mdigs: [u32; 33] = car::from_fn!(|x| 2u128.pow(x as u32).ilog10() + 1);
         let bit = std::mem::size_of::<Self>() * 8 - self.leading_zeros() as usize;
         let mut digs = mdigs[bit];
-        if self < powers[digs as usize - 1] {
+        if self < C! { powers[digs as usize - 1] } {
             digs -= 1;
         }
         digs
@@ -733,9 +733,7 @@ pub trait Μ where
 
 impl Μ for &[u8] {
     fn μ(self, d: char) -> (Self, Self) {
-        let i = self
-            .iter()
-            .position(|&x| x == d as u8)
+        let i = memchr::memchr(d as u8, self)
             .unwrap_or_else(|| shucks!("{} should split at {d} fine", self.p()));
         (&self[..i], &self[i + 1..])
     }
@@ -998,16 +996,18 @@ pub mod reading {
     }
     use crate::util::prelude::*;
     pub fn κ<
-        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
+        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten + Debug,
     >(
         x: &[u8],
-        v: &mut Vec<T>,
-    ) {
+        v: &mut [T],
+    ) -> usize {
+        let mut n = 0;
         let mut s = T::default();
         for &b in x {
             match b {
                 b' ' => {
-                    v.push(s);
+                    C! { v[n] = s };
+                    n += 1;
                     s = T::default();
                 }
                 b => {
@@ -1015,7 +1015,8 @@ pub mod reading {
                 }
             }
         }
-        v.push(s);
+        C! {v[n] = s};
+        n + 1
     }
     pub trait Ten {
         fn ten() -> Self;
@@ -1109,13 +1110,11 @@ pub mod reading {
         }
     }
 
-    pub fn 迄<
-        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
-    >(
+    pub fn until<T: std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten>(
         x: &mut &[u8],
         until: u8,
     ) -> T {
-        let mut n = T::default();
+        let mut n = T::from(x.by().ψ() - b'0');
         loop {
             let byte = x.by().ψ();
             if byte == until {
@@ -1372,8 +1371,8 @@ impl<'b> TakeLine<'b> for &'b [u8] {
             None if self.is_empty() => None,
             None => Some(std::mem::replace(self, b"")),
             Some(end) => {
-                let line = &self[..end];
-                *self = &self[end + 1..];
+                let line = C! { &self[..end]};
+                *self = C! { &self[end + 1..]};
                 Some(line)
             }
         }
