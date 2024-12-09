@@ -1146,7 +1146,7 @@ pub fn even(x: &usize) -> bool {
 impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
     #[cfg_attr(debug_assertions, track_caller)]
     fn Δ(&mut self) -> T {
-        self.next().α()
+        self.next().ψ()
     }
 
     fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize {
