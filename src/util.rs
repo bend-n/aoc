@@ -248,6 +248,48 @@ where
     }
 }
 
+pub fn countg_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
+    start: N,
+    graph: &mut impl Fn(N) -> I,
+    ok: &mut impl Fn(N, N) -> bool,
+    sum: &mut usize,
+    end: &mut impl Fn(N) -> bool,
+) {
+    if end(start) {
+        *sum += 1;
+    } else {
+        graph(start)
+            .map(|x| {
+                if ok(start, x) {
+                    // println!("\"{start:?}\" -> \"{x:?}\"");
+                    countg_with_check(x, graph, ok, sum, end);
+                }
+            })
+            .Θ();
+    }
+}
+
+pub fn countg_uniq_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
+    start: N,
+    graph: &mut impl Fn(N) -> I,
+    ok: &mut impl Fn(N, N) -> bool,
+    sum: &mut usize,
+    end: &mut impl Fn(N) -> bool,
+    has: &mut HashSet<N>,
+) {
+    if end(start) && has.insert(start) {
+        *sum += 1;
+    } else {
+        graph(start)
+            .map(|x| {
+                if ok(start, x) {
+                    countg_uniq_with_check(x, graph, ok, sum, end, has);
+                }
+            })
+            .Θ();
+    }
+}
+
 pub fn countg<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
     start: N,
     graph: &mut impl Fn(N) -> I,

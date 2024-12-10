@@ -31,78 +31,54 @@
 )]
 extern crate test;
 pub mod util;
+use util::countg;
 pub use util::prelude::*;
 
-const SIZE: usize = 50;
-
-#[no_mangle]
-pub fn p2(i: &str) -> impl Display {
-    let i = i.as_bytes().trim_ascii_end();
-    let mut files = Vec::with_capacity(10000);
-    let mut free = Vec::with_capacity(10000);
-    let mut j = 0;
-    i.iter().ι::<usize>().for_each(|(x, i)| {
-        let n = *x - b'0';
-        if i % 2 == 1 {
-            free.push((n, j));
-        } else {
-            files.push((n, j));
-        }
-        j += n as u32;
-    });
-
-    for (size, fat) in files.iter_mut().rev() {
-        let Some((si, &(space, at))) = free
-            .iter()
-            .enumerate()
-            .take_while(|(_, &(_, j))| j <= *fat)
-            .find(|(_, &(s, _))| s >= *size)
-        else {
-            continue;
-        };
-        free[si as usize] = (space - *size, at + *size as u32);
-        *fat = at;
-    }
-    files
-        .into_iter()
-        .ι::<u64>()
-        .map(|((size, at), n)| ((size as u64, at as u64), n as u64))
-        .map(|((size, at), n)| n * (at * size + (size * (size - 1)) / 2))
-        .sum::<u64>()
-}
+const SIZE: usize = "30010966763987014589210001456565589765432".len();
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    let i = i.as_bytes().trim_ascii_end();
-    const SPACE: u16 = u16::MAX;
-    let map = i
-        .iter()
-        .ι::<u16>()
-        .flat_map(|(x, i)| {
-            let times = (*x - b'0') as usize;
-            std::iter::repeat_n(if i % 2 == 1 { SPACE } else { i / 2 }, times)
-        })
-        .collect_vec();
-    let (map, len, _) = map.into_raw_parts();
-    let eight_bit = unsafe { std::slice::from_raw_parts(map as *const u8, len * 2) };
-    let mut emptys = memchr::memmem::find_iter(eight_bit, &[0xff; 2]).map(|x| x / 2);
-    for i in (0..len).rev() {
-        if unsafe { *map.add(i) == SPACE } {
-            continue;
+    let grid = unsafe { i.as_bytes().as_chunks_unchecked::<{ SIZE + 1 }>() };
+    let get =
+        |x: u8, y: u8| (x < SIZE as u8 && y < SIZE as u8).then(|| grid[y as usize][x as usize]);
+
+    // fimg::Image::<Vec<u8>, 1>::build(SIZE as _, SIZE as _)
+    //     .buf(
+    //         grid.iter()
+    //             .flat_map(|x| &x[..SIZE])
+    //             .map(|x| (((*x - b'0') as f32 / 10.0) * 255.0) as u8)
+    //             .collect_vec(),
+    //     )
+    //     .scale::<fimg::scale::Nearest>(SIZE as u32 * 8, SIZE as u32 * 8)
+    //     .save("hmm.png");
+    let mut tot = 0;
+    for y in 0..SIZE as u8 {
+        for x in 0..SIZE as u8 {
+            if get(x, y) == Some(b'0') {
+                util::countg_with_check(
+                    (x, y),
+                    &mut |(x, y)| {
+                        [
+                            (x.wrapping_add(1), y),
+                            (x.wrapping_sub(1), y),
+                            (x, y.wrapping_add(1)),
+                            (x, y.wrapping_sub(1)),
+                        ]
+                        .into_iter()
+                    },
+                    &mut |(x1, y1), (x2, y2)| {
+                        let x: Option<bool> = try { get(x2, y2)?.checked_sub(get(x1, y1)?)? == 1 };
+                        x.unwrap_or(false)
+                    },
+                    &mut tot,
+                    &mut |(x, y)| get(x, y) == Some(b'9'),
+                    // &mut HashSet::default(),
+                );
+            }
         }
-        let empty = emptys.Δ();
-        if empty > i {
-            break;
-        }
-        unsafe { map.add(empty).swap(map.add(i)) };
     }
-    unsafe { std::slice::from_raw_parts(map, memchr::memmem::find(eight_bit, &[0xff; 2]).ψ() / 2) }
-        .iter()
-        .copied()
-        .ι::<usize>()
-        .map(|(id, i)| id as usize * i)
-        .sum::<usize>()
-    // 0
+    tot
+    // count
 }
 
 fn main() {
@@ -113,13 +89,13 @@ fn main() {
     //     s.push_str(i);
     // }
     // std::fs::write("src/inp.txt", s);
-    println!("{}", p2(i));
+    // println!("{}", p2(i));
     println!("{}", run(i));
     // println!("{}", p1(i));
 }
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
-    let i = boxd(include_str!("inp.txt").trim());
+    let i = boxd(include_str!("inp.txt"));
     b.iter(|| run(i));
 }
