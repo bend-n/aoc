@@ -37,103 +37,38 @@ const SIZE: usize = 50;
 
 #[no_mangle]
 pub fn p2(i: &str) -> impl Display {
-    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-    enum Item {
-        File(usize, u8),
-        No,
-        Space,
-        Spaces(u8),
-    }
-    #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-    enum SimplifiedItem {
-        File(usize),
-        Space,
-    }
-    let i = i.as_bytes();
-    let mut files = 0;
-    let mut map = i
-        .iter()
-        .ι::<usize>()
-        .flat_map(|(x, i)| {
-            if *x == b'\n' {
-                return vec![];
-            }
-            if i % 2 == 1 {
-                vec![Item::Space; (*x - b'0') as usize]
-            } else {
-                files += 1;
-                vec![Item::File(i / 2, *x - b'0')]
-            }
-        })
-        .collect_vec();
-    for i in (0..files).rev() {
-        let (i, _, &size) = map
+    let i = i.as_bytes().trim_ascii_end();
+    let mut files = Vec::with_capacity(10000);
+    let mut free = Vec::with_capacity(10000);
+    let mut j = 0;
+    i.iter().ι::<usize>().for_each(|(x, i)| {
+        let n = *x - b'0';
+        if i % 2 == 1 {
+            free.push((n, j));
+        } else {
+            files.push((n, j));
+        }
+        j += n as u32;
+    });
+
+    for (size, fat) in files.iter_mut().rev() {
+        let Some((si, &(space, at))) = free
             .iter()
             .enumerate()
-            .rev()
-            .find_map(|(j, x)| match x {
-                Item::File(a, n) => (*a == i).then_some((j, a, n)),
-                _ => None,
-            })
-            .unwrap();
-
-        let empty = map
-            .iter()
-            .ι::<usize>()
-            .group_by(|&(&x, _)| x == Item::Space)
-            .into_iter()
-            .filter(|x| x.0)
-            .map(|(_, mut x)| {
-                let (_, i) = x.Δ();
-                let n = x.count() + 1;
-                (i, n)
-            })
-            .find(|&(_, x)| x >= size as usize)
-            .map(|(x, _)| x);
-
-        if let Some(empty) = empty
-            && empty < i
-        {
-            let f = &mut map[i];
-            map[empty as usize] = std::mem::replace(f, Item::Spaces(size));
-            for elem in 1..size {
-                map[empty + elem as usize] = Item::No;
-            }
-        }
-        // #[cfg(debug_assertions)]
-        // println!(
-        //     "{}",
-        //     map.iter()
-        //         .flat_map(|&x| match x {
-        //             Item::File(id, n) => std::iter::repeat_n(SimplifiedItem::File(id), n as usize),
-        //             Item::Space => std::iter::repeat_n(SimplifiedItem::Space, 1),
-        //             Item::Spaces(n) => std::iter::repeat_n(SimplifiedItem::Space, n as usize),
-        //             Item::No => std::iter::repeat_n(SimplifiedItem::Space, 0),
-        //         })
-        //         .map(|x| {
-        //             match x {
-        //                 SimplifiedItem::File(i) => format!("{i}"),
-        //                 SimplifiedItem::Space => format!("."),
-        //             }
-        //         })
-        //         .collect::<String>()
-        // );
+            .take_while(|(_, &(_, j))| j <= *fat)
+            .find(|(_, &(s, _))| s >= *size)
+        else {
+            continue;
+        };
+        free[si as usize] = (space - *size, at + *size as u32);
+        *fat = at;
     }
-    map.into_iter()
-        .flat_map(|x| match x {
-            Item::File(id, n) => std::iter::repeat_n(SimplifiedItem::File(id), n as usize),
-            Item::Space => std::iter::repeat_n(SimplifiedItem::Space, 1),
-            Item::Spaces(n) => std::iter::repeat_n(SimplifiedItem::Space, n as usize),
-            Item::No => std::iter::repeat_n(SimplifiedItem::Space, 0),
-        })
-        .ι::<usize>()
-        .filter_map(|(x, i)| match x {
-            SimplifiedItem::File(x) => Some((x, i)),
-            SimplifiedItem::Space => None,
-        })
-        .map(|(id, i)| id * i)
-        .sum::<usize>()
-    // 0
+    files
+        .into_iter()
+        .ι::<u64>()
+        .map(|((size, at), n)| ((size as u64, at as u64), n as u64))
+        .map(|((size, at), n)| n * (at * size + (size * (size - 1)) / 2))
+        .sum::<u64>()
 }
 
 #[no_mangle]
