@@ -34,13 +34,14 @@ pub mod util;
 use util::countg;
 pub use util::prelude::*;
 
-const SIZE: usize = "30010966763987014589210001456565589765432".len();
-
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
-    let grid = unsafe { i.as_bytes().as_chunks_unchecked::<{ SIZE + 1 }>() };
-    let get =
-        |x: u8, y: u8| (x < SIZE as u8 && y < SIZE as u8).then(|| grid[y as usize][x as usize]);
+    let i = i.as_bytes();
+    // let set = [0; i.len()]
+    let size = memchr::memchr(b'\n', i).ψ();
+    let max = size * (size + 1);
+    unsafe { core::hint::assert_unchecked(i.len() == max) };
+    let get = |j: usize| (j < max).then(|| i[j]);
 
     // fimg::Image::<Vec<u8>, 1>::build(SIZE as _, SIZE as _)
     //     .buf(
@@ -52,33 +53,30 @@ pub fn run(i: &str) -> impl Display {
     //     .scale::<fimg::scale::Nearest>(SIZE as u32 * 8, SIZE as u32 * 8)
     //     .save("hmm.png");
     let mut tot = 0;
-    for y in 0..SIZE as u8 {
-        for x in 0..SIZE as u8 {
-            if get(x, y) == Some(b'0') {
-                util::countg_with_check(
-                    (x, y),
-                    &mut |(x, y)| {
-                        [
-                            (x.wrapping_add(1), y),
-                            (x.wrapping_sub(1), y),
-                            (x, y.wrapping_add(1)),
-                            (x, y.wrapping_sub(1)),
-                        ]
-                        .into_iter()
-                    },
-                    &mut |(x1, y1), (x2, y2)| {
-                        let x: Option<bool> = try { get(x2, y2)?.checked_sub(get(x1, y1)?)? == 1 };
-                        x.unwrap_or(false)
-                    },
-                    &mut tot,
-                    &mut |(x, y)| get(x, y) == Some(b'9'),
-                    // &mut HashSet::default(),
-                );
-            }
-        }
+    for i in memchr::memchr_iter(b'9', i) {
+        // if get(i) == Some(b'9') {
+        util::countg_with_check(
+            i,
+            &mut |i| {
+                [
+                    i.wrapping_add(1),
+                    i.wrapping_sub(1),
+                    i.wrapping_add(size + 1),
+                    i.wrapping_sub(size + 1),
+                ]
+                .into_iter()
+            },
+            &mut |i1, i2| match get(i2) {
+                Some(x) => get(i1).ψ().wrapping_sub(x) == 1,
+                None => false,
+            },
+            &mut tot,
+            &mut |i| get(i) == Some(b'0'),
+            // &mut HashSet::default(),
+        );
+        // }
     }
     tot
-    // count
 }
 
 fn main() {
