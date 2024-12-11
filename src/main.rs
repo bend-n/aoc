@@ -12,8 +12,10 @@
     slice_swap_unchecked,
     generic_const_exprs,
     iter_array_chunks,
+    if_let_guard,
     get_many_mut,
     maybe_uninit_uninit_array,
+    once_cell_get_mut,
     iter_collect_into,
     hint_assert_unchecked,
     let_chains,
@@ -31,106 +33,80 @@
 )]
 extern crate test;
 pub mod util;
-use util::countg;
+use std::sync::OnceLock;
+
 pub use util::prelude::*;
 
 #[no_mangle]
 pub fn run(i: &str) -> impl Display {
     let i = i.as_bytes();
-    let size = memchr::memchr(b'\n', i).ψ();
-    let max = size * (size + 1);
-    unsafe { core::hint::assert_unchecked(i.len() == max) };
-    let get = |j: u16| (j < max as u16).then(|| i[j as usize]);
-
-    // fimg::Image::<Vec<u8>, 1>::build(SIZE as _, SIZE as _)
-    //     .buf(
-    //         grid.iter()
-    //             .flat_map(|x| &x[..SIZE])
-    //             .map(|x| (((*x - b'0') as f32 / 10.0) * 255.0) as u8)
-    //             .collect_vec(),
-    //     )
-    //     .scale::<fimg::scale::Nearest>(SIZE as u32 * 8, SIZE as u32 * 8)
-    //     .save("hmm.png");
-    let mut tot = 0;
-
-    pub fn p2(
-        start: u16,
-        graph: &mut impl Fn(u16) -> [u16; 4],
-        ok: &mut impl Fn(u16, u16) -> bool,
-        end: &mut impl Fn(u16) -> bool,
-        dp: &mut [u16],
-    ) -> u16 {
-        if end(start) {
-            return 1;
-        } else {
-            graph(start)
-                .into_iter()
-                .map(|x| {
-                    if ok(start, x) {
-                        #[allow(irrefutable_let_patterns)]
-                        if let x = dp[x as usize]
-                            && x != 0xffff
-                        {
-                            return x;
-                        }
-                        let n = p2(x, graph, ok, end, dp);
-                        dp[x as usize] = n;
-                        n
-                    } else {
-                        0
-                    }
-                })
-                .sum()
+    let mut input = i.κ::<u64>().collect_vec();
+    input.reserve_exact(30000);
+    for _ in 0..25 {
+        let i = input.clone();
+        unsafe { input.set_len(0) };
+        for stone in i {
+            match stone {
+                0 => input.push(1),
+                n if let ͱ = n.ͱ() as usize
+                    && ͱ % 2 == 0 =>
+                {
+                    let pow = util::powers[ͱ / 2];
+                    input.push(n % pow);
+                    input.push(n / pow);
+                }
+                n => input.push(n * 2024),
+            }
         }
     }
+    input.len()
+}
 
-    pub fn p1(
-        start: u16,
-        graph: &mut impl Fn(u16) -> [u16; 4],
-        ok: &mut impl Fn(u16, u16) -> bool,
-        end: &mut impl Fn(u16) -> bool,
-        reached: &mut [u8],
-    ) -> u16 {
-        if end(start) && reached[start as usize] == 0 {
-            reached[start as usize] = 1;
-            return 1;
-        } else {
-            graph(start)
-                .into_iter()
-                .map(|x| {
-                    if ok(start, x) {
-                        p1(x, graph, ok, end, reached)
-                    } else {
-                        0
-                    }
-                })
-                .sum()
+#[no_mangle]
+pub unsafe fn p2(i: &str) -> impl Display {
+    let i = i.as_bytes().trim_ascii_end();
+    let mut o = [0u64; 10];
+    let n = reading::κ(i, &mut o);
+    static mut map: OnceLock<HashMap<(u64, u8), u64>> = OnceLock::new();
+    unsafe {
+        match map.get_mut() {
+            Some(x) => x.clear(),
+            None => drop(map.get_or_init(|| {
+                HashMap::with_capacity_and_hasher(150000, rustc_hash::FxBuildHasher::default())
+            })),
         }
+    };
+    fn rocc(one: u64, iters: u8) -> u64 {
+        if let Some(&x) = unsafe { map.get_mut().ψ().get(&(one, iters)) } {
+            return x;
+        }
+        let answer = {
+            match iters.checked_sub(1) {
+                Some(iters) if one == 0 => rocc(1, iters),
+                Some(iters)
+                    if let ͱ = one.ͱ() as usize
+                        && ͱ % 2 == 0 =>
+                {
+                    let pow = util::powers[ͱ / 2];
+                    rocc(one / pow, iters) + rocc(one % pow, iters)
+                }
+                Some(iters) if iters > 1 && (one * 2024).ͱ() % 2 == 1 => {
+                    // skip
+                    let one = one * 2024 * 2024;
+                    let pow = util::powers[one.ͱ() as usize / 2];
+                    rocc(one / pow, iters - 2) + rocc(one % pow, iters - 2)
+                }
+                Some(iters) => rocc(one * 2024, iters),
+                None => 1,
+            }
+        };
+        unsafe { map.get_mut().ψ() }.insert((one, iters), answer);
+        answer
     }
-
-    let mut dp = vec![0; max];
-    // let mut dp = vec![u16::MAX; max];
-    for i in memchr::memchr_iter(b'9', i) {
-        dp.fill(0);
-        tot += p1(
-            i as u16,
-            &mut |i| {
-                [
-                    i.wrapping_add(1),
-                    i.wrapping_sub(1),
-                    i.wrapping_add(size as u16 + 1),
-                    i.wrapping_sub(size as u16 + 1),
-                ]
-            },
-            &mut |i1, i2| match get(i2) {
-                Some(x) => get(i1).ψ().wrapping_sub(x) == 1,
-                None => false,
-            },
-            &mut |i| get(i) == Some(b'0'),
-            &mut dp,
-        );
-    }
-    tot
+    o.into_iter()
+        .take(n)
+        .map(|stone| rocc(stone, 75))
+        .sum::<u64>()
 }
 
 fn main() {
@@ -142,12 +118,12 @@ fn main() {
     // }
     // std::fs::write("src/inp.txt", s);
     // println!("{}", p2(i));
-    println!("{}", run(i));
+    println!("{}", unsafe { p2(i) });
     // println!("{}", p1(i));
 }
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt"));
-    b.iter(|| run(i));
+    b.iter(|| unsafe { p2(i) });
 }

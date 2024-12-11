@@ -222,31 +222,58 @@ impl<T, E> UnsoundUtilities<T> for Result<T, E> {
     }
 }
 
-pub struct LMap<K, V, F>(HashMap<K, V>, F)
+pub struct LMap<K, V>(HashMap<K, V>, fn(K) -> V)
 where
-    F: Fn(K) -> Option<V>,
     K: Eq + Hash + Copy;
-impl<K: Eq + Hash + Copy, V, F> LMap<K, V, F>
-where
-    F: Fn(K) -> Option<V>,
-{
-    pub fn new(f: F) -> Self {
+impl<K: Ord + Eq + Debug + Hash + Copy, V: Copy + Debug> LMap<K, V> {
+    pub fn new(f: fn(K) -> V) -> Self {
         Self {
             0: HashMap::default(),
             1: f,
         }
     }
 
-    pub fn get(&mut self, k: K) -> Option<&mut V> {
-        match self.0.entry(k) {
-            Entry::Occupied(x) => Some(x.into_mut()),
-            Entry::Vacant(e) => match self.1(k) {
-                Some(v) => Some(e.insert(v)),
-                None => None,
-            },
+    pub fn with_cap(f: fn(K) -> V, cap: usize) -> Self {
+        Self {
+            0: HashMap::with_capacity_and_hasher(cap, rustc_hash::FxBuildHasher::default()),
+            1: f,
         }
     }
+
+    pub fn get(&mut self, k: K) -> V {
+        if let Some(x) = self.0.get(&k) {
+            return *x;
+        }
+        // let mut ks = self.0.keys().collect::<Vec<_>>();
+        // ks.sort();
+        // println!("{ks:?}");
+        let elm = self.1(k);
+        self.0.insert(k, elm);
+        elm
+    }
 }
+
+macro_rules! memoize {
+    (|$pat:pat_param in $in:ty| -> $out:ty $body:block; $arg:expr) => {{
+        static mut MEMOIZER: std::sync::OnceLock<crate::util::LMap<$in, $out>> =
+            std::sync::OnceLock::new();
+        unsafe {
+            MEMOIZER.get_mut_or_init(|| crate::util::LMap::new(|$pat: $in| -> $out { $body }))
+        }
+        .get($arg)
+    }};
+    (|$pat:pat_param in $in:ty| -> $out:ty $body:block; $arg:expr; with cap $cap:literal) => {{
+        static mut MEMOIZER: std::sync::OnceLock<crate::util::LMap<$in, $out>> =
+            std::sync::OnceLock::new();
+        unsafe {
+            MEMOIZER.get_mut_or_init(|| {
+                crate::util::LMap::with_cap(|$pat: $in| -> $out { $body }, $cap)
+            })
+        }
+        .get($arg)
+    }};
+}
+pub(crate) use memoize;
 
 pub fn countg_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
     start: N,
@@ -638,6 +665,12 @@ impl DigiCount for u8 {
     }
 }
 
+impl DigiCount for u128 {
+    fn ͱ(self) -> u32 {
+        self.checked_ilog10().ψ() + 1
+    }
+}
+
 pub trait Ͷ: DigiCount {
     fn ͷ(self) -> impl Iterator<Item = u8>;
     fn Ͷ(self, i: u8) -> u8;
@@ -656,6 +689,7 @@ macro_rules! digs {
         }
     };
 }
+digs!(u128);
 digs!(u64);
 digs!(u32);
 digs!(u16);
