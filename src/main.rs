@@ -46,20 +46,19 @@ pub fn run(i: &str) -> impl Display {
     // let i = i.as_chunks_unchecked::<{ SIZE + 1 }>();
     // let get = |x, y| (x < SIZE && y < SIZE).then(|| i[y][x]);
     let mut sum = 0;
-    loop {
-        i.skip_n("button a: x+");
-        let a_x = two(i.rd::<2>().ψ());
-        i.skip_n(", y+");
-        let a_y = two(i.rd::<2>().ψ());
-        i.skip_n("\nbutton b: x+");
-        let b_x = two(i.rd::<2>().ψ());
-        i.skip_n(", y+");
-        let b_y = two(i.rd::<2>().ψ());
-        i.skip_n("\nprize: x=");
+    for _ in 0..340 {
+        let a_x = two(util::nail(C! { &i["button a: x+".len()..]}));
+        let a_y = two(util::nail(C! { &i["button a: x+55, y+".len()..]}));
+        let b_x = two(util::nail(
+            C! { &i["button a: x+55, y+jj\nbutton b: x+".len()..]},
+        ));
+        let b_y = two(util::nail(
+            C! { &i["button a: x+55, y+jj\nbutton b: x+44, y+".len()..]},
+        ));
+        i.skip("button a: x+55, y+jj\nbutton b: x+44, y+jj\nprize: x=".len());
         let p_x: i64 = reading::until(&mut i, b',');
         i.skip_n(" y=");
         let p_y: i64 = reading::until(&mut i, b'\n');
-
         #[inline]
         fn dmod(a: i64, b: i64) -> (i64, i64) {
             unsafe {
