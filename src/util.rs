@@ -1563,6 +1563,9 @@ impl<T: Copy + 'static, I: Iterator<Item = T>> IntoCombinations<T> for I {
 
 pub trait Skip {
     fn skip(&mut self, n: usize);
+    fn skip_n(&mut self, n: &'static str) {
+        self.skip(n.len())
+    }
 }
 
 impl<T> Skip for &[T] {
