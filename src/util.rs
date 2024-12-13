@@ -199,6 +199,59 @@ pub enum Dir {
     W = b'L',
 }
 
+pub struct UnionFind {
+    p: Vec<usize>,
+    s: Vec<usize>,
+}
+
+impl UnionFind {
+    pub fn new(size: usize) -> Self {
+        Self {
+            s: vec![1; size],
+            p: (0..size).collect(),
+        }
+    }
+
+    fn reset(&mut self) {
+        self.s.fill(1);
+        self.p
+            .iter_mut()
+            .enumerate()
+            .for_each(|(idx, val)| *val = idx);
+    }
+
+    pub fn find(&mut self, key: usize) -> usize {
+        if self.p[key] == key {
+            return key;
+        }
+        let parent = self.find(self.p[key]);
+        self.p[key] = parent;
+        parent
+    }
+
+    pub fn union(&mut self, a: usize, b: usize) -> bool {
+        let α = self.find(a);
+        let β = self.find(b);
+        if α == β {
+            return false;
+        }
+        let a = self.s[α];
+        let b = self.s[β];
+        if a >= b {
+            self.s[α] += b;
+            self.p[β] = α;
+        } else {
+            self.s[β] += a;
+            self.p[α] = β;
+        }
+        true
+    }
+
+    fn group_size(&self, group: usize) -> usize {
+        self.s[group]
+    }
+}
+
 pub trait UnsoundUtilities<T> {
     fn ψ(self) -> T;
 }
