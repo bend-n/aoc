@@ -62,22 +62,27 @@ pub fn run(i: &str) -> impl Display {
 
         #[inline]
         fn dmod(a: i64, b: i64) -> (i64, i64) {
-            (a / b, a % b)
+            unsafe {
+                (
+                    core::intrinsics::unchecked_div(a, b),
+                    core::intrinsics::unchecked_rem(a, b),
+                )
+            }
         }
         // a_x * α + b_x * β = p_x
         // a_y * α + b_y * β = p_y
-        let (α, ok) = dmod(
-            b_y * p_x - b_x * p_y, //
-            a_x * b_y - a_y * b_x,
+        let (β, ok) = dmod(
+            a_y * p_x - a_x * p_y, //
+            a_y * b_x - a_x * b_y,
         );
         if ok == 0 {
-            let (β, ok) = dmod(
-                a_y * p_x - a_x * p_y, //
-                a_y * b_x - a_x * b_y,
-            );
-            if ok == 0 {
-                sum += 3 * α + β;
-            }
+            let α = unsafe {
+                core::intrinsics::unchecked_div(
+                    b_y * p_x - b_x * p_y, //
+                    a_x * b_y - a_y * b_x,
+                )
+            };
+            sum += 3 * α + β;
         }
 
         if i.is_empty() {
