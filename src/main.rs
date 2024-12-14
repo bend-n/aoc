@@ -33,63 +33,67 @@
 )]
 extern crate test;
 pub mod util;
+use atools::CollectArray;
 pub use util::prelude::*;
-const SIZE: usize = 140;
 
-fn two([a, b]: [u8; 2]) -> i64 {
-    (a - b'0') as i64 * 10 + (b - b'0') as i64
+const W: i32 = 101;
+const H: i32 = 103;
+#[no_mangle]
+pub fn run(i: &str) -> impl Display {
+    let mut grids = [0; 4];
+    i.行()
+        .map(|x| {
+            let ((px, py), (vx, vy)) = x.μ(' ').mb(|x| x.μ1('=').μκ::<i32>(',').Δ());
+            let x = (px + vx * 100).rem_euclid(W);
+            let y = (py + vy * 100).rem_euclid(H);
+            let w = W / 2;
+            let h = H / 2;
+            if x < w && y < h {
+                grids[0] += 1;
+            } else if x < w && y > h {
+                grids[1] += 1;
+            } else if x > w && y < h {
+                grids[2] += 1;
+            } else if x > w && y > h {
+                grids[3] += 1;
+            }
+        })
+        .Θ();
+    grids.iter().product::<u32>()
 }
 
 #[no_mangle]
-pub fn run(i: &str) -> impl Display {
-    let mut i = i.as_bytes();
-    // let i = i.as_chunks_unchecked::<{ SIZE + 1 }>();
-    // let get = |x, y| (x < SIZE && y < SIZE).then(|| i[y][x]);
-    let mut sum = 0;
-    for _ in 0..340 {
-        let a_x = two(util::nail(C! { &i["button a: x+".len()..]}));
-        let a_y = two(util::nail(C! { &i["button a: x+55, y+".len()..]}));
-        let b_x = two(util::nail(
-            C! { &i["button a: x+55, y+jj\nbutton b: x+".len()..]},
-        ));
-        let b_y = two(util::nail(
-            C! { &i["button a: x+55, y+jj\nbutton b: x+44, y+".len()..]},
-        ));
-        i.skip("button a: x+55, y+jj\nbutton b: x+44, y+jj\nprize: x=".len());
-        let p_x: i64 = reading::until(&mut i, b',');
-        i.skip_n(" y=");
-        let p_y: i64 = reading::until(&mut i, b'\n');
-        #[inline]
-        fn dmod(a: i64, b: i64) -> (i64, i64) {
-            unsafe {
-                (
-                    core::intrinsics::unchecked_div(a, b),
-                    core::intrinsics::unchecked_rem(a, b),
-                )
+pub fn p2(i: &str) -> impl Display {
+    let mut positions = Vec::<((i32, i32), (i32, i32))>::with_capacity(500);
+    const W: i32 = 101;
+    const H: i32 = 103;
+    i.行().for_each(|x| {
+        positions.push(x.μ(' ').mb(|x| x.μ1('=').μκ::<i32>(',').Δ()));
+    });
+    let mut at = HashSet::default();
+    'up: for n in 0.. {
+        for &((px, py), (vx, vy)) in &positions {
+            let x = (px + vx * n).rem_euclid(W);
+            let y = (py + vy * n).rem_euclid(H);
+            if !at.insert((x, y)) {
+                at.clear();
+                continue 'up;
             }
         }
-        // a_x * α + b_x * β = p_x
-        // a_y * α + b_y * β = p_y
-        let (β, ok) = dmod(
-            a_y * p_x - a_x * p_y, //
-            a_y * b_x - a_x * b_y,
-        );
-        if ok == 0 {
-            let α = unsafe {
-                core::intrinsics::unchecked_div(
-                    b_y * p_x - b_x * p_y, //
-                    a_x * b_y - a_y * b_x,
-                )
-            };
-            sum += 3 * α + β;
+        for y in 0..H {
+            for x in 0..W {
+                if at.contains(&(x, y)) {
+                    print!("██");
+                } else {
+                    print!("  ")
+                }
+            }
+            println!();
         }
-
-        if i.is_empty() {
-            break;
-        }
-        i.skip(1);
+        return n;
     }
-    sum
+
+    unreachable!()
 }
 
 fn main() {
@@ -101,7 +105,7 @@ fn main() {
     // }
     // std::fs::write("src/inp.txt", s);
     #[allow(unused_unsafe)]
-    println!("{}", unsafe { run(i) });
+    println!("{}", unsafe { p2(i) });
 }
 
 #[bench]
