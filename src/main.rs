@@ -74,7 +74,7 @@ pub unsafe fn p2(i: &str) -> impl Display {
                 b'#' => [x; 2],
                 b'O' => *b"[]",
                 b'@' | b'.' => *b"..",
-                _ => unreachable!(),
+                _ => shucks!(),
             })
         })
         .collect::<Vec<_>>()
@@ -97,162 +97,162 @@ pub unsafe fn p2(i: &str) -> impl Display {
     //     .as_chunks_unchecked_mut::<{ SIZE + 1 }>();
     // grid[y][x * 2] = b'.';
     let i = &i[((SIZE + 1) * SIZE) + 1..];
+    #[no_mangle]
     fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[u8; SIZE * 2]], commit: bool) -> bool {
         match dir {
-            Dir::N => match [grid[y - 1][x], grid[y - 1][x + 1]] {
-                [_, b'#'] | [b'#', _] => {}
-                [b'.', b'.'] => {
-                    if commit {
+            Dir::N => {
+                macro_rules! set {
+                    () => {{
                         grid[y - 1][x] = b'[';
                         grid[y - 1][x + 1] = b']';
                         grid[y][x] = b'.';
                         grid[y][x + 1] = b'.';
-                    }
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                    }};
                 }
-                [b']', b'['] => {
-                    let val = push((x - 1, y - 1), dir, grid, false)
-                        && push((x + 1, y - 1), dir, grid, false);
-                    if commit && val {
-                        push((x - 1, y - 1), dir, grid, commit);
-                        push((x + 1, y - 1), dir, grid, commit);
-                        grid[y - 1][x] = b'[';
-                        grid[y - 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                match [grid[y - 1][x], grid[y - 1][x + 1]] {
+                    [_, b'#'] | [b'#', _] => {}
+                    [b'.', b'.'] => {
+                        if commit {
+                            set!()
+                        }
+                        return true;
                     }
-                    return val;
-                }
-                [b']', b'.'] => {
-                    let val = push((x - 1, y - 1), dir, grid, commit);
-                    if commit && val {
-                        grid[y - 1][x] = b'[';
-                        grid[y - 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b']', b'['] => {
+                        let val = push((x - 1, y - 1), dir, grid, false)
+                            && push((x + 1, y - 1), dir, grid, false);
+                        if commit && val {
+                            push((x - 1, y - 1), dir, grid, commit);
+                            push((x + 1, y - 1), dir, grid, commit);
+                            set!();
+                        }
+                        return val;
                     }
-                    return val;
-                }
-                [b'.', b'['] => {
-                    let val = push((x + 1, y - 1), dir, grid, commit);
-                    if commit && val {
-                        grid[y - 1][x] = b'[';
-                        grid[y - 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b']', b'.'] => {
+                        let val = push((x - 1, y - 1), dir, grid, commit);
+                        if commit && val {
+                            set!()
+                        }
+                        return val;
                     }
-                    return val;
-                }
-                // "simple" case
-                [b'[', b']'] => {
-                    let val = push((x, y - 1), dir, grid, commit);
-                    if val && commit {
-                        grid[y - 1][x] = b'[';
-                        grid[y - 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b'.', b'['] => {
+                        let val = push((x + 1, y - 1), dir, grid, commit);
+                        if commit && val {
+                            set!()
+                        }
+                        return val;
                     }
-                    return val;
+                    // "simple" case
+                    [b'[', b']'] => {
+                        let val = push((x, y - 1), dir, grid, commit);
+                        if val && commit {
+                            set!()
+                        }
+                        return val;
+                    }
+                    x => shucks!("{x:?}"),
                 }
-                x => unreachable!("{x:?}"),
-            },
-            Dir::S => match [grid[y + 1][x], grid[y + 1][x + 1]] {
-                [_, b'#'] | [b'#', _] => {}
-                [b'.', b'.'] => {
-                    if commit {
+            }
+            Dir::S => {
+                macro_rules! set {
+                    () => {{
                         grid[y + 1][x] = b'[';
                         grid[y + 1][x + 1] = b']';
                         grid[y][x] = b'.';
                         grid[y][x + 1] = b'.';
+                    }};
+                }
+                match [grid[y + 1][x], grid[y + 1][x + 1]] {
+                    [_, b'#'] | [b'#', _] => {}
+                    [b'.', b'.'] => {
+                        if commit {
+                            set!()
+                        }
+                        return true;
+                        // swap(&mut grid[y - 1][x], &mut grid[y][x]),
                     }
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                [b']', b'['] => {
-                    let val = push((x - 1, y + 1), dir, grid, false)
-                        && push((x + 1, y + 1), dir, grid, false);
-                    if commit && val {
-                        push((x - 1, y + 1), dir, grid, commit);
-                        push((x + 1, y + 1), dir, grid, commit);
-                        grid[y + 1][x] = b'[';
-                        grid[y + 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b']', b'['] => {
+                        let val = push((x - 1, y + 1), dir, grid, false)
+                            && push((x + 1, y + 1), dir, grid, false);
+                        if commit && val {
+                            push((x - 1, y + 1), dir, grid, commit);
+                            push((x + 1, y + 1), dir, grid, commit);
+                            set!()
+                        }
+                        return val;
                     }
-                    return val;
-                }
-                [b']', b'.'] => {
-                    let val = push((x - 1, y + 1), dir, grid, commit);
-                    if commit && val {
-                        grid[y + 1][x] = b'[';
-                        grid[y + 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b']', b'.'] => {
+                        let val = push((x - 1, y + 1), dir, grid, commit);
+                        if commit && val {
+                            set!()
+                        }
+                        return val;
                     }
-                    return val;
-                }
-                [b'.', b'['] => {
-                    let val = push((x + 1, y + 1), dir, grid, commit);
-                    if commit && val {
-                        grid[y + 1][x] = b'[';
-                        grid[y + 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b'.', b'['] => {
+                        let val = push((x + 1, y + 1), dir, grid, commit);
+                        if commit && val {
+                            set!()
+                        }
+                        return val;
                     }
-                    return val;
-                }
-                [b'[', b']'] => {
-                    let val = push((x, y + 1), dir, grid, commit);
-                    if val && commit {
-                        grid[y + 1][x] = b'[';
-                        grid[y + 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
+                    [b'[', b']'] => {
+                        let val = push((x, y + 1), dir, grid, commit);
+                        if val && commit {
+                            set!()
+                        }
+                        return val;
                     }
-                    return val;
+                    x => shucks!("{x:?}"),
                 }
-                x => unreachable!("{x:?}"),
-            },
-            Dir::E => match grid[y][x + 2] {
-                b'.' => {
-                    grid[y][x + 2] = b']';
-                    grid[y][x + 1] = b'[';
-                    grid[y][x] = b'.';
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                b'[' => {
-                    if push((x + 2, y), dir, grid, commit) {
+            }
+            Dir::E => {
+                macro_rules! set {
+                    () => {{
                         grid[y][x + 2] = b']';
                         grid[y][x + 1] = b'[';
                         grid[y][x] = b'.';
+                    }};
+                }
+                match grid[y][x + 2] {
+                    b'.' => {
+                        set!();
                         return true;
+                        // swap(&mut grid[y - 1][x], &mut grid[y][x]),
                     }
+                    b'[' => {
+                        if push((x + 2, y), dir, grid, true) {
+                            set!();
+                            return true;
+                        }
+                    }
+                    b'#' => {}
+                    x => shucks!("{}", x as char),
                 }
-                b'#' => {}
-                x => unreachable!("{}", x as char),
-            },
+            }
 
-            Dir::W => match grid[y][x - 1] {
-                b'.' => {
-                    grid[y][x - 1] = b'[';
-                    grid[y][x] = b']';
-                    grid[y][x + 1] = b'.';
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                b']' => {
-                    if push((x - 2, y), dir, grid, commit) {
+            Dir::W => {
+                macro_rules! set {
+                    () => {{
                         grid[y][x - 1] = b'[';
                         grid[y][x] = b']';
                         grid[y][x + 1] = b'.';
-                        return true;
-                    }
+                    }};
                 }
-                b'#' => {}
-                x => unreachable!("{}", x as char),
-            },
+                match grid[y][x - 1] {
+                    b'.' => {
+                        set!();
+                        return true;
+                        // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                    }
+                    b']' => {
+                        if push((x - 2, y), dir, grid, commit) {
+                            set!();
+                            return true;
+                        }
+                    }
+                    b'#' => {}
+                    x => shucks!("{}", x as char),
+                }
+            }
         }
         false
     }
@@ -267,7 +267,7 @@ pub unsafe fn p2(i: &str) -> impl Display {
                         x = x - 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             b'>' => match grid[y][x + 1] {
                 b'.' => x = x + 1,
@@ -277,7 +277,7 @@ pub unsafe fn p2(i: &str) -> impl Display {
                         x = x + 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
 
             b'^' => match grid[y - 1][x] {
@@ -293,7 +293,7 @@ pub unsafe fn p2(i: &str) -> impl Display {
                         y = y - 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             b'v' => match grid[y + 1][x] {
                 b'.' => y = y + 1,
@@ -308,26 +308,21 @@ pub unsafe fn p2(i: &str) -> impl Display {
                         y = y + 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             _ => {}
         }
-        // grid[y][x] = b'@';
-        // for row in &*grid {
-        //     println!("{}", row.p());
-        // }
-        // grid[y][x] = b'.';
     }
-    let mut sum = 0;
-    for (row, y) in grid.into_iter().ι::<u32>() {
-        for (col, x) in row.into_iter().ι::<u32>() {
-            if *col == b'[' {
-                sum += 100 * y + x
-            }
-        }
-    }
-
-    sum
+    // grid[y][x] = b'@';
+    // for row in &*grid {
+    //     println!("{}", row.p());
+    // }
+    // grid[y][x] = b'.';
+    (0..SIZE)
+        .flat_map(|y| (0..SIZE * 2).map(move |x| (x, y)))
+        .filter(|&(x, y)| grid[y][x] == b'[')
+        .map(|(x, y)| 100 * y + x)
+        .sum::<usize>()
 }
 
 #[no_mangle]
@@ -358,7 +353,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                     }
                 }
                 b'#' => {}
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             Dir::E => match grid[y][x + 1] {
                 b'.' => {
@@ -375,7 +370,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                     }
                 }
                 b'#' => {}
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             Dir::S => match grid[y + 1][x] {
                 b'.' => {
@@ -392,7 +387,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                     }
                 }
                 b'#' => {}
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             Dir::W => match grid[y][x - 1] {
                 b'.' => {
@@ -409,7 +404,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                     }
                 }
                 b'#' => {}
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
         }
         false
@@ -424,7 +419,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                         x = x - 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             b'>' => match grid[y][x + 1] {
                 b'.' => x = x + 1,
@@ -434,7 +429,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                         x = x + 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
 
             b'^' => match grid[y - 1][x] {
@@ -445,7 +440,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                         y = y - 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             b'v' => match grid[y + 1][x] {
                 b'.' => y = y + 1,
@@ -455,7 +450,7 @@ pub unsafe fn run(i: &str) -> impl Display {
                         y = y + 1;
                     }
                 }
-                x => unreachable!("{}", x as char),
+                x => shucks!("{}", x as char),
             },
             _ => {}
         }
@@ -487,5 +482,5 @@ fn main() {
 #[bench]
 fn bench(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt"));
-    b.iter(|| unsafe { run(i) });
+    b.iter(|| unsafe { p2(i) });
 }
