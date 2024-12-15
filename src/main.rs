@@ -36,63 +36,440 @@ pub mod util;
 use atools::CollectArray;
 pub use util::prelude::*;
 
-const W: i32 = 101;
-const H: i32 = 103;
-#[no_mangle]
-pub fn run(i: &str) -> impl Display {
-    let mut grids = [0; 4];
-    i.行()
-        .map(|x| {
-            let ((px, py), (vx, vy)) = x.μ(' ').mb(|x| x.μ1('=').μκ::<i32>(',').Δ());
-            let x = (px + vx * 100).rem_euclid(W);
-            let y = (py + vy * 100).rem_euclid(H);
-            let w = W / 2;
-            let h = H / 2;
-            if x < w && y < h {
-                grids[0] += 1;
-            } else if x < w && y > h {
-                grids[1] += 1;
-            } else if x > w && y < h {
-                grids[2] += 1;
-            } else if x > w && y > h {
-                grids[3] += 1;
-            }
+const SIZE: usize = 50;
+// enum Bloc {
+//     Wall,
+//     Block,
+//     Space,
+// }
+
+// impl Bloc {
+//     fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[Bloc; SIZE]], commit: bool) -> bool {
+//         match dir {
+//             Dir::N => match grid[y - 1][x] {},
+//             Dir::E => todo!(),
+//             Dir::S => todo!(),
+//             Dir::W => todo!(),
+//         }
+//     }
+// }
+// impl std::fmt::Debug for Bloc {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Wall => write!(f, "##"),
+//             Block => write!(f, "[]"),
+//             Space => write!(f, ".."),
+//         }
+//     }
+// }
+// use Bloc::*;
+pub unsafe fn p2(i: &str) -> impl Display {
+    let i = i.as_bytes();
+    let bot = memchr::memchr(b'@', i).ψ();
+    let (mut x, mut y) = ((bot % (SIZE + 1)) * 2, bot / (SIZE + 1));
+    let grid = i[..(SIZE + 1) * SIZE]
+        .array_chunks::<{ SIZE + 1 }>()
+        .flat_map(|x| {
+            x.iter().take(SIZE).copied().flat_map(|x| match x {
+                b'#' => [x; 2],
+                b'O' => *b"[]",
+                b'@' | b'.' => *b"..",
+                _ => unreachable!(),
+            })
         })
-        .Θ();
-    grids.iter().product::<u32>()
+        .collect::<Vec<_>>()
+        .leak()
+        .as_chunks_unchecked_mut::<{ SIZE * 2 }>();
+    // for y in 0..SIZE {
+    //     for x in 0..SIZE * 2 {
+    //         if (px, py) == (x, y) {
+    //             print!("@");
+    //         } else {
+    //             print!("{}", grid[y][x] as char);
+    //         }
+    //     }
+    //     println!();
+    // }
+    // println!("{grid/:?}");
+    // let grid = i[..(SIZE + 1) * SIZE]
+    //     .to_vec()
+    //     .leak()
+    //     .as_chunks_unchecked_mut::<{ SIZE + 1 }>();
+    // grid[y][x * 2] = b'.';
+    let i = &i[((SIZE + 1) * SIZE) + 1..];
+    fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[u8; SIZE * 2]], commit: bool) -> bool {
+        match dir {
+            Dir::N => match [grid[y - 1][x], grid[y - 1][x + 1]] {
+                [_, b'#'] | [b'#', _] => {}
+                [b'.', b'.'] => {
+                    if commit {
+                        grid[y - 1][x] = b'[';
+                        grid[y - 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                [b']', b'['] => {
+                    let val = push((x - 1, y - 1), dir, grid, false)
+                        && push((x + 1, y - 1), dir, grid, false);
+                    if commit && val {
+                        push((x - 1, y - 1), dir, grid, commit);
+                        push((x + 1, y - 1), dir, grid, commit);
+                        grid[y - 1][x] = b'[';
+                        grid[y - 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                [b']', b'.'] => {
+                    let val = push((x - 1, y - 1), dir, grid, commit);
+                    if commit && val {
+                        grid[y - 1][x] = b'[';
+                        grid[y - 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                [b'.', b'['] => {
+                    let val = push((x + 1, y - 1), dir, grid, commit);
+                    if commit && val {
+                        grid[y - 1][x] = b'[';
+                        grid[y - 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                // "simple" case
+                [b'[', b']'] => {
+                    let val = push((x, y - 1), dir, grid, commit);
+                    if val && commit {
+                        grid[y - 1][x] = b'[';
+                        grid[y - 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                x => unreachable!("{x:?}"),
+            },
+            Dir::S => match [grid[y + 1][x], grid[y + 1][x + 1]] {
+                [_, b'#'] | [b'#', _] => {}
+                [b'.', b'.'] => {
+                    if commit {
+                        grid[y + 1][x] = b'[';
+                        grid[y + 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                [b']', b'['] => {
+                    let val = push((x - 1, y + 1), dir, grid, false)
+                        && push((x + 1, y + 1), dir, grid, false);
+                    if commit && val {
+                        push((x - 1, y + 1), dir, grid, commit);
+                        push((x + 1, y + 1), dir, grid, commit);
+                        grid[y + 1][x] = b'[';
+                        grid[y + 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                [b']', b'.'] => {
+                    let val = push((x - 1, y + 1), dir, grid, commit);
+                    if commit && val {
+                        grid[y + 1][x] = b'[';
+                        grid[y + 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                [b'.', b'['] => {
+                    let val = push((x + 1, y + 1), dir, grid, commit);
+                    if commit && val {
+                        grid[y + 1][x] = b'[';
+                        grid[y + 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                [b'[', b']'] => {
+                    let val = push((x, y + 1), dir, grid, commit);
+                    if val && commit {
+                        grid[y + 1][x] = b'[';
+                        grid[y + 1][x + 1] = b']';
+                        grid[y][x] = b'.';
+                        grid[y][x + 1] = b'.';
+                    }
+                    return val;
+                }
+                x => unreachable!("{x:?}"),
+            },
+            Dir::E => match grid[y][x + 2] {
+                b'.' => {
+                    grid[y][x + 2] = b']';
+                    grid[y][x + 1] = b'[';
+                    grid[y][x] = b'.';
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                b'[' => {
+                    if push((x + 2, y), dir, grid, commit) {
+                        grid[y][x + 2] = b']';
+                        grid[y][x + 1] = b'[';
+                        grid[y][x] = b'.';
+                        return true;
+                    }
+                }
+                b'#' => {}
+                x => unreachable!("{}", x as char),
+            },
+
+            Dir::W => match grid[y][x - 1] {
+                b'.' => {
+                    grid[y][x - 1] = b'[';
+                    grid[y][x] = b']';
+                    grid[y][x + 1] = b'.';
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                b']' => {
+                    if push((x - 2, y), dir, grid, commit) {
+                        grid[y][x - 1] = b'[';
+                        grid[y][x] = b']';
+                        grid[y][x + 1] = b'.';
+                        return true;
+                    }
+                }
+                b'#' => {}
+                x => unreachable!("{}", x as char),
+            },
+        }
+        false
+    }
+    for input in i {
+        // println!("{}", *input as char);
+        match input {
+            b'<' => match grid[y][x - 1] {
+                b'.' => x = x - 1,
+                b'#' => (),
+                b']' => {
+                    if push((x - 2, y), Dir::W, grid, true) {
+                        x = x - 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+            b'>' => match grid[y][x + 1] {
+                b'.' => x = x + 1,
+                b'#' => (),
+                b'[' => {
+                    if push((x + 1, y), Dir::E, grid, true) {
+                        x = x + 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+
+            b'^' => match grid[y - 1][x] {
+                b'.' => y = y - 1,
+                b'#' => (),
+                b']' => {
+                    if push((x - 1, y - 1), Dir::N, grid, true) {
+                        y = y - 1;
+                    }
+                }
+                b'[' => {
+                    if push((x, y - 1), Dir::N, grid, true) {
+                        y = y - 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+            b'v' => match grid[y + 1][x] {
+                b'.' => y = y + 1,
+                b'#' => (),
+                b'[' => {
+                    if push((x, y + 1), Dir::S, grid, true) {
+                        y = y + 1;
+                    }
+                }
+                b']' => {
+                    if push((x - 1, y + 1), Dir::S, grid, true) {
+                        y = y + 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+            _ => {}
+        }
+        // grid[y][x] = b'@';
+        // for row in &*grid {
+        //     println!("{}", row.p());
+        // }
+        // grid[y][x] = b'.';
+    }
+    let mut sum = 0;
+    for (row, y) in grid.into_iter().ι::<u32>() {
+        for (col, x) in row.into_iter().ι::<u32>() {
+            if *col == b'[' {
+                sum += 100 * y + x
+            }
+        }
+    }
+
+    sum
 }
 
 #[no_mangle]
-pub fn p2(i: &str) -> impl Display {
-    let mut positions = Vec::<((i32, i32), (i32, i32))>::with_capacity(500);
-    const W: i32 = 101;
-    const H: i32 = 103;
-    i.行().for_each(|x| {
-        positions.push(x.μ(' ').mb(|x| x.μ1('=').μκ::<i32>(',').Δ()));
-    });
-    let bx = (0..W)
-        .map(|seconds| {
-            positions
-                .iter()
-                .map(move |&((x, _), (vx, _))| (x + vx * seconds).rem_euclid(W).abs_diff(W / 2))
-                .sum::<u32>()
-        })
-        .enumerate()
-        .min_by_key(|&(_, x)| x)
-        .unwrap()
-        .0 as i32;
-    let by = (0..H)
-        .map(|seconds| {
-            positions
-                .iter()
-                .map(move |&((_, x), (_, vx))| (x + vx * seconds).rem_euclid(H).abs_diff(H / 2))
-                .sum::<u32>()
-        })
-        .enumerate()
-        .min_by_key(|&(_, x)| x)
-        .unwrap()
-        .0 as i32;
-    bx + ((51 * (by - bx)) % H) * W
+pub unsafe fn run(i: &str) -> impl Display {
+    let i = i.as_bytes();
+    let bot = memchr::memchr(b'@', i).ψ();
+    let (mut x, mut y) = (bot % (SIZE + 1), bot / (SIZE + 1));
+    let grid = i[..(SIZE + 1) * SIZE]
+        .to_vec()
+        .leak()
+        .as_chunks_unchecked_mut::<{ SIZE + 1 }>();
+    grid[y][x] = b'.';
+    let i = &i[((SIZE + 1) * SIZE) + 1..];
+    fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[u8; SIZE + 1]]) -> bool {
+        match dir {
+            Dir::N => match grid[y - 1][x] {
+                b'.' => {
+                    grid[y - 1][x] = b'O';
+                    grid[y][x] = b'.';
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                b'O' => {
+                    if push((x, y - 1), dir, grid) {
+                        grid[y - 1][x] = b'O';
+                        grid[y][x] = b'.';
+                        return true;
+                    }
+                }
+                b'#' => {}
+                x => unreachable!("{}", x as char),
+            },
+            Dir::E => match grid[y][x + 1] {
+                b'.' => {
+                    grid[y][x + 1] = b'O';
+                    grid[y][x] = b'.';
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                b'O' => {
+                    if push((x + 1, y), dir, grid) {
+                        grid[y][x + 1] = b'O';
+                        grid[y][x] = b'.';
+                        return true;
+                    }
+                }
+                b'#' => {}
+                x => unreachable!("{}", x as char),
+            },
+            Dir::S => match grid[y + 1][x] {
+                b'.' => {
+                    grid[y + 1][x] = b'O';
+                    grid[y][x] = b'.';
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                b'O' => {
+                    if push((x, y + 1), dir, grid) {
+                        grid[y + 1][x] = b'O';
+                        grid[y][x] = b'.';
+                        return true;
+                    }
+                }
+                b'#' => {}
+                x => unreachable!("{}", x as char),
+            },
+            Dir::W => match grid[y][x - 1] {
+                b'.' => {
+                    grid[y][x - 1] = b'O';
+                    grid[y][x] = b'.';
+                    return true;
+                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
+                }
+                b'O' => {
+                    if push((x - 1, y), dir, grid) {
+                        grid[y][x - 1] = b'O';
+                        grid[y][x] = b'.';
+                        return true;
+                    }
+                }
+                b'#' => {}
+                x => unreachable!("{}", x as char),
+            },
+        }
+        false
+    }
+    for input in i {
+        match input {
+            b'<' => match grid[y][x - 1] {
+                b'.' => x = x - 1,
+                b'#' => (),
+                b'O' => {
+                    if push((x - 1, y), Dir::W, grid) {
+                        x = x - 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+            b'>' => match grid[y][x + 1] {
+                b'.' => x = x + 1,
+                b'#' => (),
+                b'O' => {
+                    if push((x + 1, y), Dir::E, grid) {
+                        x = x + 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+
+            b'^' => match grid[y - 1][x] {
+                b'.' => y = y - 1,
+                b'#' => (),
+                b'O' => {
+                    if push((x, y - 1), Dir::N, grid) {
+                        y = y - 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+            b'v' => match grid[y + 1][x] {
+                b'.' => y = y + 1,
+                b'#' => (),
+                b'O' => {
+                    if push((x, y + 1), Dir::S, grid) {
+                        y = y + 1;
+                    }
+                }
+                x => unreachable!("{}", x as char),
+            },
+            _ => {}
+        }
+    }
+    let mut sum = 0;
+    for (row, y) in grid.into_iter().ι::<u32>() {
+        for (col, x) in row.into_iter().ι::<u32>() {
+            if *col == b'O' {
+                sum += 100 * y + x
+            }
+        }
+    }
+
+    sum
 }
 
 fn main() {
@@ -101,7 +478,7 @@ fn main() {
     // for i in 0..1280 {
     let i = include_str!("inp.txt");
     //     s.push_str(i);i
-    // }
+    // }w
     // std::fs::write("src/inp.txt", s);
     #[allow(unused_unsafe)]
     println!("{}", unsafe { p2(i) });
