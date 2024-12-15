@@ -70,30 +70,29 @@ pub fn p2(i: &str) -> impl Display {
     i.行().for_each(|x| {
         positions.push(x.μ(' ').mb(|x| x.μ1('=').μκ::<i32>(',').Δ()));
     });
-    let mut at = HashSet::default();
-    'up: for n in 0.. {
-        for &((px, py), (vx, vy)) in &positions {
-            let x = (px + vx * n).rem_euclid(W);
-            let y = (py + vy * n).rem_euclid(H);
-            if !at.insert((x, y)) {
-                at.clear();
-                continue 'up;
-            }
-        }
-        for y in 0..H {
-            for x in 0..W {
-                if at.contains(&(x, y)) {
-                    print!("██");
-                } else {
-                    print!("  ")
-                }
-            }
-            println!();
-        }
-        return n;
-    }
-
-    unreachable!()
+    let bx = (0..W)
+        .map(|seconds| {
+            positions
+                .iter()
+                .map(move |&((x, _), (vx, _))| (x + vx * seconds).rem_euclid(W).abs_diff(W / 2))
+                .sum::<u32>()
+        })
+        .enumerate()
+        .min_by_key(|&(_, x)| x)
+        .unwrap()
+        .0 as i32;
+    let by = (0..H)
+        .map(|seconds| {
+            positions
+                .iter()
+                .map(move |&((_, x), (_, vx))| (x + vx * seconds).rem_euclid(H).abs_diff(H / 2))
+                .sum::<u32>()
+        })
+        .enumerate()
+        .min_by_key(|&(_, x)| x)
+        .unwrap()
+        .0 as i32;
+    bx + ((51 * (by - bx)) % H) * W
 }
 
 fn main() {
