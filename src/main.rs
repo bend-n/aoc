@@ -33,438 +33,63 @@
 )]
 extern crate test;
 pub mod util;
-use atools::CollectArray;
+use std::cmp::Reverse;
 pub use util::prelude::*;
 
-const SIZE: usize = 50;
-// enum Bloc {
-//     Wall,
-//     Block,
-//     Space,
-// }
-
-// impl Bloc {
-//     fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[Bloc; SIZE]], commit: bool) -> bool {
-//         match dir {
-//             Dir::N => match grid[y - 1][x] {},
-//             Dir::E => todo!(),
-//             Dir::S => todo!(),
-//             Dir::W => todo!(),
-//         }
-//     }
-// }
-// impl std::fmt::Debug for Bloc {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Wall => write!(f, "##"),
-//             Block => write!(f, "[]"),
-//             Space => write!(f, ".."),
-//         }
-//     }
-// }
-// use Bloc::*;
-pub unsafe fn p2(i: &str) -> impl Display {
-    let i = i.as_bytes();
-    let bot = memchr::memchr(b'@', i).ψ();
-    let (mut x, mut y) = ((bot % (SIZE + 1)) * 2, bot / (SIZE + 1));
-    let grid = i[..(SIZE + 1) * SIZE]
-        .array_chunks::<{ SIZE + 1 }>()
-        .flat_map(|x| {
-            x.iter().take(SIZE).copied().flat_map(|x| match x {
-                b'#' => [x; 2],
-                b'O' => *b"[]",
-                b'@' | b'.' => *b"..",
-                _ => shucks!(),
-            })
-        })
-        .collect::<Vec<_>>()
-        .leak()
-        .as_chunks_unchecked_mut::<{ SIZE * 2 }>();
-    // for y in 0..SIZE {
-    //     for x in 0..SIZE * 2 {
-    //         if (px, py) == (x, y) {
-    //             print!("@");
-    //         } else {
-    //             print!("{}", grid[y][x] as char);
-    //         }
-    //     }
-    //     println!();
-    // }
-    // println!("{grid/:?}");
-    // let grid = i[..(SIZE + 1) * SIZE]
-    //     .to_vec()
-    //     .leak()
-    //     .as_chunks_unchecked_mut::<{ SIZE + 1 }>();
-    // grid[y][x * 2] = b'.';
-    let i = &i[((SIZE + 1) * SIZE) + 1..];
-    #[no_mangle]
-    fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[u8; SIZE * 2]], commit: bool) -> bool {
-        match dir {
-            Dir::N => {
-                macro_rules! set {
-                    () => {{
-                        grid[y - 1][x] = b'[';
-                        grid[y - 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
-                    }};
-                }
-                match [grid[y - 1][x], grid[y - 1][x + 1]] {
-                    [_, b'#'] | [b'#', _] => {}
-                    [b'.', b'.'] => {
-                        if commit {
-                            set!()
-                        }
-                        return true;
-                    }
-                    [b']', b'['] => {
-                        let val = push((x - 1, y - 1), dir, grid, false)
-                            && push((x + 1, y - 1), dir, grid, false);
-                        if commit && val {
-                            push((x - 1, y - 1), dir, grid, commit);
-                            push((x + 1, y - 1), dir, grid, commit);
-                            set!();
-                        }
-                        return val;
-                    }
-                    [b']', b'.'] => {
-                        let val = push((x - 1, y - 1), dir, grid, commit);
-                        if commit && val {
-                            set!()
-                        }
-                        return val;
-                    }
-                    [b'.', b'['] => {
-                        let val = push((x + 1, y - 1), dir, grid, commit);
-                        if commit && val {
-                            set!()
-                        }
-                        return val;
-                    }
-                    // "simple" case
-                    [b'[', b']'] => {
-                        let val = push((x, y - 1), dir, grid, commit);
-                        if val && commit {
-                            set!()
-                        }
-                        return val;
-                    }
-                    x => shucks!("{x:?}"),
-                }
-            }
-            Dir::S => {
-                macro_rules! set {
-                    () => {{
-                        grid[y + 1][x] = b'[';
-                        grid[y + 1][x + 1] = b']';
-                        grid[y][x] = b'.';
-                        grid[y][x + 1] = b'.';
-                    }};
-                }
-                match [grid[y + 1][x], grid[y + 1][x + 1]] {
-                    [_, b'#'] | [b'#', _] => {}
-                    [b'.', b'.'] => {
-                        if commit {
-                            set!()
-                        }
-                        return true;
-                        // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                    }
-                    [b']', b'['] => {
-                        let val = push((x - 1, y + 1), dir, grid, false)
-                            && push((x + 1, y + 1), dir, grid, false);
-                        if commit && val {
-                            push((x - 1, y + 1), dir, grid, commit);
-                            push((x + 1, y + 1), dir, grid, commit);
-                            set!()
-                        }
-                        return val;
-                    }
-                    [b']', b'.'] => {
-                        let val = push((x - 1, y + 1), dir, grid, commit);
-                        if commit && val {
-                            set!()
-                        }
-                        return val;
-                    }
-                    [b'.', b'['] => {
-                        let val = push((x + 1, y + 1), dir, grid, commit);
-                        if commit && val {
-                            set!()
-                        }
-                        return val;
-                    }
-                    [b'[', b']'] => {
-                        let val = push((x, y + 1), dir, grid, commit);
-                        if val && commit {
-                            set!()
-                        }
-                        return val;
-                    }
-                    x => shucks!("{x:?}"),
-                }
-            }
-            Dir::E => {
-                macro_rules! set {
-                    () => {{
-                        grid[y][x + 2] = b']';
-                        grid[y][x + 1] = b'[';
-                        grid[y][x] = b'.';
-                    }};
-                }
-                match grid[y][x + 2] {
-                    b'.' => {
-                        set!();
-                        return true;
-                        // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                    }
-                    b'[' => {
-                        if push((x + 2, y), dir, grid, true) {
-                            set!();
-                            return true;
-                        }
-                    }
-                    b'#' => {}
-                    x => shucks!("{}", x as char),
-                }
-            }
-
-            Dir::W => {
-                macro_rules! set {
-                    () => {{
-                        grid[y][x - 1] = b'[';
-                        grid[y][x] = b']';
-                        grid[y][x + 1] = b'.';
-                    }};
-                }
-                match grid[y][x - 1] {
-                    b'.' => {
-                        set!();
-                        return true;
-                        // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                    }
-                    b']' => {
-                        if push((x - 2, y), dir, grid, commit) {
-                            set!();
-                            return true;
-                        }
-                    }
-                    b'#' => {}
-                    x => shucks!("{}", x as char),
-                }
-            }
-        }
-        false
-    }
-    for input in i {
-        // println!("{}", *input as char);
-        match input {
-            b'<' => match grid[y][x - 1] {
-                b'.' => x = x - 1,
-                b'#' => (),
-                b']' => {
-                    if push((x - 2, y), Dir::W, grid, true) {
-                        x = x - 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-            b'>' => match grid[y][x + 1] {
-                b'.' => x = x + 1,
-                b'#' => (),
-                b'[' => {
-                    if push((x + 1, y), Dir::E, grid, true) {
-                        x = x + 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-
-            b'^' => match grid[y - 1][x] {
-                b'.' => y = y - 1,
-                b'#' => (),
-                b']' => {
-                    if push((x - 1, y - 1), Dir::N, grid, true) {
-                        y = y - 1;
-                    }
-                }
-                b'[' => {
-                    if push((x, y - 1), Dir::N, grid, true) {
-                        y = y - 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-            b'v' => match grid[y + 1][x] {
-                b'.' => y = y + 1,
-                b'#' => (),
-                b'[' => {
-                    if push((x, y + 1), Dir::S, grid, true) {
-                        y = y + 1;
-                    }
-                }
-                b']' => {
-                    if push((x - 1, y + 1), Dir::S, grid, true) {
-                        y = y + 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-            _ => {}
-        }
-    }
-    // grid[y][x] = b'@';
-    // for row in &*grid {
-    //     println!("{}", row.p());
-    // }
-    // grid[y][x] = b'.';
-    (0..SIZE)
-        .flat_map(|y| (0..SIZE * 2).map(move |x| (x, y)))
-        .filter(|&(x, y)| grid[y][x] == b'[')
-        .map(|(x, y)| 100 * y + x)
-        .sum::<usize>()
-}
+const SIZE: usize = 141;
 
 #[no_mangle]
 pub unsafe fn run(i: &str) -> impl Display {
     let i = i.as_bytes();
-    let bot = memchr::memchr(b'@', i).ψ();
-    let (mut x, mut y) = (bot % (SIZE + 1), bot / (SIZE + 1));
-    let grid = i[..(SIZE + 1) * SIZE]
-        .to_vec()
-        .leak()
-        .as_chunks_unchecked_mut::<{ SIZE + 1 }>();
+    let j = memchr::memchr(b'S', i).ψ();
+    let (x, y) = (j % (SIZE + 1), j / (SIZE + 1));
+    let grid = i.to_vec().leak().as_chunks_unchecked_mut::<{ SIZE + 1 }>();
     grid[y][x] = b'.';
-    let i = &i[((SIZE + 1) * SIZE) + 1..];
-    fn push((x, y): (usize, usize), dir: Dir, grid: &mut [[u8; SIZE + 1]]) -> bool {
-        match dir {
-            Dir::N => match grid[y - 1][x] {
-                b'.' => {
-                    grid[y - 1][x] = b'O';
-                    grid[y][x] = b'.';
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                b'O' => {
-                    if push((x, y - 1), dir, grid) {
-                        grid[y - 1][x] = b'O';
-                        grid[y][x] = b'.';
-                        return true;
-                    }
-                }
-                b'#' => {}
-                x => shucks!("{}", x as char),
-            },
-            Dir::E => match grid[y][x + 1] {
-                b'.' => {
-                    grid[y][x + 1] = b'O';
-                    grid[y][x] = b'.';
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                b'O' => {
-                    if push((x + 1, y), dir, grid) {
-                        grid[y][x + 1] = b'O';
-                        grid[y][x] = b'.';
-                        return true;
-                    }
-                }
-                b'#' => {}
-                x => shucks!("{}", x as char),
-            },
-            Dir::S => match grid[y + 1][x] {
-                b'.' => {
-                    grid[y + 1][x] = b'O';
-                    grid[y][x] = b'.';
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                b'O' => {
-                    if push((x, y + 1), dir, grid) {
-                        grid[y + 1][x] = b'O';
-                        grid[y][x] = b'.';
-                        return true;
-                    }
-                }
-                b'#' => {}
-                x => shucks!("{}", x as char),
-            },
-            Dir::W => match grid[y][x - 1] {
-                b'.' => {
-                    grid[y][x - 1] = b'O';
-                    grid[y][x] = b'.';
-                    return true;
-                    // swap(&mut grid[y - 1][x], &mut grid[y][x]),
-                }
-                b'O' => {
-                    if push((x - 1, y), dir, grid) {
-                        grid[y][x - 1] = b'O';
-                        grid[y][x] = b'.';
-                        return true;
-                    }
-                }
-                b'#' => {}
-                x => shucks!("{}", x as char),
-            },
-        }
-        false
-    }
-    for input in i {
-        match input {
-            b'<' => match grid[y][x - 1] {
-                b'.' => x = x - 1,
-                b'#' => (),
-                b'O' => {
-                    if push((x - 1, y), Dir::W, grid) {
-                        x = x - 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-            b'>' => match grid[y][x + 1] {
-                b'.' => x = x + 1,
-                b'#' => (),
-                b'O' => {
-                    if push((x + 1, y), Dir::E, grid) {
-                        x = x + 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
+    // let mut q = std::collections::BinaryHeap::with_capacity(1 << 10);
+    // let mut s = HashSet::with_capacity_and_hasher(1 << 16, rustc_hash::FxBuildHasher::default());
+    // q.push(Reverse((0u64, ((x, y), Dir::E))));
+    // while let Some(Reverse((c, n @ ((x, y), dir)))) = q.pop() {
+    //     if grid[y][x] == b'E' {
+    //         return c;
+    //     }
+    //     if !s.insert(n) {
+    //         continue;
+    //     }
+    //     for (n, d) in [
+    //         ((dir + n.0, dir), 1),
+    //         ((n.0, dir.turn_90()), 1000),
+    //         ((n.0, dir.turn_90ccw()), 1000),
+    //     ]
+    //     .into_iter()
+    //     .filter(|(((x, y), ..), _)| grid[*y][*x] != b'#')
+    //     {
+    //         if s.contains(&n) {
+    //             continue;
+    //         }
+    //         q.push(Reverse((c + d, n)));
+    //     }
+    // }
 
-            b'^' => match grid[y - 1][x] {
-                b'.' => y = y - 1,
-                b'#' => (),
-                b'O' => {
-                    if push((x, y - 1), Dir::N, grid) {
-                        y = y - 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-            b'v' => match grid[y + 1][x] {
-                b'.' => y = y + 1,
-                b'#' => (),
-                b'O' => {
-                    if push((x, y + 1), Dir::S, grid) {
-                        y = y + 1;
-                    }
-                }
-                x => shucks!("{}", x as char),
-            },
-            _ => {}
-        }
-    }
-    let mut sum = 0;
-    for (row, y) in grid.into_iter().ι::<u32>() {
-        for (col, x) in row.into_iter().ι::<u32>() {
-            if *col == b'O' {
-                sum += 100 * y + x
-            }
-        }
-    }
-
-    sum
+    let (path, _) = pathfinding::directed::astar::astar_bag(
+        &((x, y), Dir::E),
+        |&(p, dir)| {
+            let dir: Dir = dir;
+            [
+                ((dir + p, dir), 1),
+                ((p, dir.turn_90()), 1000u64),
+                ((p, dir.turn_90ccw()), 1000u64),
+            ]
+            .into_iter()
+            .filter(|(((x, y), ..), _)| grid[*y][*x] != b'#')
+        },
+        |_| 0,
+        |((x, y), ..)| grid[*y][*x] == b'E',
+    )
+    .unwrap();
+    path.into_iter()
+        .flat_map(|x| x.into_iter().map(|((x, y), _)| (x, y)))
+        .collect::<HashSet<_>>()
+        .len()
 }
 
 fn main() {
@@ -476,7 +101,7 @@ fn main() {
     // }w
     // std::fs::write("src/inp.txt", s);
     #[allow(unused_unsafe)]
-    println!("{}", unsafe { p2(i) });
+    println!("{}", unsafe { run(i) });
 }
 
 #[bench]

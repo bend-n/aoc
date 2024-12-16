@@ -499,6 +499,18 @@ impl std::ops::Add<(i64, i64)> for Dir {
     }
 }
 
+impl std::ops::Add<(usize, usize)> for Dir {
+    type Output = (usize, usize);
+    fn add(self, (x, y): (usize, usize)) -> Self::Output {
+        match self {
+            Dir::N => (x, y - 1),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x - 1, y),
+        }
+    }
+}
+
 impl std::ops::Add<(i32, i32)> for Dir {
     type Output = (i32, i32);
     fn add(self, (x, y): (i32, i32)) -> Self::Output {
@@ -550,12 +562,20 @@ impl std::ops::Add<(u8, u8)> for Dir {
 }
 
 impl Dir {
-    pub fn turn_90(&mut self) {
+    pub fn turn_90(self) -> Self {
         match self {
-            Dir::N => *self = Dir::E,
-            Dir::E => *self = Dir::S,
-            Dir::S => *self = Dir::W,
-            Dir::W => *self = Dir::N,
+            Dir::N => Dir::E,
+            Dir::E => Dir::S,
+            Dir::S => Dir::W,
+            Dir::W => Dir::N,
+        }
+    }
+    pub fn turn_90ccw(self) -> Self {
+        match self {
+            Dir::N => Dir::W,
+            Dir::E => Dir::N,
+            Dir::S => Dir::E,
+            Dir::W => Dir::S,
         }
     }
 }
