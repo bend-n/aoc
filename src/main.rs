@@ -33,79 +33,158 @@
 )]
 extern crate test;
 pub mod util;
+use atools::CollectArray;
 use std::cmp::Reverse;
 pub use util::prelude::*;
 
 const SIZE: usize = 141;
 
+fn exec(program: &[u8], [mut a, mut b, mut c]: [u128; 3]) -> Vec<u8> {
+    let mut pointer = 0;
+    let mut out = vec![];
+    while let Some(opcode) = program.get(pointer) {
+        let operand = program[pointer + 1];
+        let combo = || match operand {
+            0..=3 => operand as u128,
+            4 => a,
+            5 => b,
+            6 => c,
+            _ => panic!(),
+        };
+        match opcode {
+            0 => {
+                a = a / (2u128.pow(combo() as u32));
+                pointer += 2;
+            }
+            1 => {
+                b ^= operand as u128;
+                pointer += 2;
+            }
+            2 => {
+                b = combo() & 7;
+                pointer += 2;
+            }
+            3 => {
+                if a == 0 {
+                    pointer += 2;
+                } else {
+                    pointer = operand.into();
+                }
+            }
+            4 => {
+                b ^= c;
+                pointer += 2;
+            }
+            5 => {
+                out.push((combo() & 7) as u8);
+                pointer += 2;
+            }
+            6 => {
+                b = a / (1 << combo() as u32);
+                pointer += 2;
+            }
+            7 => {
+                c = a / (1 << combo() as u32);
+                pointer += 2;
+            }
+            _ => unreachable!(),
+        }
+        // println!("{a} {b} {c}");
+    }
+    out
+}
+
 #[no_mangle]
 pub unsafe fn run(i: &str) -> impl Display {
     let i = i.as_bytes();
-    let j = memchr::memchr(b'S', i).ψ();
-    let (x, y) = (j % (SIZE + 1), j / (SIZE + 1));
-    let grid = i.to_vec().leak().as_chunks_unchecked_mut::<{ SIZE + 1 }>();
-    grid[y][x] = b'.';
-    // let mut q = std::collections::BinaryHeap::with_capacity(1 << 10);
-    // let mut s = HashSet::with_capacity_and_hasher(1 << 16, rustc_hash::FxBuildHasher::default());
-    // q.push(Reverse((0u64, ((x, y), Dir::E))));
-    // while let Some(Reverse((c, n @ ((x, y), dir)))) = q.pop() {
-    //     if grid[y][x] == b'E' {
-    //         return c;
-    //     }
-    //     if !s.insert(n) {
-    //         continue;
-    //     }
-    //     for (n, d) in [
-    //         ((dir + n.0, dir), 1),
-    //         ((n.0, dir.turn_90()), 1000),
-    //         ((n.0, dir.turn_90ccw()), 1000),
-    //     ]
-    //     .into_iter()
-    //     .filter(|(((x, y), ..), _)| grid[*y][*x] != b'#')
-    //     {
-    //         if s.contains(&n) {
-    //             continue;
-    //         }
-    //         q.push(Reverse((c + d, n)));
-    //     }
-    // }
-
-    let (path, _) = pathfinding::directed::astar::astar_bag(
-        &((x, y), Dir::E),
-        |&(p, dir)| {
-            let dir: Dir = dir;
-            [
-                ((dir + p, dir), 1),
-                ((p, dir.turn_90()), 1000u64),
-                ((p, dir.turn_90ccw()), 1000u64),
-            ]
-            .into_iter()
-            .filter(|(((x, y), ..), _)| grid[*y][*x] != b'#')
-        },
-        |_| 0,
-        |((x, y), ..)| grid[*y][*x] == b'E',
-    )
-    .unwrap();
-    path.into_iter()
-        .flat_map(|x| x.into_iter().map(|((x, y), _)| (x, y)))
-        .collect::<HashSet<_>>()
-        .len()
+    let mut i = i.行();
+    let regi = i
+        .by_ref()
+        .take_while(|x| !x.is_empty())
+        .map(|x| x.μ1(':').trim_ascii_start().λ::<u128>())
+        .carr();
+    let program = i
+        .nth(1)
+        .ψ()
+        .μ1(':')
+        .trim_ascii_start()
+        .split(|x| *x == b',')
+        .map(|x| x.λ::<u8>())
+        .collect_vec();
+    exec(&program, regi).into_iter().join(",")
 }
 
 fn main() {
-    // (1..u32::MAX as u64).for_each(|a| assert_eq!(a.ilog10() + 1, digs(a)));
-    // let mut s = String::new();
-    // for i in 0..1280 {
     let i = include_str!("inp.txt");
-    //     s.push_str(i);i
-    // }w
-    // std::fs::write("src/inp.txt", s);
-    #[allow(unused_unsafe)]
-    println!("{}", unsafe { run(i) });
+    let mut i = i.行();
+    let regi: [u128; 3] = i
+        .by_ref()
+        .take_while(|x| !x.is_empty())
+        .map(|x| x.μ1(':').trim_ascii_start().λ::<u128>())
+        .carr();
+    let program = i
+        .nth(1)
+        .ψ()
+        .μ1(':')
+        .trim_ascii_start()
+        .split(|x| *x == b',')
+        .map(|x| x.λ::<u8>())
+        .collect_vec();
+    println!(
+        r#"
+from z3 import *
+solver = Optimize()
+s = BitVec("s", 64)
+a = s
+b, c = (0, 0)"#
+    );
+    println!("for x in {program:?}:");
+    for &[opcode, operand] in program.array_chunks::<2>() {
+        let combo = || match operand {
+            0..=3 => format!("{operand}"),
+            4 => "a".to_string(),
+            5 => "b".to_string(),
+            6 => "c".to_string(),
+            _ => panic!(),
+        };
+        match opcode {
+            0 => println!("  a >>= {}", combo()),
+            1 => println!("  b ^= {operand}"),
+            2 => println!("  b = {} & 7", combo()),
+            3 => {} // println!("  a == 0 ? {operand}"),
+            4 => println!("  b ^= c"),
+            5 => println!("  solver.add({} % 8 == x)", combo()),
+            6 => println!("  b = a >> {}", combo()),
+            7 => println!("  c = a >> {}", combo()),
+            _ => unreachable!(),
+        }
+    }
+    println!(
+        r#"
+solver.add(a == 0)
+solver.minimize(s)
+assert str(solver.check()) == "sat"
+print(solver.model().eval(s))"#
+    );
+    assert_eq!(
+        exec(&[0, 1, 5, 4, 3, 0], [729, 0, 0]),
+        [4, 6, 3, 5, 6, 3, 5, 2, 1, 0]
+    );
+    assert_eq!(exec(&[5, 0, 5, 1, 5, 4], [10, 0, 0]), [0, 1, 2]);
+    assert_eq!(
+        exec(&[0, 1, 5, 4, 3, 0], [2024, 0, 0],),
+        [4, 2, 5, 6, 7, 7, 7, 7, 3, 1, 0]
+    );
+    // dbg!(exec(&program, regi));
 }
 
 #[bench]
 fn bench(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt"));
-    b.iter(|| unsafe { p2(i) });
+    b.iter(|| unsafe {
+        exec(
+            boxd(&[2, 4, 1, 7, 7, 5, 0, 3, 1, 7, 4, 1, 5, 5, 3, 0]),
+            [64012472, 0, 0],
+        )
+    });
 }
