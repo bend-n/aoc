@@ -466,13 +466,13 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>
     graph: impl Fn(N) -> I,
     start: N,
     end: impl Fn(N) -> bool,
-) -> u16 {
+) -> Option<u16> {
     let mut q = BinaryHeap::new();
     let mut s = HashSet::default();
     q.push(Reverse((0, start)));
     while let Some(Reverse((c, n))) = q.pop() {
         if end(n) {
-            return c;
+            return Some(c);
         }
         if !s.insert(n) {
             continue;
@@ -484,7 +484,7 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>
             q.push(Reverse((c + d, n)));
         }
     }
-    dang!()
+    None
 }
 
 impl std::ops::Add<(i64, i64)> for Dir {
@@ -503,10 +503,10 @@ impl std::ops::Add<(usize, usize)> for Dir {
     type Output = (usize, usize);
     fn add(self, (x, y): (usize, usize)) -> Self::Output {
         match self {
-            Dir::N => (x, y - 1),
-            Dir::E => (x + 1, y),
-            Dir::S => (x, y + 1),
-            Dir::W => (x - 1, y),
+            Dir::N => (x, y.wrapping_sub(1)),
+            Dir::E => (x.wrapping_add(1), y),
+            Dir::S => (x, y.wrapping_add(1)),
+            Dir::W => (x.wrapping_sub(1), y),
         }
     }
 }
