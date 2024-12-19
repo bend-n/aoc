@@ -549,14 +549,14 @@ impl std::ops::Add<(i16, i16)> for Dir {
 }
 
 impl std::ops::Add<(u8, u8)> for Dir {
-    type Output = Option<(u8, u8)>;
+    type Output = (u8, u8);
 
     fn add(self, (x, y): (u8, u8)) -> Self::Output {
         match self {
-            Dir::N => Some((x, y.checked_sub(1)?)),
-            Dir::E => Some((x + 1, y)),
-            Dir::S => Some((x, y + 1)),
-            Dir::W => Some((x.checked_sub(1)?, y)),
+            Dir::N => (x, y.wrapping_sub(1)),
+            Dir::E => (x.wrapping_add(1), y),
+            Dir::S => (x, y.wrapping_add(1)),
+            Dir::W => (x.wrapping_sub(1), y),
         }
     }
 }
