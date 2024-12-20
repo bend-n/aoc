@@ -36,41 +36,51 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 
-const WIDTH: usize = 71;
+const SIZE: usize = 141;
 pub unsafe fn run(x: &str) -> impl Display {
-    let mut i = x.as_bytes();
-    let towels = i
-        .take_line()
-        .ψ()
-        .to_vec()
-        .leak()
-        .split(|x| *x == b',')
-        .map(|x| x.trim_ascii())
-        .collect_vec()
-        .leak();
-    i.take_line();
-
-    i.行()
-        .map(|x| {
-            fn ck(x: &'static [u8], towels: &'static [&[u8]]) -> usize {
-                util::memoize! {
-                    |(x, towels) in (&[u8], &[&[u8]])| -> usize {
-                        if let [] = x {
-                            return 1;
-                        }
-                        towels
-                            .iter()
-                            .filter(|&&y| x.starts_with(y))
-                            .map(|y| ck(&x[y.len()..], towels))
-                            .sum::<usize>()
-                    };
-                    (x, towels)
-                }
+    let i = x.as_bytes();
+    let g = i.as_chunks_unchecked::<{ SIZE + 1 }>();
+    let start = memchr::memchr(b'S', i).ψ();
+    let (y, x) = (start / (SIZE + 1), start % (SIZE + 1));
+    let mut cost = [[0; SIZE]; SIZE];
+    let base = pathfinding::directed::bfs::bfs(
+        &(x, y),
+        |&p| {
+            [Dir::N + p, Dir::E + p, Dir::S + p, Dir::W + p]
+                .into_iter()
+                .filter(|&(x, y)| g[y][x] != b'#')
+        },
+        |&(x, y)| g[y][x] == b'E',
+    )
+    .unwrap();
+    let n = base.len() as u32;
+    for (&(x, y), i) in base.iter().ι::<u32>() {
+        cost[y][x] = i;
+    }
+    let dst = n - 1;
+    let mut sum = 0;
+    for (x, y) in (0..SIZE)
+        .flat_map(|y| (0..SIZE).map(move |x| (x, y)))
+        .filter(|&(x, y)| g[y][x] != b'#')
+    {
+        for (y_offset, x_offset) in include!("../offsets") {
+            let (x2, y2) = (
+                (x as i32 + x_offset) as usize,
+                (y as i32 + y_offset) as usize,
+            );
+            if x2 < SIZE
+                && y2 < SIZE
+                && ((cost[y][x] + n - cost[y2][x2] - 1
+                    + x_offset.abs() as u32
+                    + y_offset.abs() as u32)
+                    + 100)
+                    <= dst
+            {
+                sum += 1;
             }
-
-            ck(x.to_vec().leak(), towels)
-        })
-        .sum::<usize>()
+        }
+    }
+    return sum;
 }
 
 fn main() {

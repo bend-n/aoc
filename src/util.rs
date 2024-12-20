@@ -257,6 +257,7 @@ pub trait UnsoundUtilities<T> {
 }
 
 impl<T> UnsoundUtilities<T> for Option<T> {
+    #[cfg_attr(debug_assertions, track_caller)]
     fn ψ(self) -> T {
         if cfg!(debug_assertions) && self.is_none() {
             panic!();
@@ -481,6 +482,7 @@ pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>
             if s.contains(&n) {
                 continue;
             }
+            // print!("{n:?} ");
             q.push(Reverse((c + d, n)));
         }
     }
