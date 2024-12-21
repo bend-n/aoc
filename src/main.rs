@@ -36,9 +36,9 @@ extern crate test;
 pub mod util;
 use atools::CollectArray;
 use iter::once;
+use util::memoize;
 pub use util::prelude::*;
 
-const SIZE: usize = 141;
 #[rustfmt::skip]
 fn numpad(x: u8) -> (usize, usize) {
     match x {
@@ -57,7 +57,6 @@ fn dpad(x: u8) -> (usize, usize) {
         _ => unreachable!(),
     }
 }
-
 fn pathfind<const N: usize, const M: usize>(
     input: impl IntoIterator<Item = (u8, (usize, usize))>,
     grid: [[u8; N]; M],
@@ -78,6 +77,7 @@ fn pathfind<const N: usize, const M: usize>(
                 ]
                 .into_iter()
                 .filter(|&((x, y), _)| matches!(grid.get(y).map(|y| y.get(x)), Some(Some(_))))
+                .filter(|&((x, y), _)| grid[y][x] != 0)
                 .map(move |(p, dir)| ((p, at, dir), 1))
             },
             |_| 0,
@@ -125,7 +125,6 @@ fn num(code: [u8; 4]) -> Vec<Vec<u8>> {
     let starts = once(numpad(b'A')).chain(code.iter().copied().map(numpad));
     pathfind(code.iter().copied().zip(starts), grid)
 }
-
 fn pad(code: Vec<u8>) -> Vec<Vec<u8>> {
     #[rustfmt::skip]
     let grid = [
@@ -136,42 +135,44 @@ fn pad(code: Vec<u8>) -> Vec<Vec<u8>> {
     pathfind(code.iter().copied().zip(starts), grid)
 }
 
-fn my_pad(code: Vec<u8>) -> Vec<Vec<u8>> {
-    #[rustfmt::skip]
-    let grid = [
-        [0,   b'^',b'A'],
-        [b'<',b'v',b'>'],
-    ];
-    let starts = once(dpad(b'A')).chain(code.iter().copied().map(dpad));
-    pathfind(code.iter().copied().zip(starts), grid)
+const MAXDEPTH: u8 = 25;
+fn solve(thing: Vec<u8>, deep: u8) -> usize {
+    if deep == MAXDEPTH {
+        return thing.len();
+    }
+    memoize!(|(thing, deep) in (Vec<u8>, u8)| -> usize {
+        thing[..thing.len() - 1]
+            .split(|x| *x == b'A')
+            .into_iter()
+            .map(|x| {
+                let mut x = x.to_vec();
+                x.push(b'A');
+                pad(x.to_vec())
+                    .into_iter()
+                    .map(|x| solve(x, deep + 1))
+                    .min()
+                    .unwrap()
+            })
+            .sum()
+    }; (thing, deep))
 }
 
 pub fn run(x: &str) -> impl Display {
     let i = x.as_bytes();
     let codes: [&[u8]; 5] = i.行().carr();
-    use rayon::prelude::*;
     codes
-        .par_iter()
-        .map(|&code_| {
-            let mut complex = usize::MAX;
-            let numpad_codes = num(code_.try_into().unwrap());
+        .into_iter()
+        .map(|code_| {
             let numeric: u64 = reading::all(&code_[..3]);
-            for code in numpad_codes {
-                for pad in pad(code) {
-                    for pad in my_pad(pad) {
-                        let complexity = pad.len() * numeric as usize;
-                        if complexity < complex {
-                            dbg!(pad.len());
-                            dbg!(numeric);
-                        }
-                        complex = complex.min(complexity);
-                    }
-                }
-            }
-            dbg!(complex);
-            complex
+            let length = num(code_.try_into().unwrap())
+                .into_iter()
+                .map(|x| solve(x, 0))
+                .min()
+                .unwrap() as u64;
+            println!("{length} * {numeric}");
+            length * numeric
         })
-        .sum::<usize>()
+        .sum::<u64>()
 }
 
 fn main() {

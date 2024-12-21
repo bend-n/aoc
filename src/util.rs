@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::{
     cmp::Reverse,
-    collections::{hash_map::Entry, BinaryHeap},
+    collections::BinaryHeap,
     fmt::{Debug, Display, Write},
     hash::Hash,
     mem::swap,
@@ -212,7 +212,7 @@ impl UnionFind {
         }
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.s.fill(1);
         self.p
             .iter_mut()
@@ -247,7 +247,7 @@ impl UnionFind {
         true
     }
 
-    fn group_size(&self, group: usize) -> usize {
+    pub fn group_size(&self, group: usize) -> usize {
         self.s[group]
     }
 }
@@ -276,18 +276,18 @@ impl<T, E> UnsoundUtilities<T> for Result<T, E> {
     }
 }
 
-pub struct LMap<K, V>(HashMap<K, V>, fn(K) -> V)
+pub struct LMap<K, V>(HashMap<K, V>, fn(&K) -> V)
 where
-    K: Eq + Hash + Copy;
-impl<K: Ord + Eq + Debug + Hash + Copy, V: Copy + Debug> LMap<K, V> {
-    pub fn new(f: fn(K) -> V) -> Self {
+    K: Eq + Hash + Clone;
+impl<K: Ord + Eq + Debug + Hash + Clone, V: Copy + Debug> LMap<K, V> {
+    pub fn new(f: fn(&K) -> V) -> Self {
         Self {
             0: HashMap::default(),
             1: f,
         }
     }
 
-    pub fn with_cap(f: fn(K) -> V, cap: usize) -> Self {
+    pub fn with_cap(f: fn(&K) -> V, cap: usize) -> Self {
         Self {
             0: HashMap::with_capacity_and_hasher(cap, rustc_hash::FxBuildHasher::default()),
             1: f,
@@ -301,8 +301,8 @@ impl<K: Ord + Eq + Debug + Hash + Copy, V: Copy + Debug> LMap<K, V> {
         // let mut ks = self.0.keys().collect::<Vec<_>>();
         // ks.sort();
         // println!("{ks:?}");
-        let elm = self.1(k);
-        self.0.insert(k, elm);
+        let elm = self.1(&k);
+        self.0.insert(k.clone(), elm);
         elm
     }
 }
@@ -312,7 +312,7 @@ macro_rules! memoize {
         static mut MEMOIZER: std::sync::OnceLock<crate::util::LMap<$in, $out>> =
             std::sync::OnceLock::new();
         unsafe {
-            MEMOIZER.get_mut_or_init(|| crate::util::LMap::new(|$pat: $in| -> $out { $body }))
+            MEMOIZER.get_mut_or_init(|| crate::util::LMap::new(|$pat: &$in| -> $out { $body }))
         }
         .get($arg)
     }};
@@ -327,6 +327,7 @@ macro_rules! memoize {
         .get($arg)
     }};
 }
+#[allow(unused_imports)]
 pub(crate) use memoize;
 
 pub fn countg_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
