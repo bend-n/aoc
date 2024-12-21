@@ -37,9 +37,9 @@ pub mod util;
 pub use util::prelude::*;
 
 const SIZE: usize = 141;
-pub unsafe fn run(x: &str) -> impl Display {
+pub fn run(x: &str) -> impl Display {
     let i = x.as_bytes();
-    let g = i.as_chunks_unchecked::<{ SIZE + 1 }>();
+    let g = unsafe { i.as_chunks_unchecked::<{ SIZE + 1 }>() };
     let start = memchr::memchr(b'S', i).ψ();
     let (y, x) = (start / (SIZE + 1), start % (SIZE + 1));
     let mut cost = [[0; SIZE]; SIZE];
@@ -58,29 +58,30 @@ pub unsafe fn run(x: &str) -> impl Display {
         cost[y][x] = i;
     }
     let dst = n - 1;
-    let mut sum = 0;
-    for (x, y) in (0..SIZE)
-        .flat_map(|y| (0..SIZE).map(move |x| (x, y)))
+    // use rayon::prelude::*;
+    base.into_iter()
         .filter(|&(x, y)| g[y][x] != b'#')
-    {
-        for (y_offset, x_offset) in include!("../offsets") {
-            let (x2, y2) = (
-                (x as i32 + x_offset) as usize,
-                (y as i32 + y_offset) as usize,
-            );
-            if x2 < SIZE
-                && y2 < SIZE
-                && ((cost[y][x] + n - cost[y2][x2] - 1
-                    + x_offset.abs() as u32
-                    + y_offset.abs() as u32)
-                    + 100)
-                    <= dst
-            {
-                sum += 1;
+        // .par_bridge()
+        .filter_map(|(x, y)| {
+            for (y_offset, x_offset) in include!("../offsets") {
+                let (x2, y2) = (
+                    (x as i32 + x_offset) as usize,
+                    (y as i32 + y_offset) as usize,
+                );
+                if x2 < SIZE
+                    && y2 < SIZE
+                    && ((cost[y][x] + n - cost[y2][x2] - 1
+                        + x_offset.abs() as u32
+                        + y_offset.abs() as u32)
+                        + 100)
+                        <= dst
+                {
+                    return Some(());
+                }
             }
-        }
-    }
-    return sum;
+            None
+        })
+        .count()
 }
 
 fn main() {
