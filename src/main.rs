@@ -135,7 +135,7 @@ fn pad(code: Vec<u8>) -> Vec<Vec<u8>> {
     pathfind(code.iter().copied().zip(starts), grid)
 }
 
-const MAXDEPTH: u8 = 25;
+const MAXDEPTH: u8 = 2;
 fn solve(thing: Vec<u8>, deep: u8) -> usize {
     if deep == MAXDEPTH {
         return thing.len();
@@ -157,21 +157,41 @@ fn solve(thing: Vec<u8>, deep: u8) -> usize {
     }; (thing, deep))
 }
 
+static P2: [u64; 3750202] = {
+    let mut l = [0; 3750202];
+    include!("../lut");
+    l
+};
+static P1: [u64; 3750202] = {
+    let mut l = [0; 3750202];
+    include!("../lut2");
+    l
+};
+#[no_mangle]
 pub fn run(x: &str) -> impl Display {
     let i = x.as_bytes();
-    let codes: [&[u8]; 5] = i.行().carr();
+    let codes: &[[u8; 5]; 5] = unsafe { i.as_chunks_unchecked::<5>().try_into().ψ() };
+    /*
+    for code in 1..1000 {
+        let code_ = format!("{code:03}A");
+        let code__ = code_.as_bytes();
+        let length = num(code_.as_bytes()[..4].try_into().unwrap())
+            .into_iter()
+            .map(|x| solve(x, 0))
+            .min()
+            .unwrap() as u64;
+        print!(
+            "l[{}]={};",
+            u32::from_le_bytes(code__.try_into().unwrap()) & 16777215,
+            length * code as u64
+        );
+    }
+    return 0;
+    */
+
     codes
         .into_iter()
-        .map(|code_| {
-            let numeric: u64 = reading::all(&code_[..3]);
-            let length = num(code_.try_into().unwrap())
-                .into_iter()
-                .map(|x| solve(x, 0))
-                .min()
-                .unwrap() as u64;
-            println!("{length} * {numeric}");
-            length * numeric
-        })
+        .map(|x| C! { P1[u32::from_le_bytes(x[..4].try_into().ψ()) as usize & 0xffffff] })
         .sum::<u64>()
 }
 

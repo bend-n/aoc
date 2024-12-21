@@ -12,11 +12,10 @@ car = "0.1.1"
 itertools = "0.12.0"
 memchr = "2.6.4"
 pathfinding = "4.12.0"
-rayon = "1.10.0"
 # radsort = "0.1.1"
 rustc-hash = { version = "2.1.0", features = ["nightly"] }
 [profile.release]
 lto = true
 codegen-units = 1
 debug = true
-overflow-checks = true
+# overflow-checks = true
