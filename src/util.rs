@@ -1,4 +1,4 @@
-#![allow(non_snake_case, unused_macros)]
+#![allow(non_snake_case, unused_macros, unused_unsafe)]
 
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
