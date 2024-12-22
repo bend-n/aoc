@@ -36,7 +36,7 @@ extern crate test;
 pub mod util;
 pub use util::prelude::*;
 #[no_mangle]
-fn changes(mut x: u64) -> [(u8, i8); 2001] {
+fn changes(mut x: u32) -> [(u8, i8); 2001] {
     let mut secret = x;
     x %= 10;
     std::array::from_fn(|_| {
@@ -59,7 +59,7 @@ pub fn run(x: &str) -> impl Display {
     );
     let mut seen =
         HashSet::<[i8; 4]>::with_capacity_and_hasher(2000, rustc_hash::FxBuildHasher::default());
-    i.行().map(reading::all::<u64>).map(changes).for_each(|x| {
+    i.行().map(reading::all::<u32>).map(changes).for_each(|x| {
         for &[elem @ .., (p, _)] in x.array_windows::<5>() {
             let elem = elem.map(|x| x.1);
             if seen.insert(elem) {
