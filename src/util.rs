@@ -1103,6 +1103,38 @@ pub fn nail<const N: usize, T: Copy>(x: &[T]) -> [T; N] {
 }
 
 pub mod reading {
+    pub struct Integer<'a, 'b, T, const BY: u8 = b'\n'> {
+        pub x: &'a mut &'b [u8],
+        pub _ph: std::marker::PhantomData<T>,
+    }
+
+    impl<'a, 'b, T: Copy, const BY: u8> Integer<'a, 'b, T, BY> {
+        pub fn new(x: &'a mut &'b [u8]) -> Self {
+            Self {
+                x,
+                _ph: std::marker::PhantomData,
+            }
+        }
+    }
+    impl<
+            'a,
+            'b,
+            const BY: u8,
+            T: Default
+                + std::ops::Mul<T, Output = T>
+                + Add<T, Output = T>
+                + From<u8>
+                + Copy
+                + Ten
+                + Debug,
+        > Iterator for Integer<'a, 'b, T, BY>
+    {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            (!self.x.is_empty()).then(|| read_until(self.x, BY))
+        }
+    }
     #[inline]
     pub fn 八(n: u64) -> u64 {
         // reinterpret as u64 ("92233721" => 92233721)
@@ -1233,20 +1265,20 @@ pub mod reading {
         Ok(num)
     }
 
-    pub fn 迄または完了<
+    pub fn read_until<
         T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten,
     >(
         x: &mut &[u8],
         until: u8,
     ) -> T {
-        let mut n = T::default();
-        while let Ok(x) = x.by() {
+        let mut n = T::from(x.by().ψ() - b'0');
+        loop {
+            let x = x.by().ψ();
             if x == until {
                 return n;
             }
             n = n * T::ten() + T::from(x - b'0')
         }
-        n
     }
 
     pub fn 負迄(x: &mut &[u8], until: u8) -> i64 {
