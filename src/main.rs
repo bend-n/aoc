@@ -34,20 +34,32 @@
 )]
 extern crate test;
 pub mod util;
+use atools::{ArrayTools, CollectArray as _, Join, Pop};
 pub use util::prelude::*;
 #[no_mangle]
 fn changes(mut x: u32) -> [(u8, i8); 2001] {
     let mut secret = x;
-    x %= 10;
+    x = mod10(x);
     std::array::from_fn(|_| {
-        secret ^= (secret * 64) % 16777216;
-        secret ^= (secret / 32) % 16777216;
-        secret ^= (secret * 2048) % 16777216;
-        let n = secret % 10;
+        secret = next(secret);
+        let n = mod10(secret);
         let v = (x as u8, (n as i64 - x as i64) as i8);
         x = n;
         v
     })
+}
+
+pub fn mod10(a: u32) -> u32 {
+    const D: u32 = 10;
+    const M: u64 = (u64::MAX / D as u64) + 1;
+    (M.wrapping_mul(a as u64) as u128 * D as u128 >> 64) as u32
+}
+
+fn next(mut x: u32) -> u32 {
+    x ^= (x * 64) & 16777215;
+    x ^= x / 32;
+    x ^= (x * 2048) & 16777215;
+    x
 }
 
 #[rustfmt::skip]
@@ -67,23 +79,34 @@ fn next2000(n: u32) -> u32 {
 
 #[no_mangle]
 pub fn run(x: &str) -> impl Display {
-    let i = x.as_bytes();
-    let mut map = HashMap::<[i8; 4], u16>::with_capacity_and_hasher(
-        50000,
-        rustc_hash::FxBuildHasher::default(),
-    );
-    let mut seen =
-        HashSet::<[i8; 4]>::with_capacity_and_hasher(2000, rustc_hash::FxBuildHasher::default());
-    i.行().map(reading::all::<u32>).map(changes).for_each(|x| {
-        for &[elem @ .., (p, _)] in x.array_windows::<5>() {
-            let elem = elem.map(|x| x.1);
-            if seen.insert(elem) {
-                *map.entry(elem).or_default() += p as u16;
+    let mut i = x.as_bytes();
+    let mut seen = vec![0; 130321];
+    let mut map = vec![0; 130321];
+    reading::Integer::<u32>::new(&mut i)
+        .ι1::<usize>()
+        .for_each(|(mut x, j)| {
+            let f @ [_, _, _, 三] = std::iter::successors(Some(x), |&f| Some(next(f))).carr();
+            let [mut ⅰ, mut ⅱ, mut ⅲ, mut ⅳ]: [u32; 4] = 0u32.join(
+                f.windowed::<2>()
+                    .map(|&[a, b]| (9 + mod10(b) - mod10(a)) as u32),
+            );
+
+            x = 三;
+            let mut l = mod10(三);
+            for _ in 3..2000 {
+                x = next(x);
+                let p = x % 10;
+
+                (ⅰ, ⅱ, ⅲ, ⅳ) = (ⅱ, ⅲ, ⅳ, (9 + p - l) as u32);
+                let i = (ⅰ * 19 * 19 * 19 + ⅱ * 19 * 19 + ⅲ * 19 + ⅳ) as usize;
+                if seen[i] != j {
+                    map[i] += p as u16;
+                    seen[i] = j;
+                }
+                l = p;
             }
-        }
-        seen.clear();
-    });
-    map.into_iter().r().max().ψ()
+        });
+    map.into_iter().max().ψ()
 }
 
 use std::simd::prelude::*;
@@ -102,11 +125,11 @@ pub fn p1(x: &str) -> impl Display {
 
 fn main() {
     let s = include_str!("inp.txt");
-    println!("{}", unsafe { p1(s) });
+    println!("{}", unsafe { run(s) });
     // dbg!(exec(&program, regi));
 }
 #[bench]
 fn benc(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt"));
-    b.iter(|| unsafe { p1(i) });
+    b.iter(|| unsafe { run(i) });
 }
