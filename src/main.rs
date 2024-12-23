@@ -34,93 +34,22 @@
 )]
 extern crate test;
 pub mod util;
-use atools::{ArrayTools, CollectArray as _, Join, Pop};
+use atools::ArrayTools;
 pub use util::prelude::*;
 #[no_mangle]
-fn changes(mut x: u32) -> [(u8, i8); 2001] {
-    let mut secret = x;
-    x = mod10(x);
-    std::array::from_fn(|_| {
-        secret = next(secret);
-        let n = mod10(secret);
-        let v = (x as u8, (n as i64 - x as i64) as i8);
-        x = n;
-        v
-    })
-}
-
-pub fn mod10(a: u32) -> u32 {
-    const D: u32 = 10;
-    const M: u64 = (u64::MAX / D as u64) + 1;
-    (M.wrapping_mul(a as u64) as u128 * D as u128 >> 64) as u32
-}
-
-fn next(mut x: u32) -> u32 {
-    x ^= (x * 64) & 16777215;
-    x ^= x / 32;
-    x ^= (x * 2048) & 16777215;
-    x
-}
-
-#[rustfmt::skip]
-// 8051
-fn next2000(n: u32) -> u32 {
-    let n = n as u64;
-    let m = n | n << 24;
-    let r = (m & 0x61a765) ^ (m >> 1 & 0xc2f82d) ^ (m >> 2 & 0x286d53) ^ (m >> 3 & 0x44f679)
-    ^ (m >> 4 & 0x4d6be8) ^ (m >> 5 & 0x118005) ^ (m >> 6 & 0x5f19f2) ^ (m >> 7 & 0xf03667)
-    ^ (m >> 8 & 0xcea653) ^ (m >> 9 & 0xafa201) ^ (m >> 10 & 0xfd0d29) ^ (m >> 11 & 0x949200)
-    ^ (m >> 12 & 0x49a994) ^ (m >> 13 & 0x21673) ^ (m >> 14 & 0xb4c5bf) ^ (m >> 15 & 0x1e0aaf)
-    ^ (m >> 16 & 0x7cab00) ^ (m >> 17 & 0x95ba48) ^ (m >> 18 & 0x49f04c) ^ (m >> 19 & 0x9a8320)
-    ^ (m >> 20 & 0xb69d39) ^ (m >> 21 & 0x6a2085) ^ (m >> 22 & 0xd13c84) ^ (m >> 23 & 0x1c9e15);
-    r as u32
-
-}
-
-#[no_mangle]
 pub fn run(x: &str) -> impl Display {
-    let mut i = x.as_bytes();
-    let mut seen = vec![0; 130321];
-    let mut map = vec![0; 130321];
-    reading::Integer::<u32>::new(&mut i)
-        .ι1::<usize>()
-        .for_each(|(mut x, j)| {
-            let f @ [_, _, _, 三] = std::iter::successors(Some(x), |&f| Some(next(f))).carr();
-            let [mut ⅰ, mut ⅱ, mut ⅲ, mut ⅳ]: [u32; 4] = 0u32.join(
-                f.windowed::<2>()
-                    .map(|&[a, b]| (9 + mod10(b) - mod10(a)) as u32),
-            );
-
-            x = 三;
-            let mut l = mod10(三);
-            for _ in 3..2000 {
-                x = next(x);
-                let p = x % 10;
-
-                (ⅰ, ⅱ, ⅲ, ⅳ) = (ⅱ, ⅲ, ⅳ, (9 + p - l) as u32);
-                let i = (ⅰ * 19 * 19 * 19 + ⅱ * 19 * 19 + ⅲ * 19 + ⅳ) as usize;
-                if seen[i] != j {
-                    map[i] += p as u16;
-                    seen[i] = j;
-                }
-                l = p;
-            }
-        });
-    map.into_iter().max().ψ()
-}
-
-use std::simd::prelude::*;
-#[no_mangle]
-pub fn p1(x: &str) -> impl Display {
-    let mut x = x.as_bytes();
-    let mut i = reading::Integer::<u32>::new(&mut x).array_chunks::<8>();
-    i.by_ref()
-        .map(|x| u32x8::from_array(x.map(next2000)))
-        .fold(u32x8::splat(0), |acc, x| acc + x)
-        .cast::<u64>()
-        .reduce_sum()
-        + i.into_remainder()
-            .map_or(0, |x| x.map(next2000).map(|x| x as u64).sum())
+    let g = Graph::load(x);
+    let mut x = g.mxq().into_iter().map(|x| NAMES[x]);
+    let a: [_; 13] = std::array::from_fn(|_| x.Δ());
+    let c = b',';
+    let mut out = [
+        0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c,
+        0, 0, c, 0, 0, c, 0, 0,
+    ];
+    for (elem, i) in a.into_iter().ι::<usize>() {
+        out[i + i * 2..i + i * 2 + 2].copy_from_slice(&elem);
+    }
+    unsafe { String::from_utf8_unchecked(out.to_vec()) }
 }
 
 fn main() {
@@ -132,4 +61,94 @@ fn main() {
 fn benc(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt"));
     b.iter(|| unsafe { run(i) });
+}
+
+struct Graph {
+    // vert: [[u8; 2]; SIZE],
+    adj: Box<[[u64; WORDS]; SIZE]>,
+}
+const SIZE: usize = 676;
+const WORDS: usize = (SIZE + 63) / 64;
+fn h([a, b]: [u8; 2]) -> usize {
+    a as usize + 26 * b as usize
+}
+const NAMES: [[u8; 2]; 676] = include!("../lut2");
+
+impl Graph {
+    fn load(content: &str) -> Self {
+        const INDEX: [u16; 3295] = {
+            let mut l = [0; 3295];
+            include!("../lut");
+            l
+        };
+        let mut i = content.as_ptr();
+        let mut adj = Box::new([[0u64; WORDS]; SIZE]);
+        for _ in 0..3380 {
+            unsafe {
+                let a = *(i as *const [u8; 2]);
+                let b = *(i.add(3) as *const [u8; 2]);
+                let ha = h(a);
+                let hb = h(b);
+                i = i.add(6);
+                let i = INDEX[ha] as usize;
+                let j = INDEX[hb] as usize;
+                *adj.get_unchecked_mut(i).get_unchecked_mut(j / 64) |= 1u64 << (j % 64);
+                *adj.get_unchecked_mut(j).get_unchecked_mut(i / 64) |= 1u64 << (i % 64);
+            }
+        }
+        Graph { adj }
+    }
+
+    fn print_mat(&self, x: [u64; WORDS], l: [u8; 2]) {
+        let n = Self::adj_on(x);
+        print!("{}: ", l.p());
+        for neighbor in n {
+            print!("{} ", NAMES[neighbor].p());
+        }
+        println!();
+    }
+
+    fn adj_on(x: [u64; WORDS]) -> Vec<usize> {
+        let mut n = Vec::with_capacity(13);
+        for j in 0..WORDS {
+            let mut x = x[j];
+            while x != 0 {
+                let bit = x.trailing_zeros();
+                n.push(64 * j + bit as usize);
+                x &= !(1 << bit);
+            }
+        }
+        n
+    }
+
+    fn mxq(&self) -> Vec<usize> {
+        'out: for computer in 0..SIZE {
+            let mut neighbors = self.adj[computer];
+            if neighbors == [0; 11] {
+                continue;
+            }
+            neighbors[computer / 64] |= 1 << (computer % 64);
+            let mut missing = 0;
+            for j in 0..WORDS {
+                let mut x = neighbors[j];
+                while x != 0 {
+                    let bit = x.trailing_zeros();
+                    // node ∩ neighbors
+                    let inter = (0..WORDS)
+                        .map(|i| (self.adj[64 * j + bit as usize][i] & neighbors[i]).count_ones())
+                        .sum::<u32>();
+                    if inter < 12 {
+                        if missing > 1 {
+                            continue 'out;
+                        }
+                        missing += 1;
+                        neighbors[j] &= !(1 << bit);
+                    }
+                    x &= !(1 << bit);
+                }
+            }
+            return Self::adj_on(neighbors);
+        }
+        panic!()
+    }
 }
