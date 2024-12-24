@@ -39,17 +39,43 @@ pub use util::prelude::*;
 #[no_mangle]
 pub fn run(x: &str) -> impl Display {
     let g = Graph::load(x);
-    let mut x = g.mxq().into_iter().map(|x| NAMES[x]);
-    let a: [_; 13] = std::array::from_fn(|_| x.Δ());
-    let c = b',';
-    let mut out = [
+    let x = g.mxq();
+    let mut i = 0;
+    const c: u8 = b',';
+    static mut out: [u8; 38] = [
         0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c,
         0, 0, c, 0, 0, c, 0, 0,
     ];
-    for (elem, i) in a.into_iter().ι::<usize>() {
-        out[i + i * 2..i + i * 2 + 2].copy_from_slice(&elem);
+    for j in 0..WORDS {
+        let mut x = x[j];
+        while x != 0 {
+            let bit = x.trailing_zeros();
+            unsafe {
+                out[i + i * 2..i + i * 2 + 2].copy_from_slice(&C! { NAMES[64 * j + bit as usize] })
+            };
+            i += 1;
+            x &= !(1 << bit);
+        }
     }
     unsafe { String::from_utf8_unchecked(out.to_vec()) }
+}
+
+fn p1(x: &str) -> impl Display {
+    let adj = Graph::load(x).adj;
+    let mut has = [false; 676];
+    let mut sum = 0;
+    for computer in 494..=519 {
+        has[computer] = true;
+        let nbors = Graph::adj_on(adj[computer]);
+        for (&elem2, i) in nbors.iter().ι::<usize>() {
+            for &elem3 in &nbors[i..] {
+                if !has[elem2] && !has[elem3] && adj[elem2][elem3 / 64] & 1 << (elem3 % 64) != 0 {
+                    sum += 1;
+                }
+            }
+        }
+    }
+    sum
 }
 
 fn main() {
@@ -99,13 +125,31 @@ impl Graph {
         Graph { adj }
     }
 
-    fn print_mat(&self, x: [u64; WORDS], l: [u8; 2]) {
+    fn print_mat(x: [u64; WORDS], l: [u8; 2]) {
         let n = Self::adj_on(x);
         print!("{}: ", l.p());
         for neighbor in n {
             print!("{} ", NAMES[neighbor].p());
         }
         println!();
+    }
+
+    fn first_2_bits(x: [u64; WORDS]) -> [usize; 2] {
+        let mut out = [0; 2];
+        let mut index = 0;
+        for j in 0..WORDS {
+            let mut x = x[j];
+            while x != 0 {
+                let bit = x.trailing_zeros();
+                out[index] = 64 * j + bit as usize;
+                index += 1;
+                if index == 2 {
+                    return out;
+                }
+                x &= !(1 << bit);
+            }
+        }
+        panic!()
     }
 
     fn adj_on(x: [u64; WORDS]) -> Vec<usize> {
@@ -121,33 +165,49 @@ impl Graph {
         n
     }
 
-    fn mxq(&self) -> Vec<usize> {
+    fn mxq(&self) -> [u64; WORDS] {
         'out: for computer in 0..SIZE {
-            let mut neighbors = self.adj[computer];
+            let neighbors = self.adj[computer];
             if neighbors == [0; 11] {
                 continue;
             }
-            neighbors[computer / 64] |= 1 << (computer % 64);
-            let mut missing = 0;
-            for j in 0..WORDS {
-                let mut x = neighbors[j];
-                while x != 0 {
-                    let bit = x.trailing_zeros();
-                    // node ∩ neighbors
-                    let inter = (0..WORDS)
-                        .map(|i| (self.adj[64 * j + bit as usize][i] & neighbors[i]).count_ones())
-                        .sum::<u32>();
-                    if inter < 12 {
-                        if missing > 1 {
-                            continue 'out;
+            // neighbors[computer / 64] |= 1 << (computer % 64);
+            // self.print_mat(neighbors, *b"nh");
+            for node in Self::first_2_bits(neighbors) {
+                let inter = (0..WORDS)
+                    .map(|i| (self.adj[node][i] & neighbors[i]).count_ones())
+                    .sum::<u32>();
+                // check that the current node has 11 neighbours in common with either its first or second neighbour
+                if inter == 11 {
+                    let mut v = [0; 11];
+                    let mut pop = 0;
+                    for j in 0..WORDS {
+                        // self.print_mat(neighbors, *b"nh");
+                        let mut x = neighbors[j];
+                        while x != 0 {
+                            let bit = x.trailing_zeros();
+                            let n = 64 * j + bit as usize;
+                            let inter = (0..WORDS)
+                                .map(|i| (self.adj[n][i] & neighbors[i]).count_ones())
+                                .sum::<u32>();
+                            // they all have 11 neighbours in common with the current node
+                            if inter == 11 {
+                                v[j] |= 1 << bit;
+                                pop += 1;
+                            }
+                            x &= !(1 << bit);
                         }
-                        missing += 1;
-                        neighbors[j] &= !(1 << bit);
                     }
-                    x &= !(1 << bit);
+                    // self.print_mat(v, *b"ot");
+                    if pop != 12 {
+                        continue 'out;
+                    }
+                    v[computer / 64] |= 1 << computer % 64;
+                    // v.push(computer);
+                    // println!("whoa");
+                    return v;
                 }
             }
-            return Self::adj_on(neighbors);
         }
         panic!()
     }
