@@ -34,181 +34,120 @@
 )]
 extern crate test;
 pub mod util;
-use atools::ArrayTools;
 pub use util::prelude::*;
-#[no_mangle]
-pub fn run(x: &str) -> impl Display {
-    let g = Graph::load(x);
-    let x = g.mxq();
-    let mut i = 0;
-    const c: u8 = b',';
-    static mut out: [u8; 38] = [
-        0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c, 0, 0, c,
-        0, 0, c, 0, 0, c, 0, 0,
-    ];
-    for j in 0..WORDS {
-        let mut x = x[j];
-        while x != 0 {
-            let bit = x.trailing_zeros();
-            unsafe {
-                out[i + i * 2..i + i * 2 + 2].copy_from_slice(&C! { NAMES[64 * j + bit as usize] })
-            };
-            i += 1;
-            x &= !(1 << bit);
-        }
-    }
-    unsafe { String::from_utf8_unchecked(out.to_vec()) }
+#[derive(Debug)]
+struct Gate {
+    op: fn(u8, u8) -> u8,
+    inputs: [usize; 2],
+    out: usize,
+    run: bool,
 }
 
-fn p1(x: &str) -> impl Display {
-    let adj = Graph::load(x).adj;
-    let mut has = [false; 676];
-    let mut sum = 0;
-    for computer in 494..=519 {
-        has[computer] = true;
-        let nbors = Graph::adj_on(adj[computer]);
-        for (&elem2, i) in nbors.iter().ι::<usize>() {
-            for &elem3 in &nbors[i..] {
-                if !has[elem2] && !has[elem3] && adj[elem2][elem3 / 64] & 1 << (elem3 % 64) != 0 {
-                    sum += 1;
-                }
-            }
+#[no_mangle]
+pub fn p1(x: &str) -> impl Display {
+    static mut wires: [u8; 15547] = [u8::MAX; 15547];
+    let mut gates = Vec::with_capacity(128);
+    fn h(gate: [u8; 3]) -> usize {
+        // println!("{}", gate.p());
+        if gate[1].is_ascii_digit() {
+            let [_, b, c] = gate.map(|x| (x - b'0') as usize);
+            15547 + b * 10 + c
+        } else {
+            let [a, b, c] = gate.map(|x| (x - b'a') as usize);
+            a * 26 * 26 + b * 26 + c
         }
     }
-    sum
+    let mut i_ = x.行();
+    let mut i = x.as_ptr();
+    let mut x = 0;
+    let mut y = 0;
+    for j in 0..45u64 {
+        x |= (unsafe { *i.add(5) - b'0' } as u64) << j;
+        unsafe { i = i.add(7) };
+    }
+    for j in 0..45u64 {
+        y |= (unsafe { *i.add(5) - b'0' } as u64) << j;
+        unsafe { i = i.add(7) };
+    }
+    let mut i = i_;
+    i.by_ref().take_while(|x| !x.is_empty()).for_each(drop);
+    fn gate(x: &[u8]) -> [u8; 3] {
+        x.try_into().unwrap()
+    }
+    fn and(a: u8, b: u8) -> u8 {
+        a & b
+    }
+    fn or(a: u8, b: u8) -> u8 {
+        a | b
+    }
+    fn xor(a: u8, b: u8) -> u8 {
+        a ^ b
+    }
+    let mut z = 0;
+    for connection in i {
+        let mut i = connection.split(|x| *x == b' ');
+        let [i1, op, i2, _, out] = std::array::from_fn(|_| i.Δ());
+        let [i1, i2, out] = [i1, i2, out].map(gate);
+        let op = match op {
+            b"AND" => and,
+            b"OR" => or,
+            b"XOR" => xor,
+            _ => unreachable!(),
+        };
+        if i1[0] == b'y' || i1[0] == b'x' {
+            let index = (i1[1] - b'0') * 10 + (i1[2] - b'0');
+            let res = op((y & 1 << index != 0) as u8, (x & 1 << index != 0) as u8);
+            if out[0] != b'z' {
+                unsafe { wires[h(out)] = res };
+            } else {
+                z |= (res as u64) << index;
+            }
+        } else {
+            gates.push(Gate {
+                op,
+                run: false,
+                inputs: [h(i1), h(i2)],
+                out: h(out),
+            });
+        }
+    }
+    let mut all_run = false;
+    while !all_run {
+        all_run = true;
+        for gate in &mut gates {
+            if gate.run {
+                continue;
+            };
+            unsafe {
+                let [a, b] = gate.inputs;
+                let a = wires[a];
+                if a != u8::MAX
+                    && let b = wires[b]
+                    && b != u8::MAX
+                {
+                    gate.run = true;
+                    if gate.out > 15547 {
+                        let index = gate.out - 15547;
+                        z |= ((gate.op)(a, b) as u64) << index;
+                    } else {
+                        wires[gate.out] = (gate.op)(a, b);
+                    }
+                }
+            }
+            all_run &= gate.run;
+        }
+    }
+    z
 }
 
 fn main() {
     let s = include_str!("inp.txt");
-    println!("{}", unsafe { run(s) });
+    println!("{}", unsafe { p1(s) });
+
     // dbg!(exec(&program, regi));
 }
 #[bench]
 fn benc(b: &mut test::Bencher) {
     let i = boxd(include_str!("inp.txt"));
-    b.iter(|| unsafe { run(i) });
-}
-
-struct Graph {
-    // vert: [[u8; 2]; SIZE],
-    adj: Box<[[u64; WORDS]; SIZE]>,
-}
-const SIZE: usize = 676;
-const WORDS: usize = (SIZE + 63) / 64;
-fn h([a, b]: [u8; 2]) -> usize {
-    a as usize + 26 * b as usize
-}
-const NAMES: [[u8; 2]; 676] = include!("../lut2");
-
-impl Graph {
-    fn load(content: &str) -> Self {
-        const INDEX: [u16; 3295] = {
-            let mut l = [0; 3295];
-            include!("../lut");
-            l
-        };
-        let mut i = content.as_ptr();
-        let mut adj = Box::new([[0u64; WORDS]; SIZE]);
-        for _ in 0..3380 {
-            unsafe {
-                let a = *(i as *const [u8; 2]);
-                let b = *(i.add(3) as *const [u8; 2]);
-                let ha = h(a);
-                let hb = h(b);
-                i = i.add(6);
-                let i = INDEX[ha] as usize;
-                let j = INDEX[hb] as usize;
-                *adj.get_unchecked_mut(i).get_unchecked_mut(j / 64) |= 1u64 << (j % 64);
-                *adj.get_unchecked_mut(j).get_unchecked_mut(i / 64) |= 1u64 << (i % 64);
-            }
-        }
-        Graph { adj }
-    }
-
-    fn print_mat(x: [u64; WORDS], l: [u8; 2]) {
-        let n = Self::adj_on(x);
-        print!("{}: ", l.p());
-        for neighbor in n {
-            print!("{} ", NAMES[neighbor].p());
-        }
-        println!();
-    }
-
-    fn first_2_bits(x: [u64; WORDS]) -> [usize; 2] {
-        let mut out = [0; 2];
-        let mut index = 0;
-        for j in 0..WORDS {
-            let mut x = x[j];
-            while x != 0 {
-                let bit = x.trailing_zeros();
-                out[index] = 64 * j + bit as usize;
-                index += 1;
-                if index == 2 {
-                    return out;
-                }
-                x &= !(1 << bit);
-            }
-        }
-        panic!()
-    }
-
-    fn adj_on(x: [u64; WORDS]) -> Vec<usize> {
-        let mut n = Vec::with_capacity(13);
-        for j in 0..WORDS {
-            let mut x = x[j];
-            while x != 0 {
-                let bit = x.trailing_zeros();
-                n.push(64 * j + bit as usize);
-                x &= !(1 << bit);
-            }
-        }
-        n
-    }
-
-    fn mxq(&self) -> [u64; WORDS] {
-        'out: for computer in 0..SIZE {
-            let neighbors = self.adj[computer];
-            if neighbors == [0; 11] {
-                continue;
-            }
-            // neighbors[computer / 64] |= 1 << (computer % 64);
-            // self.print_mat(neighbors, *b"nh");
-            for node in Self::first_2_bits(neighbors) {
-                let inter = (0..WORDS)
-                    .map(|i| (self.adj[node][i] & neighbors[i]).count_ones())
-                    .sum::<u32>();
-                // check that the current node has 11 neighbours in common with either its first or second neighbour
-                if inter == 11 {
-                    let mut v = [0; 11];
-                    let mut pop = 0;
-                    for j in 0..WORDS {
-                        // self.print_mat(neighbors, *b"nh");
-                        let mut x = neighbors[j];
-                        while x != 0 {
-                            let bit = x.trailing_zeros();
-                            let n = 64 * j + bit as usize;
-                            let inter = (0..WORDS)
-                                .map(|i| (self.adj[n][i] & neighbors[i]).count_ones())
-                                .sum::<u32>();
-                            // they all have 11 neighbours in common with the current node
-                            if inter == 11 {
-                                v[j] |= 1 << bit;
-                                pop += 1;
-                            }
-                            x &= !(1 << bit);
-                        }
-                    }
-                    // self.print_mat(v, *b"ot");
-                    if pop != 12 {
-                        continue 'out;
-                    }
-                    v[computer / 64] |= 1 << computer % 64;
-                    // v.push(computer);
-                    // println!("whoa");
-                    return v;
-                }
-            }
-        }
-        panic!()
-    }
+    b.iter(|| unsafe { p1(i) });
 }
