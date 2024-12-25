@@ -35,6 +35,8 @@
 )]
 extern crate test;
 pub mod util;
+use std::simd::prelude::*;
+
 pub use util::prelude::*;
 const SIZE: usize = 5;
 const H: usize = 7;
@@ -47,13 +49,19 @@ pub unsafe fn p1(x: &str) -> impl Display {
     let mut locks = [0u64; 250];
     let mut li = 0;
     for _ in 0..500 {
-        let mut acc = 0;
-        for y in 0..H {
-            for x in 0..SIZE {
-                acc <<= 1;
-                acc |= (i.add(y * 6 + x).read() == b'#') as u64
-            }
-        }
+        let simd = u8x64::load_or_default(std::slice::from_raw_parts(i, 42));
+        #[rustfmt::skip]
+        let simd = simd_swizzle!(
+            simd,
+            [0, 1, 2, 3, 4, // 5
+             6, 7, 8, 9, 10, // 11
+             12, 13, 14, 15, 16, // 17
+             18, 19, 20, 21, 22, // 23
+             24, 25, 26, 27, 28, // 29
+             30, 31, 32, 33, 34,
+             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        );
+        let acc = simd.simd_eq(Simd::splat(b'#')).to_bitmask();
         i = i.add(6 * 7 + 1);
         if acc & 1 == 0 {
             C! { keys[ki] = acc };
