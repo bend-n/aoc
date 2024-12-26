@@ -9,6 +9,7 @@
 )]
 #![feature(
     iter_repeat_n,
+    stdarch_x86_avx512,
     iter_partition_in_place,
     slice_swap_unchecked,
     generic_const_exprs,
@@ -38,31 +39,21 @@ pub mod util;
 use std::simd::prelude::*;
 
 pub use util::prelude::*;
-const SIZE: usize = 5;
-const H: usize = 7;
 
 #[no_mangle]
 pub unsafe fn p1(x: &str) -> impl Display {
-    let mut i = x.as_bytes().as_ptr();
-    let mut keys = [0u64; 250];
+    let i = x.as_bytes().as_ptr();
+    static mut keys: [u32; 256] = [u32::MAX; 256];
     let mut ki = 0;
-    let mut locks = [0u64; 250];
+    static mut locks: [u32; 250] = [u32::MAX; 250];
     let mut li = 0;
-    for _ in 0..500 {
-        let simd = u8x64::load_or_default(std::slice::from_raw_parts(i, 42));
-        #[rustfmt::skip]
-        let simd = simd_swizzle!(
-            simd,
-            [0, 1, 2, 3, 4, // 5
-             6, 7, 8, 9, 10, // 11
-             12, 13, 14, 15, 16, // 17
-             18, 19, 20, 21, 22, // 23
-             24, 25, 26, 27, 28, // 29
-             30, 31, 32, 33, 34,
-             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-        );
-        let acc = simd.simd_eq(Simd::splat(b'#')).to_bitmask();
-        i = i.add(6 * 7 + 1);
+    for j in 0..500 {
+        let acc = i
+            .add(j * (7 * 6 + 1) + 3)
+            .cast::<u8x32>()
+            .read_unaligned()
+            .simd_eq(Simd::splat(b'#'))
+            .to_bitmask() as u32;
         if acc & 1 == 0 {
             C! { keys[ki] = acc };
             ki += 1;
@@ -71,15 +62,15 @@ pub unsafe fn p1(x: &str) -> impl Display {
             li += 1;
         }
     }
-    let mut sum = 0;
-    for &k in &keys {
-        for &lock in &locks {
-            if k & lock == 0 {
-                sum += 1;
-            }
+    let mut sum = i32x8::splat(0);
+    for &lock in &locks {
+        for &k in keys.as_chunks_unchecked::<8>() {
+            sum += (u32x8::splat(lock) & u32x8::from_array(k))
+                .simd_eq(Simd::splat(0))
+                .to_int();
         }
     }
-    sum
+    -sum.reduce_sum() as u32
 }
 
 fn main() {
