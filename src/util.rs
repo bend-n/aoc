@@ -199,6 +199,18 @@ pub enum Dir {
     W = 3,
 }
 
+impl Dir {
+    pub fn urdl(x: u8) -> Self {
+        match x {
+            b'U' => Self::N,
+            b'R' => Self::E,
+            b'D' => Self::S,
+            b'L' => Self::W,
+            x => unreachable!("{}", x as char),
+        }
+    }
+}
+
 pub struct UnionFind {
     p: Vec<usize>,
     s: Vec<usize>,
@@ -498,6 +510,22 @@ impl std::ops::Add<(i64, i64)> for Dir {
             Dir::E => (x + 1, y),
             Dir::S => (x, y + 1),
             Dir::W => (x - 1, y),
+        }
+    }
+}
+
+impl Dir {
+    pub fn lim_add(
+        self,
+        (x, y): (usize, usize),
+        [minx, maxx]: [usize; 2],
+        [miny, maxy]: [usize; 2],
+    ) -> (usize, usize) {
+        match self {
+            Dir::N => (x, y.saturating_sub(1).max(miny)),
+            Dir::E => (x.wrapping_add(1).min(maxx), y),
+            Dir::S => (x, y.wrapping_add(1).min(maxy)),
+            Dir::W => (x.saturating_sub(1).max(minx), y),
         }
     }
 }

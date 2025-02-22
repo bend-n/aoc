@@ -40,30 +40,49 @@ use atools::prelude::*;
 pub use util::prelude::*;
 
 #[no_mangle]
-pub unsafe fn p1(mut i: &str) -> impl Display {
-    let (mut p, mut dir) = ((0, 0), Dir::N);
-    let mut set = HashSet::default();
-    'out: for (left, amount) in i
-        .take_line()
-        .ψ()
-        .str()
-        .split(", ")
-        .map(str::as_bytes)
-        .map(|x| (x[0] == b'L', reading::all::<u32>(&x[1..]) as i32))
-    {
-        dir = dir + if left { 255u8 } else { 1 };
-        for _ in 0..amount {
-            p = dir + p;
-            if set.insert(p) == false {
-                break 'out;
-            }
+pub unsafe fn p1(i: &str) -> impl Display {
+    let mut pos = (1, 1);
+    let grid = b"123456789".map(|x| x - b'0').chunked::<3>();
+    let mut n = 0;
+    for &x in i.as_bytes() {
+        if x == b'\n' {
+            n = n * 10 + grid[pos.1][pos.0] as u32;
+            continue;
+        }
+        pos = Dir::urdl(x).lim_add(pos, [0, 2], [0, 2]);
+    }
+    n
+}
+
+#[no_mangle]
+pub unsafe fn p2(i: &str) -> impl Display {
+    let mut pos = (1, 3);
+    let mut chars = Vec::<u8>::new();
+    #[rustfmt::skip]
+    let grid = [
+        [b' '; 7],
+      *b"   1   ",
+      *b"  234  ",
+      *b" 56789 ",
+      *b"  ABC  ",
+      *b"   D   ",
+        [b' '; 7],
+    ];
+    for &x in i.as_bytes() {
+        if x == b'\n' {
+            chars.push(grid[pos.1][pos.0]);
+            continue;
+        }
+        let npos = Dir::urdl(x) + pos;
+        if grid[npos.1][npos.0] != b' ' {
+            pos = npos;
         }
     }
-    util::manhattan(p, (0, 0))
+    chars.leak().str()
 }
 
 fn main() {
-    unsafe { println!("{}", p1(include_str!("inp.txt"))) };
+    unsafe { println!("{}", p2(include_str!("inp.txt"))) };
 }
 
 #[bench]
