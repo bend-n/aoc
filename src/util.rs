@@ -659,7 +659,7 @@ impl Κ for &[u8] {
     where
         <T as FromStr>::Err: std::fmt::Display,
     {
-        std::str::from_utf8(self).unwrap().κ()
+        std::str::from_utf8(self).ψ().κ()
     }
 }
 
@@ -1257,9 +1257,9 @@ pub mod reading {
     }
 
     pub fn hex(mut d: &[u8]) -> Result<u32, ()> {
-        let &b = d.take_first().ok_or(())?;
+        let &b = d.split_off_first().ok_or(())?;
         let mut num = hex_dig(b) as u32;
-        while let Some(&b) = d.take_first() {
+        while let Some(&b) = d.split_off_first() {
             num = num * 16 + hex_dig(b) as u32;
         }
         Ok(num)
@@ -1469,6 +1469,37 @@ impl<'a> DoubleEndedIterator for Lines<'a> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.bytes.take_backline()
     }
+}
+
+#[link(name = "c")]
+extern "C" {
+    fn mmap(addr: *mut u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64) -> *mut u8;
+    fn lseek(fd: i32, offset: i64, whence: i32) -> i64;
+}
+
+#[allow(dead_code)]
+#[no_mangle]
+unsafe fn mmaped<'a>() -> (*const u8, i64) {
+    let seek_end = 2;
+    let size = lseek(0, 0, seek_end);
+    if size == -1 {
+        unsafe { std::hint::unreachable_unchecked() }
+    }
+    let prot_read = 0x01;
+    let map_private = 0x02;
+    let map_populate = 0x08000;
+    let ptr = mmap(
+        0 as _,
+        size as usize,
+        prot_read,
+        map_private | map_populate,
+        0,
+        0,
+    );
+    if ptr as isize == -1 {
+        unsafe { std::hint::unreachable_unchecked() }
+    }
+    (ptr, size)
 }
 
 pub trait IntoLines {
