@@ -18,8 +18,8 @@ pub mod prelude {
     pub use super::{
         even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, DigiCount, Dir,
         FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
-        ParseIter, Printable, Skip, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3,
-        TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
+        ParseIter, Printable, Skip, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
+        TupleIterTools3, TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
     pub use itertools::Itertools;
@@ -193,10 +193,10 @@ pub fn lcm(n: impl IntoIterator<Item = u64>) -> u64 {
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Dir {
-    N = b'U',
-    E = b'R',
-    S = b'D',
-    W = b'L',
+    N = 0,
+    E = 1,
+    S = 2,
+    W = 3,
 }
 
 pub struct UnionFind {
@@ -561,6 +561,22 @@ impl std::ops::Add<(u8, u8)> for Dir {
             Dir::S => (x, y.wrapping_add(1)),
             Dir::W => (x.wrapping_sub(1), y),
         }
+    }
+}
+
+impl std::ops::Add<i8> for Dir {
+    type Output = Self;
+
+    fn add(self, rhs: i8) -> Self::Output {
+        unsafe { std::mem::transmute(((self as u8 as i8) + rhs).rem_euclid(4)) }
+    }
+}
+
+impl std::ops::Add<u8> for Dir {
+    type Output = Self;
+
+    fn add(self, rhs: u8) -> Self::Output {
+        unsafe { std::mem::transmute(((self as u8).wrapping_add(rhs)) % 4) }
     }
 }
 
@@ -1514,6 +1530,15 @@ impl<T: AsRef<[u8]>> IntoLines for T {
     }
 }
 
+pub trait Str {
+    fn str(&self) -> &str;
+}
+impl Str for [u8] {
+    fn str(&self) -> &str {
+        std::str::from_utf8(self).ψ()
+    }
+}
+
 pub trait Printable {
     fn p(&self) -> impl std::fmt::Display;
 }
@@ -1714,4 +1739,8 @@ pub mod rand {
     pub fn f64() -> f64 {
         (1.0 / ((1u64 << 53) as f64)) * ((u64() >> 11) as f64)
     }
+}
+
+pub fn manhattan((x1, y1): (i32, i32), (x2, y2): (i32, i32)) -> i32 {
+    (x1 - x2).abs() + (y1 - y2).abs()
 }

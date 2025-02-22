@@ -37,31 +37,33 @@
 extern crate test;
 pub mod util;
 use atools::prelude::*;
-use atools::ArrayTools::sort;
 pub use util::prelude::*;
 
 #[no_mangle]
-pub unsafe fn p1(x: &str) -> impl Display {
-    x.行()
-        .map(|x| x.κ::<u16>().carr::<3>())
-        .filter(|tri| (2 * tri.iter().max().unwrap()) < tri.sum())
-        .count()
-}
-
-#[no_mangle]
-pub unsafe fn p2(x: &str) -> impl Display {
-    x.行()
-        .map(|x| x.κ::<u16>().carr::<3>())
-        .array_chunks::<3>()
-        .map(|x| mattr::transposed::<_, 3, 3>(x.flatten()).chunked::<3>())
-        .flatten()
-        .map(sort)
-        .filter(|&[a, b, c]| a + b > c)
-        .count()
+pub unsafe fn p1(mut i: &str) -> impl Display {
+    let (mut p, mut dir) = ((0, 0), Dir::N);
+    let mut set = HashSet::default();
+    'out: for (left, amount) in i
+        .take_line()
+        .ψ()
+        .str()
+        .split(", ")
+        .map(str::as_bytes)
+        .map(|x| (x[0] == b'L', reading::all::<u32>(&x[1..]) as i32))
+    {
+        dir = dir + if left { 255u8 } else { 1 };
+        for _ in 0..amount {
+            p = dir + p;
+            if set.insert(p) == false {
+                break 'out;
+            }
+        }
+    }
+    util::manhattan(p, (0, 0))
 }
 
 fn main() {
-    unsafe { println!("{}", p2(include_str!("inp.txt"))) };
+    unsafe { println!("{}", p1(include_str!("inp.txt"))) };
 }
 
 #[bench]
