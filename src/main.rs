@@ -38,51 +38,27 @@ extern crate test;
 pub mod util;
 use atools::prelude::*;
 pub use util::prelude::*;
-
+fn area([l, w, h]: [u32; 3]) -> u32 {
+    2 * l * w + 2 * w * h + 2 * h * l
+}
 #[no_mangle]
 pub unsafe fn p1(i: &str) -> impl Display {
-    let mut pos = (1, 1);
-    let grid = b"123456789".map(|x| x - b'0').chunked::<3>();
-    let mut n = 0;
-    for &x in i.as_bytes() {
-        if x == b'\n' {
-            n = n * 10 + grid[pos.1][pos.0] as u32;
-            continue;
-        }
-        pos = Dir::urdl(x).lim_add(pos, [0, 2], [0, 2]);
-    }
-    n
+    i.行()
+        .map(|x| x.str().split('x').map(|x| x.λ()).carr::<3>())
+        .map(|x| area(x) + x.sort().take::<2>().product())
+        .sum::<u32>()
 }
 
 #[no_mangle]
 pub unsafe fn p2(i: &str) -> impl Display {
-    let mut pos = (1, 3);
-    let mut chars = Vec::<u8>::new();
-    #[rustfmt::skip]
-    let grid = [
-        [b' '; 7],
-      *b"   1   ",
-      *b"  234  ",
-      *b" 56789 ",
-      *b"  ABC  ",
-      *b"   D   ",
-        [b' '; 7],
-    ];
-    for &x in i.as_bytes() {
-        if x == b'\n' {
-            chars.push(grid[pos.1][pos.0]);
-            continue;
-        }
-        let npos = Dir::urdl(x) + pos;
-        if grid[npos.1][npos.0] != b' ' {
-            pos = npos;
-        }
-    }
-    chars.leak().str()
+    i.行()
+        .map(|x| x.str().split('x').map(|x| x.λ::<u32>()).carr::<3>())
+        .map(|x| x.sort().take::<2>().sum() * 2 + x.product())
+        .sum::<u32>()
 }
 
 fn main() {
-    unsafe { println!("{}", p2(include_str!("inp.txt"))) };
+    unsafe { println!("{}", p1(include_str!("inp.txt"))) };
 }
 
 #[bench]
