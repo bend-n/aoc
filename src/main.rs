@@ -43,10 +43,13 @@ fn area([l, w, h]: [u32; 3]) -> u32 {
 }
 #[no_mangle]
 pub unsafe fn p1(i: &str) -> impl Display {
-    i.行()
-        .map(|x| x.str().split('x').map(|x| x.λ()).carr::<3>())
-        .map(|x| area(x) + x.sort().take::<2>().product())
-        .sum::<u32>()
+    for n in 0.. {
+        let x = md5::compute(format!("iwrupvqb{n}"));
+        if x.0.take::<3>() == [0x00; 3] {
+            return n;
+        }
+    }
+    0
 }
 
 #[no_mangle]
