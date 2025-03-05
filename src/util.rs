@@ -703,7 +703,7 @@ impl Κ for &[u8] {
     where
         <T as FromStr>::Err: std::fmt::Display,
     {
-        std::str::from_utf8(self).ψ().κ()
+        self.str().κ()
     }
 }
 
