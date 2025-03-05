@@ -36,32 +36,98 @@
 )]
 extern crate test;
 pub mod util;
+
 use atools::prelude::*;
 pub use util::prelude::*;
+
+#[derive(Debug)]
+struct Gate<'s> {
+    inp: GateTy<'s>,
+    run: bool,
+}
+impl<'s> Gate<'s> {
+    pub fn new(x: GateTy<'s>) -> Self {
+        Gate { inp: x, run: false }
+    }
+}
+#[derive(Debug)]
+enum GateTy<'s> {
+    Unary(fn(u16) -> u16, &'s str, &'s str),
+    Binary(fn(u16, u16) -> u16, [&'s str; 2], &'s str),
+    With(fn(u16, u16) -> u16, u16, &'s str, &'s str),
+}
 #[no_mangle]
-pub unsafe fn p1(i: &str) -> impl Display {
-    let mut m = [[0u32; 1000]; 1000];
-    for l in i.行() {
-        let (d, a, b) = if l.starts_with(b"toggle") {
-            let [_, a, _, b] = l.str().split(' ').carr::<4>();
-            (2, a, b)
-        } else {
-            let [_, x, a, _, b] = l.str().split(' ').carr::<5>();
-            ((x == "on") as u32, a, b)
-        };
-        let [a, b] = [a, b].map(|x| x.μ(',').mb(|x| x.λ::<u32>()));
-        for x in a.0..=b.0 {
-            for y in a.1..=b.1 {
-                let e = &mut m[x as usize][y as usize];
-                match d {
-                    0 => *e = e.saturating_sub(1),
-                    1 => *e += 1,
-                    _ => *e += 2,
-                }
+pub fn p1(x: &str) -> impl Display {
+    let mut wires = HashMap::default();
+    let mut gates = Vec::with_capacity(128);
+    let mut ending = None;
+    for connection in x.行() {
+        if connection.starts_with(b"NOT") {
+            let [_, x, _, out] = connection.str().split(' ').carr();
+            gates.push(Gate {
+                inp: GateTy::Unary(|x| !x, x, out),
+                run: false,
+            });
+            continue;
+        }
+        let [a, op, out] = connection.μₙ(b' ').carr::<3>();
+
+        if op == b"->" {
+            if let Ok(x) = a.str().parse::<u16>() {
+                wires.insert(out.str(), x);
+            } else {
+                ending = Some(a.str());
             }
+            continue;
+        }
+        let [a, _, b, _, out] = connection.μₙ(b' ').carr();
+        if let Ok(x) = a.str().parse::<u16>() {
+            gates.push(Gate {
+                inp: GateTy::With(|a, b| a & b, x, b.str(), out.str()),
+                run: false,
+            });
+            continue;
+        }
+
+        let [a, op, b, _, out] = connection.str().split(' ').carr();
+        gates.push(match op {
+            "AND" => Gate::new(GateTy::Binary(|a, b| a & b, [a, b], out)),
+            "OR" => Gate::new(GateTy::Binary(|a, b| a | b, [a, b], out)),
+            "LSHIFT" => Gate::new(GateTy::With(|a, b| a << b, b.λ(), a, out)),
+            "RSHIFT" => Gate::new(GateTy::With(|a, b| a >> b, b.λ(), a, out)),
+            x => panic!("{}", x),
+        });
+    }
+    // wires.insert("b", 956);
+    let mut all_run = false;
+    while !all_run {
+        all_run = true;
+        for gate in &mut gates {
+            if gate.run {
+                continue;
+            };
+            match gate.inp {
+                GateTy::Unary(op, input, output) => wires.get(input).copied().map(|x| {
+                    gate.run = true;
+                    wires.insert(output, op(x))
+                }),
+                GateTy::Binary(op, [a, b], output) => wires
+                    .get(a)
+                    .copied()
+                    .zip(wires.get(b).copied())
+                    .map(|(a, b)| {
+                        gate.run = true;
+                        wires.insert(output, op(a, b))
+                    }),
+                GateTy::With(op, with, input, output) => wires.get(input).copied().map(|x| {
+                    gate.run = true;
+                    wires.insert(output, op(x, with))
+                }),
+            };
+            all_run &= gate.run;
         }
     }
-    m.as_flattened().into_iter().sum::<u32>()
+    wires[ending.unwrap()]
 }
 
 fn main() {

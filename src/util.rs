@@ -18,7 +18,7 @@ pub mod prelude {
     pub use super::{
         even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, DigiCount, Dir,
         FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
-        ParseIter, Printable, Skip, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
+        ParseIter, Printable, Skip, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
         TupleIterTools3, TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::izip;
@@ -668,6 +668,7 @@ impl Λ for String {
     }
 }
 impl Λ for &[u8] {
+    #[cfg_attr(debug_assertions, track_caller)]
     fn λ<T: FromStr>(&self) -> T
     where
         <T as FromStr>::Err: std::fmt::Display,
@@ -677,6 +678,7 @@ impl Λ for &[u8] {
 }
 impl Λ for &str {
     /// parse, unwrap
+    #[cfg_attr(debug_assertions, track_caller)]
     fn λ<T: FromStr>(&self) -> T
     where
         <T as FromStr>::Err: std::fmt::Display,
@@ -949,6 +951,15 @@ pub fn gt<A: std::cmp::PartialOrd<T>, T>(n: T) -> impl Fn(A) -> bool {
 
 pub fn lt<A: std::cmp::PartialOrd<T>, T>(n: T) -> impl Fn(A) -> bool {
     move |a| a < n
+}
+
+pub trait SplitU8 {
+    fn μₙ(&self, x: u8) -> impl Iterator<Item = &[u8]>;
+}
+impl SplitU8 for [u8] {
+    fn μₙ(&self, x: u8) -> impl Iterator<Item = &[u8]> {
+        self.split(move |&y| y == x)
+    }
 }
 
 impl Μ for &str {
