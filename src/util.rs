@@ -793,7 +793,7 @@ impl DigiCount for u128 {
     }
 }
 
-pub trait Ͷ: DigiCount {
+pub trait Ͷ {
     fn ͷ(self) -> impl Iterator<Item = u8>;
     fn Ͷ(self, i: u8) -> u8;
 }
@@ -1573,6 +1573,7 @@ pub trait Str {
     fn str(&self) -> &str;
 }
 impl Str for [u8] {
+    #[cfg_attr(debug_assertions, track_caller)]
     fn str(&self) -> &str {
         std::str::from_utf8(self).ψ()
     }

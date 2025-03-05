@@ -42,23 +42,38 @@ pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &str) -> impl Display {
-    let mut citys = HashMap::<_, HashMap<_, u32>>::default();
-    x.行().for_each(|x| {
-        let [a, _, b, _, n] = x.μₙ(b' ').carr();
-        citys.entry(a).or_default().insert(b, n.λ());
-        citys.entry(b).or_default().insert(a, n.λ());
-    });
-    let n = citys.len();
-    citys
-        .keys()
-        .permutations(n)
-        .map(|x| {
-            x.array_windows::<2>()
-                .map(|[&a, &b]| citys[a][b])
-                .sum::<u32>()
-        })
-        .max()
-        .unwrap()
+    std::iter::successors(Some(b"cqjxxyzz".map(|x| x - b'a')), |&(mut x)| {
+        for e in x.iter_mut().rev() {
+            *e += 1;
+            if *e != 26 {
+                break;
+            }
+            *e %= 26
+        }
+        Some(x)
+    })
+    .skip(1)
+    .filter(|x| x.array_windows().any(|&[a, b, c]| a + 1 == b && b + 1 == c))
+    .filter(|x| !(*b"iol").into_iter().any(|y| x.contains(&(y - b'a'))))
+    .filter(|x| {
+        let mut w = x.array_windows::<2>();
+        let mut good = false;
+        while let Some(&[a, b]) = w.next() {
+            if a == b {
+                if good {
+                    return true;
+                }
+                good = true;
+                w.next();
+            }
+        }
+        false
+    })
+    .next()
+    .unwrap()
+    .add(b'a')
+    .str()
+    .to_owned()
 }
 
 fn main() {
