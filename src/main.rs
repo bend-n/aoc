@@ -42,9 +42,23 @@ pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &str) -> impl Display {
-    x.行()
-        .map(|x| format!("{:?}", x.str()).len() - x.len())
-        .sum::<usize>()
+    let mut citys = HashMap::<_, HashMap<_, u32>>::default();
+    x.行().for_each(|x| {
+        let [a, _, b, _, n] = x.μₙ(b' ').carr();
+        citys.entry(a).or_default().insert(b, n.λ());
+        citys.entry(b).or_default().insert(a, n.λ());
+    });
+    let n = citys.len();
+    citys
+        .keys()
+        .permutations(n)
+        .map(|x| {
+            x.array_windows::<2>()
+                .map(|[&a, &b]| citys[a][b])
+                .sum::<u32>()
+        })
+        .max()
+        .unwrap()
 }
 
 fn main() {
