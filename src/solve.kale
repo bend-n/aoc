@@ -1,2 +1,5 @@
-0 "/home/os/aoc/src/inp.txt"📂
-('('-2×1-+🧐)⏭️¯
+"/home/os/aoc/src/inp.txt"📂 → 'input'
+
+'input'
+"s.append(list(map(int, __import__('re').findall(r'(-?[0-9]+)', bytes(s.pop()).decode('utf8')))))"🐍 1→1
++↘️

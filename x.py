@@ -1,1 +1,15 @@
-print(sum(map(lambda line: len(line) - 1 - eval(f"len({line})"), open(0).readlines())))
+def sm(j):
+    match j:
+        case dict():
+            if "red" in j.values():
+                return 0
+            return sum(map(sm, j.values()))
+        case int():
+            return j
+        case list():
+            return sum(map(sm, j))
+        case str():
+            return 0
+
+
+print(sm(__import__("json").loads(input())))
