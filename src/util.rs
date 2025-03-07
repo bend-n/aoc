@@ -33,6 +33,7 @@ pub mod prelude {
         hint::black_box as boxd,
         io::{self, Read, Write},
         iter,
+        iter::{chain, once, successors, zip},
         mem::{replace as rplc, swap, transmute as rint},
         ops::Range,
     };

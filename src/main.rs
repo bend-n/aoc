@@ -8,9 +8,9 @@
     incomplete_features
 )]
 #![feature(
-    iter_repeat_n,
     stdarch_x86_avx512,
     iter_partition_in_place,
+    iter_chain,
     slice_swap_unchecked,
     generic_const_exprs,
     ptr_sub_ptr,
@@ -41,39 +41,47 @@ use atools::prelude::*;
 pub use util::prelude::*;
 
 #[no_mangle]
+#[lower::apply(wrapping)]
 pub fn p1(x: &str) -> impl Display {
-    std::iter::successors(Some(b"cqjxxyzz".map(|x| x - b'a')), |&(mut x)| {
-        for e in x.iter_mut().rev() {
-            *e += 1;
-            if *e != 26 {
-                break;
-            }
-            *e %= 26
-        }
-        Some(x)
-    })
-    .skip(1)
-    .filter(|x| x.array_windows().any(|&[a, b, c]| a + 1 == b && b + 1 == c))
-    .filter(|x| !(*b"iol").into_iter().any(|y| x.contains(&(y - b'a'))))
-    .filter(|x| {
-        let mut w = x.array_windows::<2>();
-        let mut good = false;
-        while let Some(&[a, b]) = w.next() {
-            if a == b {
-                if good {
-                    return true;
-                }
-                good = true;
-                w.next();
-            }
-        }
-        false
-    })
-    .next()
-    .unwrap()
-    .add(b'a')
-    .str()
-    .to_owned()
+    let mut relations = HashMap::<&[u8], HashMap<_, _>>::default();
+    x.行()
+        .map(|x| {
+            let [who, _, gain, quant, _, _, _, _, _, _, to] = x.μₙ(b' ').carr();
+            let quant = if gain == b"gain" {
+                quant.λ::<i64>()
+            } else {
+                -quant.λ::<i64>()
+            };
+            relations
+                .entry(who)
+                .or_default()
+                .insert(&to[..to.len() - 1], quant);
+        })
+        .Θ();
+
+    for person in relations.keys().copied().collect::<Vec<_>>() {
+        relations.entry(b"me").or_default().insert(person, 0);
+        relations.entry(person).or_default().insert(b"me", 0);
+    }
+
+    let people = Vec::from_iter(relations.keys().copied());
+    people
+        .iter()
+        .copied()
+        .permutations(people.len())
+        .map(|arrangement| {
+            arrangement
+                .iter()
+                .ι::<usize>()
+                .flat_map(|(me, i)| {
+                    let left = arrangement[(i - 1) % arrangement.len()];
+                    let right = arrangement[(i + 1) % arrangement.len()];
+                    [relations[me][left], relations[me][right]]
+                })
+                .sum::<i64>()
+        })
+        .max()
+        .unwrap()
 }
 
 fn main() {
