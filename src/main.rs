@@ -44,30 +44,30 @@ pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &str) -> impl Display {
-    let input1 = [3, 7, 2, 3, 0, 0, 5, 3, 2, 1];
-    #[rustfmt::skip]
-    let res = ["children","cats","samoyeds","pomeranians","akitas","vizslas","goldfish","trees","cars","perfumes",];
-    let res = res.map(|x| &*Box::leak(Box::new(Regex::new(&format!("{x}: ([0-9]+)")).unwrap())));
-    x.行()
-        .ι1::<usize>()
-        .map_l(move |inp| {
-            res.map(|x| {
-                x.captures(inp)
-                    .map(|x| x.get(1).unwrap().as_bytes().λ::<u64>())
-            })
-        })
-        .fl(move |x| x[1].is_none_or(|y| y > input1[1]))
-        .fl(move |x| x[7].is_none_or(|y| y > input1[7]))
-        .fl(move |x| x[3].is_none_or(|y| y < input1[3]))
-        .fl(move |x| x[6].is_none_or(|y| y < input1[6]))
-        .fl(move |x| {
-            [0, 2, 4, 5, 8, 9]
-                .into_iter()
-                .all(|i| x[i].is_none_or(|x| input1[i] == x))
-        })
-        .next()
-        .ψ()
-        .1
+    let input1 = [
+        50, 44, 11, 49, 42, 46, 18, 32, 26, 40, 21, 7, 18, 43, 10, 47, 36, 24, 22, 40,
+    ];
+    for n in 0.. {
+        let z = input1
+            .iter()
+            .permutations(n)
+            .any(|x| x.iter().copied().sum::<usize>() == 150);
+        if z {
+            return input1
+                .iter()
+                .combinations(n)
+                .filter(|x| x.iter().copied().sum::<usize>() == 150)
+                .count();
+        }
+    }
+
+    let mut c = vec![0; 151];
+    c[0] = 1;
+    input1
+        .into_iter()
+        .for_each(|n| (n..=150).rev().for_each(|i| c[i] += c[i - n]));
+    return c[150];
+    0
 }
 
 fn main() {
