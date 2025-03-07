@@ -13,8 +13,10 @@ itertools = "0.12.0"
 lower = "0.2.0"
 lower-macros = "0.2.3"
 mattr = "1.0.0"
-md5 = "0.7.0"
 memchr = "2.6.4"
+regex = { version = "1.11.1", default-features = false, features = [
+    "unstable",
+] }
 # radsort = "0.1.1"
 rustc-hash = { version = "2.1.0", features = ["nightly"] }
 [profile.release]

@@ -38,37 +38,36 @@ extern crate test;
 pub mod util;
 
 use atools::prelude::*;
+use regex::bytes::Regex;
 use std::simd::prelude::*;
 pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &str) -> impl Display {
-    let x = [
-        [2i64, 0, -2, 0], //3],
-        [0, 5, -3, 0],    //3],
-        [0, 0, 5, -1],    //8],
-        [0, -1, 0, 5],    //8],
-    ]
-    .map(i64x4::from);
-    let cals = [3i64, 3, 8, 8];
-
-    itertools::iproduct!(0i64..=100, 0..=100, 0..=100, 0..=100)
-        .map(|x| x.array())
-        .filter(|x| x.sum() == 100)
-        .filter(|x| x.zip(range()).map(|(n, i)| n * cals[i]).sum() == 500)
-        .map(|y| {
-            y.zip(range())
-                .map(|(n, i)| x[i] * i64x4::splat(n))
-                .into_iter()
-                // add vertically
-                .sum::<i64x4>()
-                // max(0)
-                .simd_max(i64x4::splat(0))
-                // multiply horizontally
-                .reduce_product()
+    let input1 = [3, 7, 2, 3, 0, 0, 5, 3, 2, 1];
+    #[rustfmt::skip]
+    let res = ["children","cats","samoyeds","pomeranians","akitas","vizslas","goldfish","trees","cars","perfumes",];
+    let res = res.map(|x| &*Box::leak(Box::new(Regex::new(&format!("{x}: ([0-9]+)")).unwrap())));
+    x.行()
+        .ι1::<usize>()
+        .map_l(move |inp| {
+            res.map(|x| {
+                x.captures(inp)
+                    .map(|x| x.get(1).unwrap().as_bytes().λ::<u64>())
+            })
         })
-        .max()
-        .unwrap()
+        .fl(move |x| x[1].is_none_or(|y| y > input1[1]))
+        .fl(move |x| x[7].is_none_or(|y| y > input1[7]))
+        .fl(move |x| x[3].is_none_or(|y| y < input1[3]))
+        .fl(move |x| x[6].is_none_or(|y| y < input1[6]))
+        .fl(move |x| {
+            [0, 2, 4, 5, 8, 9]
+                .into_iter()
+                .all(|i| x[i].is_none_or(|x| input1[i] == x))
+        })
+        .next()
+        .ψ()
+        .1
 }
 
 fn main() {

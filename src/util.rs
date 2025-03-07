@@ -1,7 +1,9 @@
 #![allow(non_snake_case, unused_macros, unused_unsafe)]
 
+use regex::Regex;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
+use std::sync::LazyLock;
 use std::{
     cmp::Reverse,
     collections::BinaryHeap,
@@ -353,14 +355,12 @@ pub fn countg_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<It
     if end(start) {
         *sum += 1;
     } else {
-        graph(start)
-            .map(|x| {
-                if ok(start, x) {
-                    // println!("\"{start:?}\" -> \"{x:?}\"");
-                    countg_with_check(x, graph, ok, sum, end);
-                }
-            })
-            .Θ();
+        graph(start).for_each(|x| {
+            if ok(start, x) {
+                // println!("\"{start:?}\" -> \"{x:?}\"");
+                countg_with_check(x, graph, ok, sum, end);
+            }
+        });
     }
 }
 
@@ -375,13 +375,11 @@ pub fn countg_uniq_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterat
     if end(start) && has.insert(start) {
         *sum += 1;
     } else {
-        graph(start)
-            .map(|x| {
-                if ok(start, x) {
-                    countg_uniq_with_check(x, graph, ok, sum, end, has);
-                }
-            })
-            .Θ();
+        graph(start).for_each(|x| {
+            if ok(start, x) {
+                countg_uniq_with_check(x, graph, ok, sum, end, has);
+            }
+        });
     }
 }
 
@@ -395,13 +393,11 @@ pub fn countg<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
     if end(start) {
         *sum += 1;
     } else {
-        graph(start)
-            .map(|x| {
-                if has.insert(x) {
-                    countg(x, graph, sum, end, has);
-                }
-            })
-            .Θ();
+        graph(start).for_each(|x| {
+            if has.insert(x) {
+                countg(x, graph, sum, end, has);
+            }
+        });
     }
 }
 
@@ -416,7 +412,7 @@ pub fn iterg<N: Debug + Copy, I: Iterator<Item = N>>(
     if end(start) {
         finally(start);
     } else {
-        graph(start).map(|x| iterg(x, graph, end, finally)).Θ();
+        graph(start).for_each(|x| iterg(x, graph, end, finally));
     };
 }
 
@@ -1000,6 +996,8 @@ pub trait TupleIterTools3<T, U, V>: Iterator {
 pub trait TupleIterTools2<T, U>: Iterator {
     fn l(self) -> impl Iterator<Item = T>;
     fn r(self) -> impl Iterator<Item = U>;
+    fn map_l<V>(self, f: impl FnMut(T) -> V) -> impl Iterator<Item = (V, U)>;
+    fn map_r<V>(self, f: impl FnMut(U) -> V) -> impl Iterator<Item = (T, V)>;
 }
 
 pub trait TupleIterTools2R<T, U>: Iterator {
@@ -1065,6 +1063,14 @@ impl<T, U, I: Iterator<Item = (T, U)>> TupleIterTools2<T, U> for I {
     fn r(self) -> impl Iterator<Item = U> {
         self.map(|(_, x)| x)
     }
+
+    fn map_l<V>(self, mut f: impl FnMut(T) -> V) -> impl Iterator<Item = (V, U)> {
+        self.map(move |(x, y)| (f(x), y))
+    }
+
+    fn map_r<V>(self, mut f: impl FnMut(U) -> V) -> impl Iterator<Item = (T, V)> {
+        self.map(move |(x, y)| (x, f(y)))
+    }
 }
 
 impl<'a, T: Copy + 'a, U: Copy + 'a, I: Iterator<Item = &'a (T, U)>> TupleIterTools2R<T, U> for I {
@@ -1111,7 +1117,7 @@ pub trait GreekTools<T>: Iterator {
     where
         Self: Ι<T, N>;
     fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize;
-    fn Θ(&mut self);
+    fn θ(&mut self);
 }
 
 pub trait ParseIter {
@@ -1413,7 +1419,7 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
         self.ι1()
     }
 
-    fn Θ(&mut self) {
+    fn θ(&mut self) {
         for _ in self {}
     }
 }
@@ -1784,4 +1790,9 @@ pub mod rand {
 
 pub fn manhattan((x1, y1): (i32, i32), (x2, y2): (i32, i32)) -> i32 {
     (x1 - x2).abs() + (y1 - y2).abs()
+}
+
+pub fn ints(x: &'static [u8]) -> impl Iterator<Item = i64> {
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("-?[0-9]+").unwrap());
+    RE.find_iter(x.str()).map(|x| x.as_str().λ())
 }
