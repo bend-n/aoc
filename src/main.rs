@@ -38,46 +38,37 @@ extern crate test;
 pub mod util;
 
 use atools::prelude::*;
+use std::simd::prelude::*;
 pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &str) -> impl Display {
     let x = [
-        [22usize, 8, 165],
-        [8, 17, 114],
-        [18, 6, 103],
-        [25, 6, 145],
-        [11, 12, 125],
-        [21, 6, 121],
-        [18, 3, 50],
-        [20, 4, 75],
-        [7, 20, 119],
-    ];
-    let mut deer = x.map(|deer| {
-        repeat_n(deer[0], deer[1])
-            .chain(repeat_n(0, deer[2]))
-            .cycle()
-    });
-    dbg!(deer
-        .clone()
-        .into_iter()
-        .map(|x| x.take(2503).sum::<usize>())
+        [2i64, 0, -2, 0], //3],
+        [0, 5, -3, 0],    //3],
+        [0, 0, 5, -1],    //8],
+        [0, -1, 0, 5],    //8],
+    ]
+    .map(i64x4::from);
+    let cals = [3i64, 3, 8, 8];
+
+    itertools::iproduct!(0i64..=100, 0..=100, 0..=100, 0..=100)
+        .map(|x| x.array())
+        .filter(|x| x.sum() == 100)
+        .filter(|x| x.zip(range()).map(|(n, i)| n * cals[i]).sum() == 500)
+        .map(|y| {
+            y.zip(range())
+                .map(|(n, i)| x[i] * i64x4::splat(n))
+                .into_iter()
+                // add vertically
+                .sum::<i64x4>()
+                // max(0)
+                .simd_max(i64x4::splat(0))
+                // multiply horizontally
+                .reduce_product()
+        })
         .max()
-        .unwrap());
-    let mut states = [0; 9];
-    let mut points = [0; 9];
-    for _ in 0..2503 {
-        deer.iter_mut()
-            .ι::<usize>()
-            .for_each(|(deer, i)| states[i] += deer.next().unwrap());
-        let max = states.into_iter().max().unwrap();
-        states
-            .into_iter()
-            .ι::<usize>()
-            .filter(|&(x, _)| x == max)
-            .for_each(|(_, i)| points[i] += 1);
-    }
-    points.into_iter().max().unwrap()
+        .unwrap()
 }
 
 fn main() {
