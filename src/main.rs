@@ -41,47 +41,43 @@ use atools::prelude::*;
 pub use util::prelude::*;
 
 #[no_mangle]
-#[lower::apply(wrapping)]
 pub fn p1(x: &str) -> impl Display {
-    let mut relations = HashMap::<&[u8], HashMap<_, _>>::default();
-    x.行()
-        .map(|x| {
-            let [who, _, gain, quant, _, _, _, _, _, _, to] = x.μₙ(b' ').carr();
-            let quant = if gain == b"gain" {
-                quant.λ::<i64>()
-            } else {
-                -quant.λ::<i64>()
-            };
-            relations
-                .entry(who)
-                .or_default()
-                .insert(&to[..to.len() - 1], quant);
-        })
-        .Θ();
-
-    for person in relations.keys().copied().collect::<Vec<_>>() {
-        relations.entry(b"me").or_default().insert(person, 0);
-        relations.entry(person).or_default().insert(b"me", 0);
-    }
-
-    let people = Vec::from_iter(relations.keys().copied());
-    people
-        .iter()
-        .copied()
-        .permutations(people.len())
-        .map(|arrangement| {
-            arrangement
-                .iter()
-                .ι::<usize>()
-                .flat_map(|(me, i)| {
-                    let left = arrangement[(i - 1) % arrangement.len()];
-                    let right = arrangement[(i + 1) % arrangement.len()];
-                    [relations[me][left], relations[me][right]]
-                })
-                .sum::<i64>()
-        })
+    let x = [
+        [22usize, 8, 165],
+        [8, 17, 114],
+        [18, 6, 103],
+        [25, 6, 145],
+        [11, 12, 125],
+        [21, 6, 121],
+        [18, 3, 50],
+        [20, 4, 75],
+        [7, 20, 119],
+    ];
+    let mut deer = x.map(|deer| {
+        repeat_n(deer[0], deer[1])
+            .chain(repeat_n(0, deer[2]))
+            .cycle()
+    });
+    dbg!(deer
+        .clone()
+        .into_iter()
+        .map(|x| x.take(2503).sum::<usize>())
         .max()
-        .unwrap()
+        .unwrap());
+    let mut states = [0; 9];
+    let mut points = [0; 9];
+    for _ in 0..2503 {
+        deer.iter_mut()
+            .ι::<usize>()
+            .for_each(|(deer, i)| states[i] += deer.next().unwrap());
+        let max = states.into_iter().max().unwrap();
+        states
+            .into_iter()
+            .ι::<usize>()
+            .filter(|&(x, _)| x == max)
+            .for_each(|(_, i)| points[i] += 1);
+    }
+    points.into_iter().max().unwrap()
 }
 
 fn main() {
