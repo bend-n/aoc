@@ -1796,3 +1796,17 @@ pub fn ints(x: &'static [u8]) -> impl Iterator<Item = i64> {
     static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("-?[0-9]+").unwrap());
     RE.find_iter(x.str()).map(|x| x.as_str().λ())
 }
+#[lower::apply(wrapping)]
+pub fn nb(x: usize, y: usize) -> [(usize, usize); 8] {
+    [
+        (x - 1, y - 1),
+        (x, y - 1),
+        (x + 1, y - 1),
+        (x - 1, y),
+        // this
+        (x + 1, y),
+        (x - 1, y + 1),
+        (x, y + 1),
+        (x + 1, y + 1),
+    ]
+}

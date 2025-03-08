@@ -44,30 +44,29 @@ pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &str) -> impl Display {
-    let input1 = [
-        50, 44, 11, 49, 42, 46, 18, 32, 26, 40, 21, 7, 18, 43, 10, 47, 36, 24, 22, 40,
-    ];
-    for n in 0.. {
-        let z = input1
-            .iter()
-            .permutations(n)
-            .any(|x| x.iter().copied().sum::<usize>() == 150);
-        if z {
-            return input1
-                .iter()
-                .combinations(n)
-                .filter(|x| x.iter().copied().sum::<usize>() == 150)
-                .count();
+    const S: usize = 100;
+    let mut g = unsafe { x.as_bytes().as_chunks_unchecked::<{ S + 1 }>() }.to_vec();
+    for _ in 0..100 {
+        [(0, 0), (99, 0), (0, 99), (99, 99)].map(|(x, y)| g[y][x] = b'#');
+        let mut o = g.clone();
+        for y in 0..S {
+            for x in 0..S {
+                let nb = util::nb(x, y)
+                    .into_iter()
+                    .filter_map(|(x, y)| g.get(y).and_then(|g| g.get(x)))
+                    .filter(|&&e| e == b'#')
+                    .count();
+                match nb {
+                    2 | 3 if g[y][x] == b'#' => continue,
+                    3 if g[y][x] == b'.' => o[y][x] = b'#',
+                    _ => o[y][x] = b'.',
+                }
+            }
         }
+        g = o;
     }
-
-    let mut c = vec![0; 151];
-    c[0] = 1;
-    input1
-        .into_iter()
-        .for_each(|n| (n..=150).rev().for_each(|i| c[i] += c[i - n]));
-    return c[150];
-    0
+    [(0, 0), (99, 0), (0, 99), (99, 99)].map(|(x, y)| g[y][x] = b'#');
+    g.as_flattened().iter().filter(|&&x| x == b'#').count()
 }
 
 fn main() {
