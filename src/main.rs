@@ -9,15 +9,14 @@
 )]
 #![feature(
     stdarch_x86_avx512,
+    impl_trait_in_bindings,
     iter_partition_in_place,
     iter_chain,
     slice_swap_unchecked,
     generic_const_exprs,
-    ptr_sub_ptr,
     iter_array_chunks,
     slice_from_ptr_range,
     if_let_guard,
-    maybe_uninit_uninit_array,
     once_cell_get_mut,
     iter_collect_into,
     let_chains,
@@ -25,7 +24,6 @@
     array_windows,
     vec_into_raw_parts,
     try_blocks,
-    slice_take,
     portable_simd,
     test,
     slice_as_chunks,
@@ -38,35 +36,45 @@ extern crate test;
 pub mod util;
 
 use atools::prelude::*;
+use memchr::memmem;
 use regex::bytes::Regex;
 use std::simd::prelude::*;
 pub use util::prelude::*;
 
 #[no_mangle]
-pub fn p1(x: &str) -> impl Display {
-    const S: usize = 100;
-    let mut g = unsafe { x.as_bytes().as_chunks_unchecked::<{ S + 1 }>() }.to_vec();
-    for _ in 0..100 {
-        [(0, 0), (99, 0), (0, 99), (99, 99)].map(|(x, y)| g[y][x] = b'#');
-        let mut o = g.clone();
-        for y in 0..S {
-            for x in 0..S {
-                let nb = util::nb(x, y)
-                    .into_iter()
-                    .filter_map(|(x, y)| g.get(y).and_then(|g| g.get(x)))
-                    .filter(|&&e| e == b'#')
-                    .count();
-                match nb {
-                    2 | 3 if g[y][x] == b'#' => continue,
-                    3 if g[y][x] == b'.' => o[y][x] = b'#',
-                    _ => o[y][x] = b'.',
-                }
+pub fn p1(x: &'static str) -> impl Display {
+    let mut i: impl Iterator<Item = &'static [u8]> = x.as_bytes().行();
+
+    let mapping = i
+        .by_ref()
+        .take_while(|x| !x.is_empty())
+        .map(|x| x.μ(' ').mr(|x| x.μ1(' ')))
+        .collect::<Vec<_>>();
+
+    let x = i.Δ();
+    let n = mapping
+        .iter()
+        .flat_map(move |replacement| {
+            memmem::find_iter(x, replacement.0).map(|n| {
+                let mut x = x.to_vec();
+                x.splice(n..n + replacement.0.len(), replacement.1.iter().copied());
+                x
+            })
+        })
+        .collect::<HashSet<_>>()
+        .len();
+    dbg!(n);
+    let mut x = x.to_vec();
+    let mut steps = 0;
+    while x != b"e" {
+        for replacement in &mapping {
+            if let Some(n) = memmem::find(&x, replacement.1) {
+                steps += 1;
+                x.splice(n..n + replacement.1.len(), replacement.0.iter().copied());
             }
         }
-        g = o;
     }
-    [(0, 0), (99, 0), (0, 99), (99, 99)].map(|(x, y)| g[y][x] = b'#');
-    g.as_flattened().iter().filter(|&&x| x == b'#').count()
+    steps
 }
 
 fn main() {

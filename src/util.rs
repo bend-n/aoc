@@ -1513,7 +1513,7 @@ macro_rules! bits {
 pub(crate) use bits;
 
 pub struct Lines<'a> {
-    bytes: &'a [u8],
+    pub bytes: &'a [u8],
 }
 
 impl<'a> Iterator for Lines<'a> {
@@ -1566,6 +1566,11 @@ unsafe fn mmaped<'a>() -> (*const u8, i64) {
 
 pub trait IntoLines {
     fn 行(&self) -> Lines<'_>;
+}
+impl IntoLines for [u8] {
+    fn 行(&self) -> Lines<'_> {
+        Lines { bytes: self }
+    }
 }
 
 impl<T: AsRef<[u8]>> IntoLines for T {
