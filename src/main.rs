@@ -48,150 +48,42 @@ type u32x3 = Simd<u32, 3>;
 
 #[no_mangle]
 pub fn p1(x: &'static str) -> impl Display {
-    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-    enum Effect {
-        Shield,
-        Poison,
-        Recharge,
+    let mut registers = [1, 0];
+    let instrs = x.行().collect::<Vec<_>>();
+    let mut p = 0;
+    loop {
+        let Some((a, x)) = instrs.get(p).map(|x| x.μ(' ')) else {
+            break;
+        };
+        match a {
+            b"hlf" => registers[(x == b"b") as usize] /= 2,
+            b"tpl" => registers[(x == b"b") as usize] *= 3,
+            b"inc" => registers[(x == b"b") as usize] += 1,
+            b"jmp" => {
+                p = (p as i32 + x.λ::<i32>()) as usize;
+                continue;
+            }
+            b"jie" => {
+                let (reg, to) = x.μ(',');
+                if registers[(reg == b"b") as usize] % 2 == 0 {
+                    p = (p as i32 + to.trim_ascii().λ::<i32>()) as usize;
+                    continue;
+                }
+            }
+            b"jio" => {
+                let (reg, to) = x.μ(',');
+                if registers[(reg == b"b") as usize] == 1 {
+                    p = (p as i32 + to.trim_ascii().λ::<i32>()) as usize;
+                    continue;
+                }
+            }
+            x => {
+                unreachable!("{}", x.p());
+            }
+        }
+        p += 1;
     }
-    #[derive(Clone, Debug)]
-    struct Game {
-        effects: Vec<(Effect, u32)>,
-        player: [u32; 3],
-        boss: [u32; 2],
-    }
-    use Effect::*;
-    static mut min: u64 = !0;
-    fn mini(x: u64) {
-        unsafe {
-            if min > x {
-                println!("{x}");
-                min = x;
-            }
-        }
-    }
-    #[apply(saturating)]
-    fn go(mut game: Game, player: bool, spent: u64) {
-        if spent > unsafe { min } {
-            return;
-        }
-
-        for (e, _) in &mut game.effects {
-            match e {
-                Effect::Shield => game.player[1] = 7,
-                Effect::Poison => game.boss[0] -= 3,
-                Effect::Recharge => game.player[2] += 101,
-            }
-        }
-        game.effects
-            .iter_mut()
-            .for_each(|(_, x)| *x = x.saturating_sub(1));
-        game.effects
-            .extract_if(.., |x| x.1 == 0)
-            .for_each(|(e, _)| match e {
-                Effect::Shield => game.player[1] = 0,
-                _ => (),
-            });
-
-        if game.boss[0] == 0 {
-            // win
-            return mini(spent);
-        }
-
-        // play boss turn
-        if !player {
-            // player[hp] -= boss[damage] - player[armor]
-            game.player[0] = game.player[0] - (game.boss[1] - game.player[1]);
-            if game.player[0] == 0 {
-                // ded
-                return;
-            }
-            return go(game, true, spent);
-        }
-
-        // game.player[0] -= 1;
-        // if game.player[0] == 0 {
-        //     // ded
-        //     return;
-        // }
-
-        if game.player[2] < 53 {
-            // ded
-            return;
-        }
-
-        if game.player[2] >= 53 {
-            // missile
-            let mut game = game.clone();
-            game.player[2] -= 53;
-            game.boss[0] -= 4;
-            if game.boss[0] == 0 {
-                return mini(spent + 53);
-            }
-            go(game, false, spent + 53);
-        }
-
-        if game.player[2] >= 73 {
-            // drain
-            let mut game = game.clone();
-            game.player[2] -= 73;
-            game.player[0] += 2;
-            game.boss[0] -= 2;
-            if game.boss[0] == 0 {
-                return mini(spent + 73);
-            }
-            go(game, false, spent + 73);
-        }
-
-        if game.player[2] >= 113 && !game.effects.iter().l().contains(&Shield) {
-            // shield
-            let mut game = game.clone();
-            game.effects.push((Shield, 6));
-            game.player[2] -= 113;
-            go(game, false, spent + 113);
-        }
-
-        if game.player[2] >= 173 && !game.effects.iter().l().contains(&Poison) {
-            // poison
-            let mut game = game.clone();
-            game.effects.push((Poison, 6));
-            game.player[2] -= 173;
-            go(game, false, spent + 173);
-        }
-
-        if game.player[2] >= 229 && !game.effects.iter().l().contains(&Recharge) {
-            // recharge
-            let mut game = game.clone();
-            game.effects.push((Recharge, 5));
-            game.player[2] -= 229;
-            go(game, false, spent + 229);
-        }
-
-        // Magic Missile costs 53 mana. It instantly does 4 damage.
-        // Drain costs 73 mana. It instantly does 2 damage and heals you for 2 hit points.
-        // Shield costs 113 mana. It starts an effect that lasts for 6 turns. While it is active, your armor is increased by 7.
-        // Poison costs 173 mana. It starts an effect that lasts for 6 turns. At the start of each turn while it is active, it deals the boss 3 damage.
-        // Recharge costs 229 mana. It starts an effect that lasts for 5 turns. At the start of each turn while it is active, it gives you 101 new mana.
-    }
-    // go(
-    //     Game {
-    //         effects: vec![],
-    //         player: [10, 0, 250],
-    //         boss: [14, 8],
-    //     },
-    //     true,
-    //     0,
-    // );
-    go(
-        Game {
-            effects: vec![],
-            player: [50, 0, 500],
-            boss: [55, 8],
-        },
-        true,
-        0,
-    );
-    unsafe { min }
+    registers[1]
 }
 
 fn main() {
