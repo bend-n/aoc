@@ -1031,16 +1031,16 @@ impl<T: Copy, U: Copy, V: Copy, I: Iterator<Item = (T, U, V)>> FilterBy3<T, U, V
     }
 }
 pub trait FilterBy<T, U>: Iterator {
-    fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U)>;
-    fn fr(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U)>;
+    fn fl(self, f: impl FnMut(T) -> bool) -> impl Iterator<Item = (T, U)>;
+    fn fr(self, f: impl FnMut(U) -> bool) -> impl Iterator<Item = (T, U)>;
 }
 
 impl<T: Copy, U: Copy, I: Iterator<Item = (T, U)>> FilterBy<T, U> for I {
-    fn fl(self, f: impl Fn(T) -> bool) -> impl Iterator<Item = (T, U)> {
+    fn fl(self, mut f: impl FnMut(T) -> bool) -> impl Iterator<Item = (T, U)> {
         self.filter(move |(x, _)| f(*x))
     }
 
-    fn fr(self, f: impl Fn(U) -> bool) -> impl Iterator<Item = (T, U)> {
+    fn fr(self, mut f: impl FnMut(U) -> bool) -> impl Iterator<Item = (T, U)> {
         self.filter(move |(_, x)| f(*x))
     }
 }

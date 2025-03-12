@@ -43,38 +43,17 @@ pub use util::prelude::*;
 
 #[no_mangle]
 pub fn p1(x: &'static str) -> impl Display {
-    let mut i: impl Iterator<Item = &'static [u8]> = x.as_bytes().行();
-
-    let mapping = i
-        .by_ref()
-        .take_while(|x| !x.is_empty())
-        .map(|x| x.μ(' ').mr(|x| x.μ1(' ')))
-        .collect::<Vec<_>>();
-
-    let x = i.Δ();
-    let n = mapping
-        .iter()
-        .flat_map(move |replacement| {
-            memmem::find_iter(x, replacement.0).map(|n| {
-                let mut x = x.to_vec();
-                x.splice(n..n + replacement.0.len(), replacement.1.iter().copied());
-                x
-            })
-        })
-        .collect::<HashSet<_>>()
-        .len();
-    dbg!(n);
-    let mut x = x.to_vec();
-    let mut steps = 0;
-    while x != b"e" {
-        for replacement in &mapping {
-            if let Some(n) = memmem::find(&x, replacement.1) {
-                steps += 1;
-                x.splice(n..n + replacement.1.len(), replacement.0.iter().copied());
-            }
+    let mut x = vec![0; 1 << 20];
+    let target = 34000000;
+    for elf in 1..1 << 20 {
+        for house in (elf..1 << 20).step_by(elf)
+        //.take(50)
+        {
+            x[house] += elf * 10; // 11
         }
     }
-    steps
+
+    x.into_iter().ι::<u32>().fl(move |e| e > target).Δ().1
 }
 
 fn main() {
