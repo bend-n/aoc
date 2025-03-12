@@ -6,6 +6,7 @@
     mixed_script_confusables,
     static_mut_refs,
     incomplete_features,
+    unused_imports,
     redundant_semicolons
 )]
 #![feature(
@@ -48,22 +49,12 @@ type u32x3 = Simd<u32, 3>;
 
 #[no_mangle]
 pub fn p1(x: &'static str) -> impl Display {
-    let wat = [
-        1u128, 3, 5, 11, 13, 17, 19, 23, 29, 31, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89,
-        97, 101, 103, 107, 109, 113,
-    ];
-    let n = wat.sum() / 4;
-    (1..wat.len())
-        .flat_map(|c| {
-            wat.iter()
-                .copied()
-                .combinations(c)
-                .filter(move |x| x.iter().sum::<u128>() == n)
-                .map(|x| x.iter().product::<u128>())
-        })
-        .Δ()
-    // .min()
-    // .ψ()
+    let (ro, co) = (2947u64, 3029u64);
+    // count diagonals
+    let point = (0..ro + co - 1).sum::<u64>() + co;
+    infinite_successors(20151125u64, |x| (x * 252533).rem_euclid(33554393))
+        .nth(point as usize - 1)
+        .unwrap()
 }
 
 fn main() {

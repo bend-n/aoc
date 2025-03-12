@@ -3,6 +3,7 @@
 use regex::Regex;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
+use std::iter::successors;
 use std::sync::LazyLock;
 use std::{
     cmp::Reverse,
@@ -18,11 +19,11 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice,
-        DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ,
-        NumTupleIterTools, ParseIter, Printable, Skip, SplitU8, Str, TakeLine, TupleIterTools2,
-        TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen,
-        Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext,
+        sort, twice, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines,
+        IterͶ, NumTupleIterTools, ParseIter, Printable, Skip, SplitU8, Str, TakeLine,
+        TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils,
+        UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
     };
     pub use itertools::iproduct;
     pub use itertools::izip;
@@ -1819,4 +1820,8 @@ pub fn nb(x: usize, y: usize) -> [(usize, usize); 8] {
 }
 pub fn twice<T: Copy>(x: T) -> impl Iterator<Item = T> + Clone + ExactSizeIterator {
     std::iter::repeat_n(x, 2)
+}
+
+pub fn infinite_successors<T: Copy>(x: T, mut f: impl FnMut(T) -> T) -> impl Iterator<Item = T> {
+    successors(Some(x), move |x| Some(f(*x)))
 }
