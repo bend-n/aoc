@@ -36,24 +36,63 @@ extern crate test;
 pub mod util;
 
 use atools::prelude::*;
+use lower::apply;
 use memchr::memmem;
 use regex::bytes::Regex;
 use std::simd::prelude::*;
 pub use util::prelude::*;
 
+#[allow(warnings)]
+type u32x3 = Simd<u32, 3>;
+
 #[no_mangle]
 pub fn p1(x: &'static str) -> impl Display {
-    let mut x = vec![0; 1 << 20];
-    let target = 34000000;
-    for elf in 1..1 << 20 {
-        for house in (elf..1 << 20).step_by(elf)
-        //.take(50)
-        {
-            x[house] += elf * 10; // 11
+    let boss = [104, 8, 1];
+    const HP: usize = 0;
+    const DAMAGE: usize = 1;
+    const ARMOR: usize = 2;
+
+    let weapons =
+        [[8, 4, 0], [10, 5, 0], [25, 6, 0], [40, 7, 0], [74, 8, 0]].map(u32x3::from_array);
+    let armors =
+        [[13, 0, 1], [31, 0, 2], [53, 0, 3], [75, 0, 4], [102, 0, 5]].map(u32x3::from_array);
+    let rings = [
+        [25, 1, 0],
+        [50, 2, 0],
+        [100, 3, 0],
+        [20, 0, 1],
+        [40, 0, 2],
+        [80, 0, 3],
+    ]
+    .map(u32x3::from_array);
+
+    #[apply(saturating)]
+    fn wins(mut boss: [u32; 3], mut player: [u32; 3]) -> bool {
+        loop {
+            boss[HP] = boss[HP] - (player[DAMAGE] - boss[ARMOR]);
+            if boss[HP] == 0 {
+                return true;
+            }
+            player[HP] = player[HP] - (boss[DAMAGE] - player[ARMOR]);
+            if player[HP] == 0 {
+                return false;
+            }
         }
     }
-
-    x.into_iter().ι::<u32>().fl(move |e| e > target).Δ().1
+    iproduct!(
+        weapons,
+        armors.into_iter().chain(once(Simd::splat(0))),
+        chain(rings, twice(Simd::splat(0)))
+            .into_iter()
+            .combinations(2)
+            .map(|rings| rings.into_iter().sum())
+    )
+    .map(|x| x.array().sum())
+    .map(u32x3::to_array)
+    .filter(|&[_, d, a]| wins(boss, [100, d, a]))
+    .map(|[x, ..]| x)
+    .min()
+    .ψ()
 }
 
 fn main() {

@@ -18,11 +18,13 @@ pub mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::{bits, dang, leek, mat, shucks, C};
     pub use super::{
-        even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, DigiCount, Dir,
-        FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ, NumTupleIterTools,
-        ParseIter, Printable, Skip, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
-        TupleIterTools3, TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
+        even, gcd, gt, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice,
+        DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ,
+        NumTupleIterTools, ParseIter, Printable, Skip, SplitU8, Str, TakeLine, TupleIterTools2,
+        TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils, UnsoundUtilities, Widen,
+        Ͷ, Α, Κ, Λ, Μ,
     };
+    pub use itertools::iproduct;
     pub use itertools::izip;
     pub use itertools::Itertools;
     pub use rustc_hash::FxHashMap as HashMap;
@@ -1814,4 +1816,7 @@ pub fn nb(x: usize, y: usize) -> [(usize, usize); 8] {
         (x, y + 1),
         (x + 1, y + 1),
     ]
+}
+pub fn twice<T: Copy>(x: T) -> impl Iterator<Item = T> + Clone + ExactSizeIterator {
+    std::iter::repeat_n(x, 2)
 }
