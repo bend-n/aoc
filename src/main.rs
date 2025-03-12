@@ -48,42 +48,22 @@ type u32x3 = Simd<u32, 3>;
 
 #[no_mangle]
 pub fn p1(x: &'static str) -> impl Display {
-    let mut registers = [1, 0];
-    let instrs = x.行().collect::<Vec<_>>();
-    let mut p = 0;
-    loop {
-        let Some((a, x)) = instrs.get(p).map(|x| x.μ(' ')) else {
-            break;
-        };
-        match a {
-            b"hlf" => registers[(x == b"b") as usize] /= 2,
-            b"tpl" => registers[(x == b"b") as usize] *= 3,
-            b"inc" => registers[(x == b"b") as usize] += 1,
-            b"jmp" => {
-                p = (p as i32 + x.λ::<i32>()) as usize;
-                continue;
-            }
-            b"jie" => {
-                let (reg, to) = x.μ(',');
-                if registers[(reg == b"b") as usize] % 2 == 0 {
-                    p = (p as i32 + to.trim_ascii().λ::<i32>()) as usize;
-                    continue;
-                }
-            }
-            b"jio" => {
-                let (reg, to) = x.μ(',');
-                if registers[(reg == b"b") as usize] == 1 {
-                    p = (p as i32 + to.trim_ascii().λ::<i32>()) as usize;
-                    continue;
-                }
-            }
-            x => {
-                unreachable!("{}", x.p());
-            }
-        }
-        p += 1;
-    }
-    registers[1]
+    let wat = [
+        1u128, 3, 5, 11, 13, 17, 19, 23, 29, 31, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89,
+        97, 101, 103, 107, 109, 113,
+    ];
+    let n = wat.sum() / 4;
+    (1..wat.len())
+        .flat_map(|c| {
+            wat.iter()
+                .copied()
+                .combinations(c)
+                .filter(move |x| x.iter().sum::<u128>() == n)
+                .map(|x| x.iter().product::<u128>())
+        })
+        .Δ()
+    // .min()
+    // .ψ()
 }
 
 fn main() {
