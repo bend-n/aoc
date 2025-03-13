@@ -17,23 +17,23 @@ use std::{
 
 pub mod prelude {
     #[allow(unused_imports)]
-    pub(crate) use super::{bits, dang, leek, mat, shucks, C};
+    pub(crate) use super::{C, bits, dang, leek, mat, shucks};
     pub use super::{
-        even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext,
-        sort, twice, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines,
-        IterͶ, NumTupleIterTools, ParseIter, Printable, Skip, SplitU8, Str, TakeLine,
+        DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ,
+        MapWith, NumTupleIterTools, ParseIter, Printable, Skip, SplitU8, Str, TakeLine,
         TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils,
-        UnsoundUtilities, Widen, Ͷ, Α, Κ, Λ, Μ,
+        UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail,
+        pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Κ, Λ, Μ,
     };
+    pub use itertools::Itertools;
     pub use itertools::iproduct;
     pub use itertools::izip;
-    pub use itertools::Itertools;
     pub use rustc_hash::FxHashMap as HashMap;
     pub use rustc_hash::FxHashSet as HashSet;
     pub use std::{
         cmp::Ordering::*,
         cmp::{max, min},
-        collections::{hash_map::Entry, VecDeque},
+        collections::{VecDeque, hash_map::Entry},
         fmt::{Debug, Display},
         hint::black_box as boxd,
         io::{self, Read, Write},
@@ -1182,17 +1182,11 @@ pub mod reading {
         }
     }
     impl<
-            'a,
-            'b,
-            const BY: u8,
-            T: Default
-                + std::ops::Mul<T, Output = T>
-                + Add<T, Output = T>
-                + From<u8>
-                + Copy
-                + Ten
-                + Debug,
-        > Iterator for Integer<'a, 'b, T, BY>
+        'a,
+        'b,
+        const BY: u8,
+        T: Default + std::ops::Mul<T, Output = T> + Add<T, Output = T> + From<u8> + Copy + Ten + Debug,
+    > Iterator for Integer<'a, 'b, T, BY>
     {
         type Item = T;
 
@@ -1537,13 +1531,13 @@ impl<'a> DoubleEndedIterator for Lines<'a> {
 }
 
 #[link(name = "c")]
-extern "C" {
+unsafe extern "C" {
     fn mmap(addr: *mut u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64) -> *mut u8;
     fn lseek(fd: i32, offset: i64, whence: i32) -> i64;
 }
 
 #[allow(dead_code)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 unsafe fn mmaped<'a>() -> (*const u8, i64) {
     let seek_end = 2;
     let size = lseek(0, 0, seek_end);
@@ -1824,4 +1818,24 @@ pub fn twice<T: Copy>(x: T) -> impl Iterator<Item = T> + Clone + ExactSizeIterat
 
 pub fn infinite_successors<T: Copy>(x: T, mut f: impl FnMut(T) -> T) -> impl Iterator<Item = T> {
     successors(Some(x), move |x| Some(f(*x)))
+}
+pub fn countmap<T: Hash + Eq + Ord + Copy>(
+    x: impl Iterator<Item = T>,
+) -> impl Iterator<Item = (T, usize)> {
+    let mut h = HashMap::<_, usize>::default();
+    for e in x {
+        *h.entry(e).or_default() += 1;
+    }
+    let mut v = h.into_iter().collect::<Vec<_>>();
+    v.sort_unstable_by_key(move |&(x, y)| (Reverse(y), x));
+    v.into_iter()
+}
+
+pub trait MapWith<T: Copy> {
+    fn map_w<U>(self, f: impl FnMut(T) -> U) -> impl Iterator<Item = (T, U)>;
+}
+impl<T: Copy, I: Iterator<Item = T>> MapWith<T> for I {
+    fn map_w<U>(self, mut f: impl FnMut(T) -> U) -> impl Iterator<Item = (T, U)> {
+        self.map(move |x| (x, f(x)))
+    }
 }
