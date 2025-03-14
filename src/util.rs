@@ -1,5 +1,6 @@
 #![allow(non_snake_case, unused_macros, unused_unsafe)]
 
+use Default::default;
 use regex::Regex;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -20,11 +21,12 @@ pub mod prelude {
     pub(crate) use super::{C, bits, dang, leek, mat, shucks};
     pub use super::{
         DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ,
-        MapWith, NumTupleIterTools, ParseIter, Printable, Skip, SplitU8, Str, TakeLine,
-        TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils, UnifiedTupleUtils,
-        UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail,
-        pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Κ, Λ, Μ,
+        MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip, SplitU8, Str,
+        TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
+        UnifiedTupleUtils, UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors,
+        l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Κ, Λ, Μ,
     };
+    pub use Default::default;
     pub use itertools::Itertools;
     pub use itertools::iproduct;
     pub use itertools::izip;
@@ -1846,4 +1848,29 @@ fn md5(x: &[u8]) -> [u8; 16] {
     let mut hasher = md5::Md5::new();
     hasher.update(x);
     *hasher.finalize().as_array::<16>().unwrap()
+}
+pub trait PartitionByKey<T> {
+    fn partition_by_key<V, U: Extend<V> + Default>(
+        self,
+        f: impl FnMut(&T) -> bool,
+        key: impl FnMut(T) -> V,
+    ) -> [U; 2];
+}
+
+impl<T, I: Iterator<Item = T>> PartitionByKey<T> for I {
+    fn partition_by_key<V, U: Extend<V> + Default>(
+        self,
+        mut f: impl FnMut(&T) -> bool,
+        mut key: impl FnMut(T) -> V,
+    ) -> [U; 2] {
+        let mut o: [U; 2] = [default(), default()];
+        for x in self {
+            match f(&x) {
+                true => &mut o[0],
+                false => &mut o[1],
+            }
+            .extend_one(key(x));
+        }
+        o
+    }
 }

@@ -12,6 +12,7 @@
     redundant_semicolons
 )]
 #![feature(
+    extend_one,
     slice_as_array,
     stdarch_x86_avx512,
     impl_trait_in_bindings,
@@ -52,19 +53,39 @@ type u32x3 = Simd<u32, 3>;
 
 #[unsafe(no_mangle)]
 pub unsafe fn p1(x: &'static str) -> impl Display {
-    let x = mattr::transpose_array(
-        *x.as_bytes()
-            .as_chunks_unchecked::<9>()
-            .as_array::<624>()
-            .ψ(),
-    );
-    unsafe {
-        String::from_utf8_unchecked(
-            x.into_iter()
-                .map(|x| *countmap(x.iter()).l().Δ())
-                .collect::<Vec<_>>(),
-        )
-    }
+    let re = Regex::new(r"\[([^\]]+)\]").ψ();
+    x.行()
+        .map(|x| {
+            [
+                re.captures_iter(x)
+                    .map(|x| x.get(1).ψ().as_bytes().to_vec())
+                    .collect::<Vec<_>>(),
+                re.replace_all(x, *b"_")
+                    .μₙ(b'_')
+                    .map(<[u8]>::to_vec)
+                    .collect::<Vec<_>>(),
+            ]
+        })
+        .filter(|[bracket, not]| {
+            let has_abba = |x: &[Vec<u8>]| {
+                x.iter().any(|x| {
+                    x.array_windows::<4>()
+                        .any(|&[a, b, c, d]| a != b && c == b && d == a)
+                })
+            };
+
+            // !has_abba(&bracket) && has_abba(&not)
+            not.iter().any(|not| {
+                not.array_windows::<3>().any(|&[a, b, c]| {
+                    ((a != b) & (a == c))
+                        && bracket
+                            .iter()
+                            .flat_map(|x| x.array_windows::<3>())
+                            .contains(&[b, a, b])
+                })
+            })
+        })
+        .count()
 }
 
 fn main() {
