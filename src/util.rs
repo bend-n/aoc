@@ -1839,3 +1839,11 @@ impl<T: Copy, I: Iterator<Item = T>> MapWith<T> for I {
         self.map(move |x| (x, f(x)))
     }
 }
+
+#[cfg(never)]
+fn md5(x: &[u8]) -> [u8; 16] {
+    use md5::Digest;
+    let mut hasher = md5::Md5::new();
+    hasher.update(x);
+    *hasher.finalize().as_array::<16>().unwrap()
+}

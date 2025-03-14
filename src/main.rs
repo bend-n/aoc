@@ -1,4 +1,5 @@
 #![allow(
+    unexpected_cfgs,
     confusable_idents,
     uncommon_codepoints,
     non_upper_case_globals,
@@ -41,7 +42,6 @@ pub mod util;
 
 use atools::prelude::*;
 use lower::apply;
-use md5::Digest;
 use memchr::memmem;
 use regex::bytes::Regex;
 use std::{cmp::Reverse, simd::prelude::*};
@@ -50,38 +50,25 @@ pub use util::prelude::*;
 #[allow(warnings)]
 type u32x3 = Simd<u32, 3>;
 
-fn md5(x: &[u8]) -> [u8; 16] {
-    let mut hasher = md5::Md5::new();
-    hasher.update(x);
-    *hasher.finalize().as_array::<16>().unwrap()
-}
-
 #[unsafe(no_mangle)]
-pub fn p1(_: &'static str) -> impl Display {
-    (0..)
-        .map(|n| md5(&format!("ojvtpuvg{n}").as_bytes()))
-        .filter(|&[a, b, c, ..]| a == 0 && b == 0 && c >> 4 == 0)
-        .map(|[_, _, x, ..]| b"0123456789abcdef"[(x & 0x0f).nat()] as char)
-        .take(8)
-        .collect::<String>()
-}
-
-#[unsafe(no_mangle)]
-pub fn p2(_: &'static str) -> impl Display {
-    let mut o = [0; 8];
-    for [a, b, c, d, ..] in (0..).map(|n| md5(&format!("ojvtpuvg{n}").as_bytes())) {
-        if a == 0 && b == 0 && c >> 4 == 0 && o.get((c & 0x0f) as usize) == Some(&0) {
-            o[(c & 0x0f).nat()] = b"0123456789abcdef"[(d >> 4).nat()]
-        }
-        if o.iter().all(|x| *x != 0) {
-            break;
-        }
+pub unsafe fn p1(x: &'static str) -> impl Display {
+    let x = mattr::transpose_array(
+        *x.as_bytes()
+            .as_chunks_unchecked::<9>()
+            .as_array::<624>()
+            .ψ(),
+    );
+    unsafe {
+        String::from_utf8_unchecked(
+            x.into_iter()
+                .map(|x| *countmap(x.iter()).l().Δ())
+                .collect::<Vec<_>>(),
+        )
     }
-    o.str().to_owned()
 }
 
 fn main() {
-    unsafe { println!("{}", p2(include_str!("inp.txt"))) };
+    unsafe { println!("{}", p1(include_str!("inp.txt"))) };
 }
 
 #[bench]
