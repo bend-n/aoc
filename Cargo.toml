@@ -8,6 +8,7 @@ edition = "2024"
 [dependencies]
 atools = "0.1.5"
 car = "0.1.1"
+implicit-fn = "0.1.0"
 # hinted = "0.0.1"
 itertools = "0.12.0"
 lower = "0.2.0"

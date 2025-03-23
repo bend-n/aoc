@@ -52,40 +52,40 @@ pub use util::prelude::*;
 type u32x3 = Simd<u32, 3>;
 
 #[unsafe(no_mangle)]
+#[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static str) -> impl Display {
-    let re = Regex::new(r"\[([^\]]+)\]").ψ();
-    x.行()
-        .map(|x| {
-            [
-                re.captures_iter(x)
-                    .map(|x| x.get(1).ψ().as_bytes().to_vec())
-                    .collect::<Vec<_>>(),
-                re.replace_all(x, *b"_")
-                    .μₙ(b'_')
-                    .map(<[u8]>::to_vec)
-                    .collect::<Vec<_>>(),
-            ]
-        })
-        .filter(|[bracket, not]| {
-            let has_abba = |x: &[Vec<u8>]| {
-                x.iter().any(|x| {
-                    x.array_windows::<4>()
-                        .any(|&[a, b, c, d]| a != b && c == b && d == a)
-                })
-            };
-
-            // !has_abba(&bracket) && has_abba(&not)
-            not.iter().any(|not| {
-                not.array_windows::<3>().any(|&[a, b, c]| {
-                    ((a != b) & (a == c))
-                        && bracket
-                            .iter()
-                            .flat_map(|x| x.array_windows::<3>())
-                            .contains(&[b, a, b])
-                })
-            })
-        })
-        .count()
+    let mut grid = [[false; 50]; 6];
+    x.行().for_each(|x| {
+        match () {
+            () if x.starts_with(b"rect") => {
+                let (w, h) = x.μ1(' ').μ('x').mb(_.λ::<usize>());
+                (0..h).for_each(grid[_][..w].fill(true));
+            }
+            () if x.starts_with(b"rotate") => {
+                let [_, axis, point, _, amount] = x.μₙ(b' ').carr();
+                let point = point.μ1('=').λ::<usize>();
+                let amount = amount.λ::<usize>();
+                match axis {
+                    b"row" => grid[point].rotate_right(amount),
+                    b"column" => {
+                        let mut row: [bool; 6] = from_fn(grid[_][point]);
+                        row.rotate_right(amount);
+                        (0..6).for_each(|y| grid[y][point] = row[y])
+                    }
+                    _ => unimplemented!(),
+                }
+            }
+            _ => unreachable!(),
+        }
+        for element in grid {
+            for x in element {
+                print!("{}", b" #"[x as usize] as char);
+            }
+            println!()
+        }
+        println!()
+    });
+    grid.as_flattened().iter().filter(**_).count()
 }
 
 fn main() {
