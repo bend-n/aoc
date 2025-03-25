@@ -12,6 +12,7 @@
     redundant_semicolons
 )]
 #![feature(
+    custom_inner_attributes,
     extend_one,
     slice_as_array,
     stdarch_x86_avx512,
@@ -51,41 +52,35 @@ pub use util::prelude::*;
 #[allow(warnings)]
 type u32x3 = Simd<u32, 3>;
 
+#[implicit_fn::implicit_fn]
+fn expand(x: &[u8]) -> usize {
+    let mut o = 0;
+    let mut t = vec![];
+    let mut i = 0;
+    while i != x.len() {
+        let c = x[i];
+        i += 1;
+        match c {
+            b'(' => t.push(c),
+            b')' => {
+                let (range, amount) = t[1..].μ('x').mb(_.λ::<usize>());
+                let n = expand(&x[i..i + range]);
+                o += n * amount;
+                i += range;
+                t.clear();
+            }
+            c if !t.is_empty() => t.push(c),
+            _ => o += 1,
+        }
+    }
+    o
+}
+
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static str) -> impl Display {
-    let mut grid = [[false; 50]; 6];
-    x.行().for_each(|x| {
-        match () {
-            () if x.starts_with(b"rect") => {
-                let (w, h) = x.μ1(' ').μ('x').mb(_.λ::<usize>());
-                (0..h).for_each(grid[_][..w].fill(true));
-            }
-            () if x.starts_with(b"rotate") => {
-                let [_, axis, point, _, amount] = x.μₙ(b' ').carr();
-                let point = point.μ1('=').λ::<usize>();
-                let amount = amount.λ::<usize>();
-                match axis {
-                    b"row" => grid[point].rotate_right(amount),
-                    b"column" => {
-                        let mut row: [bool; 6] = from_fn(grid[_][point]);
-                        row.rotate_right(amount);
-                        (0..6).for_each(|y| grid[y][point] = row[y])
-                    }
-                    _ => unimplemented!(),
-                }
-            }
-            _ => unreachable!(),
-        }
-        for element in grid {
-            for x in element {
-                print!("{}", b" #"[x as usize] as char);
-            }
-            println!()
-        }
-        println!()
-    });
-    grid.as_flattened().iter().filter(**_).count()
+    let x = x.as_bytes();
+    expand(x)
 }
 
 fn main() {
