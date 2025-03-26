@@ -12,6 +12,8 @@
     redundant_semicolons
 )]
 #![feature(
+    iterator_try_reduce,
+    cmp_minmax,
     custom_inner_attributes,
     extend_one,
     slice_as_array,
@@ -43,44 +45,64 @@ extern crate test;
 pub mod util;
 
 use atools::prelude::*;
+use collar::CollectArray;
 use lower::apply;
 use memchr::memmem;
 use regex::bytes::Regex;
-use std::{cmp::Reverse, simd::prelude::*};
+use std::{
+    cmp::{Reverse, minmax},
+    mem::take,
+    simd::prelude::*,
+};
 pub use util::prelude::*;
 
 #[allow(warnings)]
 type u32x3 = Simd<u32, 3>;
 
-#[implicit_fn::implicit_fn]
-fn expand(x: &[u8]) -> usize {
-    let mut o = 0;
-    let mut t = vec![];
-    let mut i = 0;
-    while i != x.len() {
-        let c = x[i];
-        i += 1;
-        match c {
-            b'(' => t.push(c),
-            b')' => {
-                let (range, amount) = t[1..].μ('x').mb(_.λ::<usize>());
-                let n = expand(&x[i..i + range]);
-                o += n * amount;
-                i += range;
-                t.clear();
-            }
-            c if !t.is_empty() => t.push(c),
-            _ => o += 1,
-        }
-    }
-    o
-}
-
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static str) -> impl Display {
-    let x = x.as_bytes();
-    expand(x)
+    let mut bots = [const { vec![] }; 500];
+    let mut outputs = [!0; 100];
+    x.行().filter(|x| x.starts_with(b"value")).for_each(|x| {
+        let [_, v, _, _, _, i] = x.μₙ(b' ').collect_array();
+        let [v, i] = [v, i].map(_.λ::<usize>());
+        bots[i].push(v);
+    });
+    for x in x.行().filter(_.starts_with(b"bot")).cycle() {
+        let [b"bot", i, _, _, b"to", lo, lo_i, _, _, b"to", hi, hi_i] = x.μₙ(b' ').collect_array()
+        else {
+            unreachable!()
+        };
+        let [bot_i, lo_i, hi_i] = [i, lo_i, hi_i].map(_.λ::<usize>());
+        if let &[a, b] = &*bots[bot_i] {
+            let [lo_x, hi_x] = minmax(a, b);
+            match lo {
+                b"bot" => bots[lo_i].push(lo_x),
+                b"output" => outputs[lo_i] = lo_x,
+                _ => unreachable!(),
+            }
+            match hi {
+                b"bot" => bots[hi_i].push(hi_x),
+                b"output" => outputs[hi_i] = hi_x,
+                _ => unreachable!(),
+            }
+            if lo_x == 17 && hi_x == 61 {
+                println!("{bot_i}");
+                // return bot_i;
+            }
+            bots[bot_i].clear();
+        }
+        if let Ok(x) = outputs[..=2]
+            .iter()
+            .filter(**_ != !0)
+            .collect_array_checked::<3>()
+        {
+            return x.map(*_).product();
+        }
+    }
+
+    0
 }
 
 fn main() {

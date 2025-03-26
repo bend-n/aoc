@@ -1511,6 +1511,7 @@ macro_rules! bits {
 }
 pub(crate) use bits;
 
+#[derive(Clone, Copy)]
 pub struct Lines<'a> {
     pub bytes: &'a [u8],
 }
