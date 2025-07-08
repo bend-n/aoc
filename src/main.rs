@@ -56,33 +56,27 @@ use std::{
 };
 pub use util::prelude::*;
 
-#[allow(warnings)]
-type u32x3 = Simd<u32, 3>;
+fn status(x: u32, y: u32) -> bool {
+    (x * x + 3 * x + 2 * x * y + y + y * y + 1350).count_ones() % 2 == 0
+}
 
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static str) -> impl Display {
-    let x = x.行().collect::<Vec<_>>();
-    let mut ptr = 0i32;
-    let mut regis =
-        HashMap::<&[u8], i32>::from_iter([(&b"a"[..], 0), (b"b", 0), (b"c", 1), (b"d", 0)]);
-    while let Some(i) = x.get(ptr as usize) {
-        let i = i.μₙ(b' ').collect::<Vec<_>>();
-        let p = |j: usize| i[j].str().parse::<i32>().unwrap_or_else(|_| regis[i[j]]);
-        match i[0] {
-            b"cpy" => *regis.get_mut(i[2]).unwrap() = p(1),
-            b"inc" => *regis.get_mut(i[1]).unwrap() += 1,
-            b"dec" => *regis.get_mut(i[1]).unwrap() -= 1,
-            b"jnz" if p(1) != 0 => {
-                ptr += p(2);
-                continue;
-            }
-            _ => (),
-        }
-        ptr += 1;
-    }
-
-    regis[&b"a"[..]]
+    //    dijkstra
+    util::reachable(
+        ((1u32, 1u32), 0),
+        |((x, y), s)| {
+            Dir::ALL
+                .into_iter()
+                .flat_map(move |d| d + (x, y))
+                .filter(|&(x, y)| status(x, y))
+                .map(move |x| (x, s + 1))
+                .filter(_.1 <= 50)
+        },
+        // |x| (x == (31, 39)),
+    )
+    .len()
 }
 
 fn main() {

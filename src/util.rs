@@ -4,6 +4,7 @@ use Default::default;
 use regex::Regex;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
+use std::collections::VecDeque;
 use std::iter::successors;
 use std::sync::LazyLock;
 use std::{
@@ -208,6 +209,7 @@ pub enum Dir {
 }
 
 impl Dir {
+    pub const ALL: [Self; 4] = [Self::N, Self::E, Self::S, Self::W];
     pub fn urdl(x: u8) -> Self {
         match x {
             b'U' => Self::N,
@@ -452,9 +454,23 @@ pub fn show<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>, D: 
     dang!();
 }
 
+pub fn reachable<D: Hash + Copy, N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, D)>>(
+    start: (N, D),
+    graph: impl Fn((N, D)) -> I,
+) -> HashSet<N> {
+    let mut map = HashSet::default();
+    let mut stack = VecDeque::from_iter([start]);
+    while let Some((x, d)) = stack.pop_front() {
+        if map.insert(x) {
+            stack.extend(graph((x, d)));
+        }
+    }
+    map
+}
+
 pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
-    graph: impl Fn(N) -> I,
     start: N,
+    graph: impl Fn(N) -> I,
     end: impl Fn(N) -> bool,
     h: impl Fn(N) -> u16,
 ) -> u16 {
@@ -479,8 +495,8 @@ pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)
 }
 
 pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
-    graph: impl Fn(N) -> I,
     start: N,
+    graph: impl Fn(N) -> I,
     end: impl Fn(N) -> bool,
 ) -> Option<u16> {
     let mut q = BinaryHeap::new();
@@ -513,6 +529,17 @@ impl std::ops::Add<(i64, i64)> for Dir {
             Dir::S => (x, y + 1),
             Dir::W => (x - 1, y),
         }
+    }
+}
+impl std::ops::Add<(u32, u32)> for Dir {
+    type Output = Option<(u32, u32)>;
+    fn add(self, (x, y): (u32, u32)) -> Self::Output {
+        Some(match self {
+            Dir::N => (x, y.checked_sub(1)?),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x.checked_sub(1)?, y),
+        })
     }
 }
 
