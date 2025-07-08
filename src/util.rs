@@ -1870,12 +1870,19 @@ impl<T: Copy, I: Iterator<Item = T>> MapWith<T> for I {
     }
 }
 
-#[cfg(never)]
-fn md5(x: &[u8]) -> [u8; 16] {
+pub fn md5(x: &[u8]) -> [u8; 16] {
     use md5::Digest;
     let mut hasher = md5::Md5::new();
     hasher.update(x);
-    *hasher.finalize().as_array::<16>().unwrap()
+    hasher.finalize().into()
+}
+
+pub fn md5s(x: &[u8]) -> String {
+    let mut s = String::with_capacity(32);
+    for element in md5(x) {
+        write!(s, "{element:02x}").unwrap();
+    }
+    s
 }
 pub trait PartitionByKey<T> {
     fn partition_by_key<V, U: Extend<V> + Default>(

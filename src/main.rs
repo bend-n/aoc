@@ -47,38 +47,50 @@ pub mod util;
 use atools::prelude::*;
 use collar::CollectArray;
 use lower::apply;
+use md5::{Digest, Md5};
 use memchr::memmem;
 use regex::bytes::Regex;
+use rustc_hash::FxBuildHasher;
 use std::{
     cmp::{Reverse, minmax},
     mem::take,
     simd::prelude::*,
 };
+
 pub use util::prelude::*;
-
-fn status(x: u32, y: u32) -> bool {
-    (x * x + 3 * x + 2 * x * y + y + y * y + 1350).count_ones() % 2 == 0
-}
-
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
-pub unsafe fn p1(x: &'static str) -> impl Display {
-    //    dijkstra
-    util::reachable(
-        ((1u32, 1u32), 0),
-        |((x, y), s)| {
-            Dir::ALL
-                .into_iter()
-                .flat_map(move |d| d + (x, y))
-                .filter(|&(x, y)| status(x, y))
-                .map(move |x| (x, s + 1))
-                .filter(_.1 <= 50)
-        },
-        // |x| (x == (31, 39)),
-    )
-    .len()
-}
+pub unsafe fn p1(i: &'static str) -> impl Display {
+    // let hash = |x: u32| util::md5s(format!("{i}{x}").as_bytes());
+    let mut memo =
+        HashMap::<u32, String>::with_capacity_and_hasher(92859, FxBuildHasher::default());
+    macro_rules! hash {
+        ($x:expr) => {{
+            let x = $x;
+            memo.entry(x)
+                .or_insert_with(|| {
+                    successors(format!("{i}{x}").into(), |x| Some(util::md5s(x.as_bytes())))
+                        .nth(2017)
+                        .unwrap()
+                })
+                .as_bytes()
+        }};
+    }
+    // dbg!(hash(0));
+    (0u32..)
+        .filter(|&x| {
+            let Some(&c) = hash!(x)
+                .array_windows::<3>()
+                .find(|x| x.iter().all(|&y| y == x[0]))
+            else {
+                return false;
+            };
 
+            (x..=x + 1000).any(|x| memmem::find(hash!(x), &[c[0]; 5]).is_some())
+        })
+        .nth(74)
+        .unwrap()
+}
 fn main() {
     unsafe { println!("{}", p1(include_str!("inp.txt"))) };
 }
