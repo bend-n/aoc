@@ -62,47 +62,27 @@ type u32x3 = Simd<u32, 3>;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static str) -> impl Display {
-    let mut bots = [const { vec![] }; 500];
-    let mut outputs = [!0; 100];
-    x.行().filter(|x| x.starts_with(b"value")).for_each(|x| {
-        let [_, v, _, _, _, i] = x.μₙ(b' ').collect_array();
-        let [v, i] = [v, i].map(_.λ::<usize>());
-        bots[i].push(v);
-    });
-    for x in x.行().filter(_.starts_with(b"bot")).cycle() {
-        let [b"bot", i, _, _, b"to", lo, lo_i, _, _, b"to", hi, hi_i] = x.μₙ(b' ').collect_array()
-        else {
-            unreachable!()
-        };
-        let [bot_i, lo_i, hi_i] = [i, lo_i, hi_i].map(_.λ::<usize>());
-        if let &[a, b] = &*bots[bot_i] {
-            let [lo_x, hi_x] = minmax(a, b);
-            match lo {
-                b"bot" => bots[lo_i].push(lo_x),
-                b"output" => outputs[lo_i] = lo_x,
-                _ => unreachable!(),
+    let x = x.行().collect::<Vec<_>>();
+    let mut ptr = 0i32;
+    let mut regis =
+        HashMap::<&[u8], i32>::from_iter([(&b"a"[..], 0), (b"b", 0), (b"c", 1), (b"d", 0)]);
+    while let Some(i) = x.get(ptr as usize) {
+        let i = i.μₙ(b' ').collect::<Vec<_>>();
+        let p = |j: usize| i[j].str().parse::<i32>().unwrap_or_else(|_| regis[i[j]]);
+        match i[0] {
+            b"cpy" => *regis.get_mut(i[2]).unwrap() = p(1),
+            b"inc" => *regis.get_mut(i[1]).unwrap() += 1,
+            b"dec" => *regis.get_mut(i[1]).unwrap() -= 1,
+            b"jnz" if p(1) != 0 => {
+                ptr += p(2);
+                continue;
             }
-            match hi {
-                b"bot" => bots[hi_i].push(hi_x),
-                b"output" => outputs[hi_i] = hi_x,
-                _ => unreachable!(),
-            }
-            if lo_x == 17 && hi_x == 61 {
-                println!("{bot_i}");
-                // return bot_i;
-            }
-            bots[bot_i].clear();
+            _ => (),
         }
-        if let Ok(x) = outputs[..=2]
-            .iter()
-            .filter(**_ != !0)
-            .collect_array_checked::<3>()
-        {
-            return x.map(*_).product();
-        }
+        ptr += 1;
     }
 
-    0
+    regis[&b"a"[..]]
 }
 
 fn main() {
