@@ -23,6 +23,7 @@ regex = { version = "1.11.1", default-features = false, features = [
 ] }
 # radsort = "0.1.1"
 rustc-hash = { version = "2.1.0", features = ["nightly"] }
+swizzle = "0.1.0"
 [profile.release]
 lto = true
 codegen-units = 1

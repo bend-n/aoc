@@ -13,11 +13,11 @@
 )]
 #![feature(
     iterator_try_reduce,
+    step_trait,
     cmp_minmax,
     custom_inner_attributes,
     extend_one,
     slice_as_array,
-    stdarch_x86_avx512,
     impl_trait_in_bindings,
     iter_partition_in_place,
     iter_chain,
@@ -28,14 +28,12 @@
     if_let_guard,
     once_cell_get_mut,
     iter_collect_into,
-    let_chains,
     anonymous_lifetime_in_impl_trait,
     array_windows,
     vec_into_raw_parts,
     try_blocks,
     portable_simd,
     test,
-    slice_as_chunks,
     array_chunks,
     slice_split_once,
     import_trait_associated_functions,
@@ -44,8 +42,7 @@
 extern crate test;
 pub mod util;
 
-use atools::prelude::*;
-use collar::CollectArray;
+use atools::{CollectArray, prelude::*};
 use lower::apply;
 use md5::{Digest, Md5};
 use memchr::memmem;
@@ -56,39 +53,24 @@ use std::{
     mem::take,
     simd::prelude::*,
 };
+use swizzle::array;
 
 pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    // let hash = |x: u32| util::md5s(format!("{i}{x}").as_bytes());
-    let mut memo =
-        HashMap::<u32, String>::with_capacity_and_hasher(92859, FxBuildHasher::default());
-    macro_rules! hash {
-        ($x:expr) => {{
-            let x = $x;
-            memo.entry(x)
-                .or_insert_with(|| {
-                    successors(format!("{i}{x}").into(), |x| Some(util::md5s(x.as_bytes())))
-                        .nth(2017)
-                        .unwrap()
-                })
-                .as_bytes()
-        }};
-    }
-    // dbg!(hash(0));
-    (0u32..)
-        .filter(|&x| {
-            let Some(&c) = hash!(x)
-                .array_windows::<3>()
-                .find(|x| x.iter().all(|&y| y == x[0]))
-            else {
-                return false;
-            };
-
-            (x..=x + 1000).any(|x| memmem::find(hash!(x), &[c[0]; 5]).is_some())
+    let x = i
+        .行()
+        .map(|x| util::ints(x).carr::<4>().swizzle([1, 3]))
+        // p2
+        .chain([[11, 0]]);
+    (0..)
+        .find(|t| {
+            x.clone()
+                .ι1::<i64>()
+                .map(|([p, now], i)| (now + t + i) % p)
+                .all(_ == 0)
         })
-        .nth(74)
         .unwrap()
 }
 fn main() {

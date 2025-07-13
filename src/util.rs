@@ -25,7 +25,7 @@ pub mod prelude {
         MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip, SplitU8, Str,
         TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
         UnifiedTupleUtils, UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors,
-        l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Κ, Λ, Μ,
+        l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
     };
     pub use Default::default;
     pub use itertools::Itertools;
@@ -560,14 +560,14 @@ impl Dir {
 }
 
 impl std::ops::Add<(usize, usize)> for Dir {
-    type Output = (usize, usize);
+    type Output = Option<(usize, usize)>;
     fn add(self, (x, y): (usize, usize)) -> Self::Output {
-        match self {
-            Dir::N => (x, y.wrapping_sub(1)),
-            Dir::E => (x.wrapping_add(1), y),
-            Dir::S => (x, y.wrapping_add(1)),
-            Dir::W => (x.wrapping_sub(1), y),
-        }
+        Some(match self {
+            Dir::N => (x, y.checked_sub(1)?),
+            Dir::E => (x + 1, y),
+            Dir::S => (x, y + 1),
+            Dir::W => (x.checked_sub(1)?, y),
+        })
     }
 }
 
@@ -1142,14 +1142,8 @@ impl<T, U, V, I: Iterator<Item = (T, U, V)>> TupleIterTools3<T, U, V> for I {
 
 pub trait GreekTools<T>: Iterator {
     fn Δ(&mut self) -> T;
-    fn ι<N>(&mut self) -> impl Iterator<Item = (T, N)>
-    where
-        Self: Ι<T, N>;
-    fn ι1<N>(&mut self) -> impl Iterator<Item = (T, N)>
-    where
-        Self: Ι<T, N>;
-    fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize;
-    fn θ(&mut self);
+    fn ν<const N: usize>(self, into: &mut [T; N]) -> usize;
+    fn θ(self);
 }
 
 pub trait ParseIter {
@@ -1167,30 +1161,15 @@ impl<'x, I: Iterator<Item = &'x [u8]>> ParseIter for I {
     }
 }
 
-pub trait Ι<T, N>: Iterator {
-    fn ι(&mut self) -> impl Iterator<Item = (T, N)>;
-    fn ι1(&mut self) -> impl Iterator<Item = (T, N)>;
+pub trait Ι<T>: Iterator<Item = T> + Sized {
+    fn ι<N: Default + std::iter::Step>(self) -> impl Iterator<Item = (T, N)> {
+        self.zip(N::default()..)
+    }
+    fn ι1<N: Default + std::iter::Step>(self) -> impl Iterator<Item = (T, N)> {
+        self.zip((N::default()..).skip(1))
+    }
 }
-
-macro_rules! ι {
-    ($t:ty) => {
-        impl<T, I: Iterator<Item = T>> Ι<T, $t> for I {
-            fn ι(&mut self) -> impl Iterator<Item = (T, $t)> {
-                self.zip(0..)
-            }
-
-            fn ι1(&mut self) -> impl Iterator<Item = (T, $t)> {
-                self.zip(1..)
-            }
-        }
-    };
-}
-ι!(i8);
-ι!(u8);
-ι!(u16);
-ι!(u32);
-ι!(u64);
-ι!(usize);
+impl<T, I: Iterator<Item = T>> Ι<T> for I {}
 
 pub fn nail<const N: usize, T: Copy>(x: &[T]) -> [T; N] {
     unsafe { (x.as_ptr() as *const [T; N]).read() }
@@ -1421,7 +1400,7 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
         self.next().ψ()
     }
 
-    fn ν<const N: usize>(&mut self, into: &mut [T; N]) -> usize {
+    fn ν<const N: usize>(mut self, into: &mut [T; N]) -> usize {
         let mut set = 0;
         for e in into {
             let Some(y) = self.next() else { break };
@@ -1431,21 +1410,7 @@ impl<T, I: Iterator<Item = T>> GreekTools<T> for I {
         set
     }
 
-    fn ι<N>(&mut self) -> impl Iterator<Item = (T, N)>
-    where
-        Self: Ι<T, N>,
-    {
-        self.ι()
-    }
-
-    fn ι1<N>(&mut self) -> impl Iterator<Item = (T, N)>
-    where
-        Self: Ι<T, N>,
-    {
-        self.ι1()
-    }
-
-    fn θ(&mut self) {
+    fn θ(self) {
         for _ in self {}
     }
 }
@@ -1592,7 +1557,7 @@ unsafe fn mmaped<'a>() -> (*const u8, i64) {
 }
 
 pub trait IntoLines {
-    fn 行(&self) -> Lines<'_>;
+    fn 行<'a>(&'a self) -> Lines<'a>;
 }
 impl IntoLines for [u8] {
     fn 行(&self) -> Lines<'_> {
@@ -1600,7 +1565,7 @@ impl IntoLines for [u8] {
     }
 }
 
-impl<T: AsRef<[u8]>> IntoLines for T {
+impl IntoLines for str {
     fn 行(&self) -> Lines<'_> {
         Lines {
             bytes: self.as_ref(),
