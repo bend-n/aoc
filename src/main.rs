@@ -59,20 +59,38 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    let x = i
-        .行()
-        .map(|x| util::ints(x).carr::<4>().swizzle([1, 3]))
-        // p2
-        .chain([[11, 0]]);
-    (0..)
-        .find(|t| {
-            x.clone()
-                .ι1::<i64>()
-                .map(|([p, now], i)| (now + t + i) % p)
-                .all(_ == 0)
+    let x = std::iter::successors(Some("01111010110010011".as_bytes().to_vec()), |a| {
+        Some(
+            a.iter()
+                .copied()
+                .chain([b'0'])
+                .chain(a.iter().rev().copied().map(|x| match x {
+                    b'0' => b'1',
+                    _ => b'0',
+                }))
+                .collect::<Vec<u8>>(),
+        )
+    })
+    .find(_.len() > 35651584)
+    .unwrap();
+
+    String::from_utf8_unchecked(
+        successors(Some(x[..35651584].to_vec()), |x| {
+            Some(
+                x.array_chunks::<2>()
+                    .map(|x| match x {
+                        b"00" | b"11" => b'1',
+                        _ => b'0',
+                    })
+                    .collect::<Vec<_>>(),
+            )
         })
-        .unwrap()
+        .skip(1)
+        .find(_.len() % 2 != 0)
+        .unwrap(),
+    )
 }
+
 fn main() {
     unsafe { println!("{}", p1(include_str!("inp.txt"))) };
 }
