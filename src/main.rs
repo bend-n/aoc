@@ -56,39 +56,44 @@ use std::{
 use swizzle::array;
 
 pub use util::prelude::*;
+
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    let x = std::iter::successors(Some("01111010110010011".as_bytes().to_vec()), |a| {
-        Some(
-            a.iter()
-                .copied()
-                .chain([b'0'])
-                .chain(a.iter().rev().copied().map(|x| match x {
-                    b'0' => b'1',
-                    _ => b'0',
-                }))
-                .collect::<Vec<u8>>(),
-        )
-    })
-    .find(_.len() > 35651584)
-    .unwrap();
+    let mut max = 0;
+    util::iterg(
+        ((0, 0), Vec::<Dir>::new()),
+        &mut |(po, pa): ((usize, usize), Vec<Dir>)| {
+            let open = (util::md5s(
+                &[
+                    &b"udskfozm"[..],
+                    &pa.iter().map(_.turdl()).collect::<Vec<_>>(),
+                ]
+                .concat(),
+            ))
+            .bytes()
+            .carr::<4>()
+            .map(|x| matches!(x, b'b' | b'c' | b'd' | b'e' | b'f'));
 
-    String::from_utf8_unchecked(
-        successors(Some(x[..35651584].to_vec()), |x| {
-            Some(
-                x.array_chunks::<2>()
-                    .map(|x| match x {
-                        b"00" | b"11" => b'1',
-                        _ => b'0',
-                    })
-                    .collect::<Vec<_>>(),
-            )
-        })
-        .skip(1)
-        .find(_.len() % 2 != 0)
-        .unwrap(),
-    )
+            ([Dir::N, Dir::S, Dir::W, Dir::E])
+                .into_iter()
+                .zip(open)
+                .filter(_.1)
+                .flat_map(move |(d, _)| d.lim_add(po, [0, 4], [0, 4]).map(|x| (x, d)))
+                .map(move |(x, d)| (x, pa.iter().copied().chain([d]).collect::<Vec<_>>()))
+        },
+        &mut |x| x.0 == (3, 3),
+        &mut |x| max = max.max(x.1.len()),
+    );
+    max
+
+    // .unwrap()
+    // .1
+    // .1
+    // .iter()
+    // .map(_.turdl())
+    // .collect::<Vec<_>>(),
+    //    String::from_utf8_unchecked(
 }
 
 fn main() {

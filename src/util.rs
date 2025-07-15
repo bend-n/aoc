@@ -18,15 +18,15 @@ use std::{
 };
 
 pub mod prelude {
-    #[allow(unused_imports)]
-    pub(crate) use super::{C, bits, dang, leek, mat, shucks};
     pub use super::{
-        DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines, IterͶ,
-        MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip, SplitU8, Str,
-        TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
+        BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines,
+        IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip, SplitU8,
+        Str, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
         UnifiedTupleUtils, UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors,
         l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
     };
+    #[allow(unused_imports)]
+    pub(crate) use super::{C, bits, dang, leek, mat, shucks};
     pub use Default::default;
     pub use itertools::Itertools;
     pub use itertools::iproduct;
@@ -219,6 +219,14 @@ impl Dir {
             x => unreachable!("{}", x as char),
         }
     }
+    pub fn turdl(self) -> u8 {
+        match self {
+            Self::N => b'U',
+            Self::E => b'R',
+            Self::S => b'D',
+            Self::W => b'L',
+        }
+    }
 }
 
 pub struct UnionFind {
@@ -390,19 +398,19 @@ pub fn countg_uniq_with_check<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterat
     }
 }
 
-pub fn countg<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
+pub fn countg<N: Debug + PartialEq + Hash + Eq + Clone, I: Iterator<Item = N>>(
     start: N,
-    graph: &mut impl Fn(N) -> I,
+    graph: &mut impl FnMut(N) -> I,
+    end: &mut impl FnMut(&N) -> bool,
     sum: &mut usize,
-    end: &mut impl Fn(N) -> bool,
     has: &mut HashSet<N>,
 ) {
-    if end(start) {
+    if end(&start) {
         *sum += 1;
     } else {
         graph(start).for_each(|x| {
-            if has.insert(x) {
-                countg(x, graph, sum, end, has);
+            if has.insert(x.clone()) {
+                countg(x, graph, end, sum, has);
             }
         });
     }
@@ -410,13 +418,13 @@ pub fn countg<N: Debug + PartialEq + Hash + Eq + Copy, I: Iterator<Item = N>>(
 
 // pub fn appearances(x: )
 
-pub fn iterg<N: Debug + Copy, I: Iterator<Item = N>>(
+pub fn iterg<N: Debug, I: Iterator<Item = N>>(
     start: N,
     graph: &mut impl Fn(N) -> I,
-    end: &mut impl Fn(N) -> bool,
+    end: &mut impl Fn(&N) -> bool,
     finally: &mut impl FnMut(N),
 ) {
-    if end(start) {
+    if end(&start) {
         finally(start);
     } else {
         graph(start).for_each(|x| iterg(x, graph, end, finally));
@@ -494,19 +502,19 @@ pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)
     dang!()
 }
 
-pub fn dijkstra<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
+pub fn dijkstra<N: Debug + Eq + Hash + Clone + Ord, I: Iterator<Item = (N, u16)>>(
     start: N,
     graph: impl Fn(N) -> I,
-    end: impl Fn(N) -> bool,
-) -> Option<u16> {
+    end: impl Fn(&N) -> bool,
+) -> Option<(u16, N)> {
     let mut q = BinaryHeap::new();
     let mut s = HashSet::default();
     q.push(Reverse((0, start)));
     while let Some(Reverse((c, n))) = q.pop() {
-        if end(n) {
-            return Some(c);
+        if end(&n) {
+            return Some((c, n));
         }
-        if !s.insert(n) {
+        if !s.insert(n.clone()) {
             continue;
         }
         for (n, d) in graph(n) {
@@ -549,13 +557,15 @@ impl Dir {
         (x, y): (usize, usize),
         [minx, maxx]: [usize; 2],
         [miny, maxy]: [usize; 2],
-    ) -> (usize, usize) {
-        match self {
-            Dir::N => (x, y.saturating_sub(1).max(miny)),
-            Dir::E => (x.wrapping_add(1).min(maxx), y),
-            Dir::S => (x, y.wrapping_add(1).min(maxy)),
-            Dir::W => (x.saturating_sub(1).max(minx), y),
-        }
+    ) -> Option<(usize, usize)> {
+        let (x, y) = match self {
+            Dir::N => (x, y.checked_sub(1)?),
+            Dir::E => (x.wrapping_add(1), y),
+            Dir::S => (x, y.wrapping_add(1)),
+            Dir::W => (x.checked_sub(1)?, y),
+        };
+
+        ((minx..maxx).contains(&x) & (miny..maxy).contains(&y)).then_some((x, y))
     }
 }
 
@@ -1872,5 +1882,17 @@ impl<T, I: Iterator<Item = T>> PartitionByKey<T> for I {
             .extend_one(key(x));
         }
         o
+    }
+}
+
+pub trait BoolTools {
+    fn thn(self, f: impl FnMut()) -> Self;
+}
+impl BoolTools for bool {
+    fn thn(self, mut f: impl FnMut()) -> Self {
+        if self {
+            f();
+        }
+        self
     }
 }
