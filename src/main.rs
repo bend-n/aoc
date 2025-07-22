@@ -43,6 +43,7 @@ extern crate test;
 pub mod util;
 
 use atools::{CollectArray, prelude::*};
+use itertools::chain;
 use lower::apply;
 use md5::{Digest, Md5};
 use memchr::memmem;
@@ -60,40 +61,15 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    let mut max = 0;
-    util::iterg(
-        ((0, 0), Vec::<Dir>::new()),
-        &mut |(po, pa): ((usize, usize), Vec<Dir>)| {
-            let open = (util::md5s(
-                &[
-                    &b"udskfozm"[..],
-                    &pa.iter().map(_.turdl()).collect::<Vec<_>>(),
-                ]
-                .concat(),
-            ))
-            .bytes()
-            .carr::<4>()
-            .map(|x| matches!(x, b'b' | b'c' | b'd' | b'e' | b'f'));
-
-            ([Dir::N, Dir::S, Dir::W, Dir::E])
-                .into_iter()
-                .zip(open)
-                .filter(_.1)
-                .flat_map(move |(d, _)| d.lim_add(po, [0, 4], [0, 4]).map(|x| (x, d)))
-                .map(move |(x, d)| (x, pa.iter().copied().chain([d]).collect::<Vec<_>>()))
-        },
-        &mut |x| x.0 == (3, 3),
-        &mut |x| max = max.max(x.1.len()),
-    );
-    max
-
-    // .unwrap()
-    // .1
-    // .1
-    // .iter()
-    // .map(_.turdl())
-    // .collect::<Vec<_>>(),
-    //    String::from_utf8_unchecked(
+    infinite_successors(util::nail(i.as_bytes()), |x| {
+        let x: [u8; 102] = [b'.'].couple(x).join(b'.');
+        x.windowed::<3>()
+            .map(|x| b".^"[matches!(x, b"^^." | b".^^" | b"^.." | b"..^") as usize])
+    })
+    .take(400000)
+    .flatten()
+    .filter(*_ == b'.')
+    .count()
 }
 
 fn main() {
