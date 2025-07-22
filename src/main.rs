@@ -61,15 +61,24 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    infinite_successors(util::nail(i.as_bytes()), |x| {
-        let x: [u8; 102] = [b'.'].couple(x).join(b'.');
-        x.windowed::<3>()
-            .map(|x| b".^"[matches!(x, b"^^." | b".^^" | b"^.." | b"..^") as usize])
-    })
-    .take(400000)
-    .flatten()
-    .filter(*_ == b'.')
-    .count()
+    let n = 3012210;
+    let mut elves = vec![1; n];
+    for i in (0..elves.len()).cycle() {
+        if elves[i] == 0 {
+            continue;
+        }
+        if elves[i] == n {
+            return i + 1;
+        }
+        let left = (0..n)
+            .cycle()
+            .skip(i + 1)
+            .take(n)
+            .find(|x| elves[*x] != 0)
+            .unwrap();
+        elves[i] += take(&mut elves[left]);
+    }
+    panic!()
 }
 
 fn main() {

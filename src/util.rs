@@ -5,7 +5,9 @@ use regex::Regex;
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::VecDeque;
+use std::iter::Zip;
 use std::iter::successors;
+use std::ops::RangeFrom;
 use std::sync::LazyLock;
 use std::{
     cmp::Reverse,
@@ -1172,10 +1174,10 @@ impl<'x, I: Iterator<Item = &'x [u8]>> ParseIter for I {
 }
 
 pub trait Ι<T>: Iterator<Item = T> + Sized {
-    fn ι<N: Default + std::iter::Step>(self) -> impl Iterator<Item = (T, N)> {
+    fn ι<N: Default + std::iter::Step>(self) -> Zip<Self, RangeFrom<N>> {
         self.zip(N::default()..)
     }
-    fn ι1<N: Default + std::iter::Step>(self) -> impl Iterator<Item = (T, N)> {
+    fn ι1<N: Default + std::iter::Step>(self) -> Zip<Self, std::iter::Skip<RangeFrom<N>>> {
         self.zip((N::default()..).skip(1))
     }
 }
