@@ -1,15 +1,12 @@
-import Data.List (inits, subsequences)
+import Data.Foldable
+import Data.List
+import Data.List.Split
 
-n = 25
-
-main :: IO Int
+main :: IO ()
 main = do
   contents :: String <- readFile "src/inp.txt"
-  let i = read <$> lines contents
-  let (y : _) = [last x | x <- i `windows` (n + 1), last x `notElem` [sum x | x <- subsequences (take n x), length x == 2]]
-  let (a : _) = [x | x <- concatMap inits [drop x i | x <- [0 ..]], sum x == y]
-  let y = minimum a + maximum a
-  print y
-  return y
+  let g = sort (map read . splitOn "-" <$> lines contents) :: [[Int]]
+  let x = foldl' (\acc (a : b : _) -> if acc `elem` [a .. b] then b + 1 else acc) 0 g :: Int
+  print x
 
 windows c n = (\x -> take n (drop x c)) <$> [n .. length c - n]

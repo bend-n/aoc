@@ -429,13 +429,13 @@ pub fn iterg<N: Debug, I: Iterator<Item = N>>(
     if end(&start) {
         finally(start);
     } else {
-        graph(start).for_each(|x| iterg(x, graph, end, finally));
+        graph(start).for_each(|x: N| iterg(x, graph, end, finally));
     };
 }
 
 pub fn show<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>, D: Display>(
-    graph: impl Fn(N) -> I,
     start: N,
+    graph: impl Fn(N) -> I,
     end: impl Fn(N) -> bool,
     name: impl Fn(N) -> D,
 ) {

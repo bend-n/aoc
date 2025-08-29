@@ -34,7 +34,6 @@
     try_blocks,
     portable_simd,
     test,
-    array_chunks,
     slice_split_once,
     import_trait_associated_functions,
     core_intrinsics
@@ -57,28 +56,13 @@ use std::{
 use swizzle::array;
 
 pub use util::prelude::*;
-
 #[unsafe(no_mangle)]
-#[implicit_fn::implicit_fn]
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    let n = 3012210;
-    let mut elves = vec![1; n];
-    for i in (0..elves.len()).cycle() {
-        if elves[i] == 0 {
-            continue;
-        }
-        if elves[i] == n {
-            return i + 1;
-        }
-        let left = (0..n)
-            .cycle()
-            .skip(i + 1)
-            .take(n)
-            .find(|x| elves[*x] != 0)
-            .unwrap();
-        elves[i] += take(&mut elves[left]);
+    let mut a = vec![1u8; 4294967296];
+    for (x, y) in i.行().map(|x| x.μ('-').mb(|x| x.λ())) {
+        a[x..=y].fill(0);
     }
-    panic!()
+    util::count::<4294967296>((&*a).try_into().unwrap(), 1)
 }
 
 fn main() {
