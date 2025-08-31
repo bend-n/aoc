@@ -6,7 +6,7 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-atools = "0.1.5"
+atools = { git = "https://github.com/bend-n/atools", version = "0.1.7" }
 car = "0.1.1"
 collar = "1.0.1"
 fancy-regex = "0.15.0"

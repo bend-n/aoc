@@ -20,7 +20,6 @@
     slice_as_array,
     impl_trait_in_bindings,
     iter_partition_in_place,
-    iter_chain,
     slice_swap_unchecked,
     generic_const_exprs,
     iter_array_chunks,
@@ -57,12 +56,39 @@ use swizzle::array;
 
 pub use util::prelude::*;
 #[unsafe(no_mangle)]
+
 pub unsafe fn p1(i: &'static str) -> impl Display {
-    let mut a = vec![1u8; 4294967296];
-    for (x, y) in i.行().map(|x| x.μ('-').mb(|x| x.λ())) {
-        a[x..=y].fill(0);
+    let l = i
+        .行()
+        .skip(2)
+        .map(|x| util::ints(x).carr::<6>().drop::<2>())
+        // .inspect(|x| println!("{x:?}"))
+        .carr::<{ 25 * 32 }>()
+        .chunked::<25>();
+
+    for y in 0..25 {
+        for x in 0..32 {
+            let element = l[x][y];
+            print!(
+                "{}",
+                if element[3] == 0 {
+                    "_"
+                } else if element[0] > 120 {
+                    "#"
+                } else {
+                    "."
+                }
+            );
+        }
+        println!()
     }
-    util::count::<4294967296>((&*a).try_into().unwrap(), 1)
+    0
+    // l.iter()
+    //     .flat_map(|x| l.iter().map(move |y| (x, y)))
+    //     .filter(|(a, _)| a[1] != 0)
+    //     .filter(|(a, b)| a != b)
+    //     .filter(|(a, b)| a[1] <= b[2])
+    //     .count()
 }
 
 fn main() {
