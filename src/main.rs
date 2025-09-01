@@ -53,42 +53,52 @@ use std::{
     simd::prelude::*,
 };
 use swizzle::array;
-
 pub use util::prelude::*;
+
+#[allow(warnings)]
+type u32x3 = Simd<u32, 3>;
+
 #[unsafe(no_mangle)]
-
-pub unsafe fn p1(i: &'static str) -> impl Display {
-    let l = i
+#[implicit_fn::implicit_fn]
+pub unsafe fn p1(x: &'static str) -> impl Display {
+    let mut x = x
         .行()
-        .skip(2)
-        .map(|x| util::ints(x).carr::<6>().drop::<2>())
-        // .inspect(|x| println!("{x:?}"))
-        .carr::<{ 25 * 32 }>()
-        .chunked::<25>();
-
-    for y in 0..25 {
-        for x in 0..32 {
-            let element = l[x][y];
-            print!(
-                "{}",
-                if element[3] == 0 {
-                    "_"
-                } else if element[0] > 120 {
-                    "#"
-                } else {
-                    "."
-                }
-            );
+        .map(|x| x.μₙ(b' ').collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    let mut ptr = 0i32;
+    let mut regis =
+        HashMap::<&[u8], i32>::from_iter([(&b"a"[..], 12), (b"b", 0), (b"c", 1), (b"d", 0)]);
+    while let Some(i) = x.get(ptr as usize).cloned() {
+        let p = |j: usize| i[j].str().parse::<i32>().unwrap_or_else(|_| regis[i[j]]);
+        match i[0] {
+            b"tgl" => {
+                x.get_mut((regis[i[1]] + ptr as i32) as usize).map(|x| {
+                    let x = &mut x[0];
+                    *x = match *x {
+                        b"inc" => b"dec",
+                        b"dec" | b"tgl" => b"inc",
+                        b"jnz" => b"cpy",
+                        b"cpy" => b"jnz",
+                        x => unreachable!("{x:?}"),
+                    }
+                });
+            }
+            b"cpy" => *regis.get_mut(i[2]).unwrap() = p(1),
+            b"inc" => *regis.get_mut(i[1]).unwrap() += 1,
+            b"dec" => *regis.get_mut(i[1]).unwrap() -= 1,
+            b"jnz" if p(1) != 0 => {
+                ptr += p(2);
+                continue;
+            }
+            _ => {}
         }
-        println!()
+        ptr += 1;
     }
-    0
-    // l.iter()
-    //     .flat_map(|x| l.iter().map(move |y| (x, y)))
-    //     .filter(|(a, _)| a[1] != 0)
-    //     .filter(|(a, b)| a != b)
-    //     .filter(|(a, b)| a[1] <= b[2])
-    //     .count()
+    for e in x {
+        println!("{}", e.p());
+    }
+
+    regis[&b"a"[..]]
 }
 
 fn main() {
