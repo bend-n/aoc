@@ -40,6 +40,7 @@
 extern crate test;
 pub mod util;
 
+pub use atools::prelude::*;
 use atools::{CollectArray, prelude::*};
 use itertools::chain;
 use lower::apply;
@@ -60,53 +61,47 @@ type u32x3 = Simd<u32, 3>;
 
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
-pub unsafe fn p1(x: &'static str) -> impl Display {
-    let mut x = x
-        .行()
-        .map(|x| x.μₙ(b' ').collect::<Vec<_>>())
-        .collect::<Vec<_>>();
-    let mut ptr = 0i32;
-    let mut regis =
-        HashMap::<&[u8], i32>::from_iter([(&b"a"[..], 12), (b"b", 0), (b"c", 1), (b"d", 0)]);
-    while let Some(i) = x.get(ptr as usize).cloned() {
-        let p = |j: usize| i[j].str().parse::<i32>().unwrap_or_else(|_| regis[i[j]]);
-        match i[0] {
-            b"tgl" => {
-                x.get_mut((regis[i[1]] + ptr as i32) as usize).map(|x| {
-                    let x = &mut x[0];
-                    *x = match *x {
-                        b"inc" => b"dec",
-                        b"dec" | b"tgl" => b"inc",
-                        b"jnz" => b"cpy",
-                        b"cpy" => b"jnz",
-                        x => unreachable!("{x:?}"),
-                    }
-                });
+pub unsafe fn p1(x: &[u8; ISIZE]) -> impl Display {
+    let grid = x.chunked::<178>();
+    let map = (0..8)
+        .tuple_combinations()
+        .map_w(|(a, b)| {
+            util::steps(
+                grid.find(a + b'0'),
+                |x| {
+                    Dir::ALL
+                        .iter()
+                        .flat_map(move |&d| d + x)
+                        .filter(|&(x, y)| grid[y][x] != b'#')
+                },
+                |&x| x == grid.find(b + b'0'),
+            )
+            .unwrap()
+            .1
+        })
+        .collect_twm();
+    (1..8)
+        .permutations(7)
+        .map(|x| {
+            chain! {
+                once(0),
+                x,
+                once(0) // p2
             }
-            b"cpy" => *regis.get_mut(i[2]).unwrap() = p(1),
-            b"inc" => *regis.get_mut(i[1]).unwrap() += 1,
-            b"dec" => *regis.get_mut(i[1]).unwrap() -= 1,
-            b"jnz" if p(1) != 0 => {
-                ptr += p(2);
-                continue;
-            }
-            _ => {}
-        }
-        ptr += 1;
-    }
-    for e in x {
-        println!("{}", e.p());
-    }
-
-    regis[&b"a"[..]]
+            .tuple_windows()
+            .map(|(a, b)| map[&(a, b)])
+            .sum::<usize>()
+        })
+        .min()
+        .unwrap()
 }
-
+const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
-    unsafe { println!("{}", p1(include_str!("inp.txt"))) };
+    unsafe { println!("{}", p1(include_bytes!("inp.txt"))) };
 }
 
 #[bench]
 fn benc(b: &mut test::Bencher) {
-    let i = boxd(include_str!("inp.txt"));
+    let i = boxd(include_bytes!("inp.txt"));
     b.iter(|| unsafe { p1(i) });
 }

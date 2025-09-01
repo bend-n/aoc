@@ -21,11 +21,12 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, IntoCombinations, IntoLines,
-        IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip, SplitU8,
-        Str, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
-        UnifiedTupleUtils, UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors,
-        l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
+        BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind, IntoCombinations,
+        IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip,
+        SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
+        TwoWayMapCollect, UnifiedTupleUtils, UnsoundUtilities, Widen, countmap, even, gcd, gt,
+        infinite_successors, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ,
+        Α, Ι, Κ, Λ, Μ,
     };
     #[allow(unused_imports)]
     pub(crate) use super::{C, bits, dang, leek, mat, shucks};
@@ -502,6 +503,44 @@ pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)
         }
     }
     dang!()
+}
+
+pub fn steps<N: Debug + Eq + Hash + Clone + Ord, I: Iterator<Item = N>>(
+    start: N,
+    graph: impl Fn(N) -> I,
+    end: impl Fn(&N) -> bool,
+) -> Option<(N, usize)> {
+    bfs(
+        (start, 0usize),
+        |(n, steps)| graph(n).map(move |x| (x, steps + 1)),
+        |x| end(&x.0),
+    )
+}
+
+pub fn bfs<N: Debug + Eq + Hash + Clone, I: Iterator<Item = N>>(
+    start: N,
+    graph: impl Fn(N) -> I,
+    end: impl Fn(&N) -> bool,
+) -> Option<N> {
+    let mut q = VecDeque::with_capacity(1024);
+    let mut s = HashSet::default();
+    q.push_back(start);
+    while let Some(n) = q.pop_front() {
+        if end(&n) {
+            return Some(n);
+        }
+        if !s.insert(n.clone()) {
+            continue;
+        }
+        for n in graph(n) {
+            if s.contains(&n) {
+                continue;
+            }
+            // print!("{n:?} ");
+            q.push_back(n);
+        }
+    }
+    None
 }
 
 pub fn dijkstra<N: Debug + Eq + Hash + Clone + Ord, I: Iterator<Item = (N, u16)>>(
@@ -1896,5 +1935,29 @@ impl BoolTools for bool {
             f();
         }
         self
+    }
+}
+
+pub trait GridFind {
+    fn find(self, c: u8) -> (usize, usize);
+}
+impl<const N: usize, const M: usize> GridFind for [[u8; N]; M] {
+    fn find(self, c: u8) -> (usize, usize) {
+        let i = memchr::memchr(c, self.as_flattened()).ψ();
+        (i % N, i / N)
+    }
+}
+
+pub trait TwoWayMapCollect<K, V>: Iterator {
+    fn collect_twm(self) -> HashMap<(K, K), V>;
+}
+impl<K: Eq + Hash + Clone, V: Clone, I: Iterator<Item = ((K, K), V)>> TwoWayMapCollect<K, V> for I {
+    fn collect_twm(self) -> HashMap<(K, K), V> {
+        let mut m = HashMap::default();
+        for ((a, b), c) in self {
+            m.insert((a.clone(), b.clone()), c.clone());
+            m.insert((b, a), c);
+        }
+        m
     }
 }
