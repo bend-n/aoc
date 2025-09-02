@@ -12,6 +12,7 @@
     redundant_semicolons
 )]
 #![feature(
+    iter_from_coroutine,
     iterator_try_reduce,
     step_trait,
     cmp_minmax,
@@ -19,6 +20,9 @@
     extend_one,
     slice_as_array,
     impl_trait_in_bindings,
+    coroutines,
+    stmt_expr_attributes,
+    coroutine_trait,
     iter_partition_in_place,
     slice_swap_unchecked,
     generic_const_exprs,
@@ -51,6 +55,8 @@ use rustc_hash::FxBuildHasher;
 use std::{
     cmp::{Reverse, minmax},
     mem::take,
+    ops::Coroutine,
+    pin::Pin,
     simd::prelude::*,
 };
 use swizzle::array;
@@ -59,41 +65,47 @@ pub use util::prelude::*;
 #[allow(warnings)]
 type u32x3 = Simd<u32, 3>;
 
+fn run(code: &[Vec<&[u8]>], a: i32) -> impl Coroutine<Yield = i32, Return = ()> {
+    let mut ptr = 0i32;
+    #[coroutine]
+    move || {
+        let mut regis =
+            HashMap::<&[u8], i32>::from_iter([(&b"a"[..], a), (b"b", 0), (b"c", 0), (b"d", 0)]);
+        while let Some(i) = code.get(ptr as usize).cloned() {
+            let p = |j: usize| i[j].str().parse::<i32>().unwrap_or_else(|_| regis[i[j]]);
+
+            match i[0] {
+                b"out" => drop(yield regis[i[1]]),
+                b"cpy" => *regis.get_mut(i[2]).unwrap() = p(1),
+                b"inc" => *regis.get_mut(i[1]).unwrap() += 1,
+                b"dec" => *regis.get_mut(i[1]).unwrap() -= 1,
+                b"jnz" if p(1) != 0 => {
+                    ptr += p(2);
+
+                    continue;
+                }
+
+                _ => {}
+            }
+
+            ptr += 1;
+        }
+    }
+}
+
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &[u8; ISIZE]) -> impl Display {
-    let grid = x.chunked::<178>();
-    let map = (0..8)
-        .tuple_combinations()
-        .map_w(|(a, b)| {
-            util::steps(
-                grid.find(a + b'0'),
-                |x| {
-                    Dir::ALL
-                        .iter()
-                        .flat_map(move |&d| d + x)
-                        .filter(|&(x, y)| grid[y][x] != b'#')
-                },
-                |&x| x == grid.find(b + b'0'),
-            )
-            .unwrap()
-            .1
-        })
-        .collect_twm();
-    (1..8)
-        .permutations(7)
-        .map(|x| {
-            chain! {
-                once(0),
-                x,
-                once(0) // p2
-            }
-            .tuple_windows()
-            .map(|(a, b)| map[&(a, b)])
-            .sum::<usize>()
-        })
-        .min()
-        .unwrap()
+    let x = x
+        .行()
+        .map(|x| x.μₙ(b' ').collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    for n in 0.. {
+        dbg!(n);
+        std::iter::from_coroutine(run(&x, n)).eq([0, 1].iter().copied().cycle());
+    }
+
+    0
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
