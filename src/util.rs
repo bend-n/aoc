@@ -42,10 +42,11 @@ pub mod prelude {
         collections::{VecDeque, hash_map::Entry},
         fmt::{Debug, Display},
         hint::black_box as boxd,
+        intrinsics::transmute_unchecked as transmute,
         io::{self, Read, Write},
         iter,
         iter::{chain, once, repeat_n, successors, zip},
-        mem::{replace as rplc, swap, transmute as rint},
+        mem::{replace as rplc, swap},
         ops::Range,
     };
 }
@@ -504,16 +505,54 @@ pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)
     }
     dang!()
 }
+#[derive(Debug, Clone, Copy)]
+pub struct Left<T, U>(T, U);
 
-pub fn steps<N: Debug + Eq + Hash + Clone + Ord, I: Iterator<Item = N>>(
+impl<T: Hash, U> Hash for Left<T, U> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl<T: PartialEq, U> PartialEq for Left<T, U> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<T: Eq, U> Eq for Left<T, U> {}
+impl<T: PartialOrd, U> PartialOrd for Left<T, U> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+impl<T: Ord, U> Ord for Left<T, U> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+pub fn steps<N: Debug + Eq + Hash + Clone, I: Iterator<Item = N>>(
     start: N,
     graph: impl Fn(N) -> I,
     end: impl Fn(&N) -> bool,
-) -> Option<(N, usize)> {
+) -> Option<Left<N, usize>> {
     bfs(
-        (start, 0usize),
-        |(n, steps)| graph(n).map(move |x| (x, steps + 1)),
+        Left(start, 0usize),
+        |Left(n, steps)| graph(n).map(move |x| Left(x, steps + 1)),
         |x| end(&x.0),
+    )
+}
+
+pub fn steps_astar<N: Debug + Eq + Hash + Clone, I: Iterator<Item = (N, i16)>>(
+    start: N,
+    graph: impl Fn(N) -> I,
+    heuristic: impl Fn(&N) -> i16,
+    goal: impl Fn(&N) -> bool,
+) -> Option<(i16, Left<N, usize>)> {
+    astar(
+        Left(start, 0usize),
+        |Left(n, steps)| graph(n).map(move |(x, cost)| (Left(x, steps + 1), cost)),
+        |x| heuristic(&x.0),
+        |x| goal(&x.0),
     )
 }
 
@@ -523,7 +562,7 @@ pub fn bfs<N: Debug + Eq + Hash + Clone, I: Iterator<Item = N>>(
     end: impl Fn(&N) -> bool,
 ) -> Option<N> {
     let mut q = VecDeque::with_capacity(1024);
-    let mut s = HashSet::default();
+    let mut s = HashSet::with_capacity_and_hasher(1024, rustc_hash::FxBuildHasher::default());
     q.push_back(start);
     while let Some(n) = q.pop_front() {
         if end(&n) {
@@ -539,6 +578,36 @@ pub fn bfs<N: Debug + Eq + Hash + Clone, I: Iterator<Item = N>>(
             // print!("{n:?} ");
             q.push_back(n);
         }
+        if s.len() % (1 << 20) == 0 {
+            dbg!(s.len());
+        }
+    }
+    None
+}
+
+pub fn astar<N: Debug + Eq + Hash + Clone, I: Iterator<Item = (N, i16)>>(
+    start: N,
+    graph: impl Fn(N) -> I,
+    heuristic: impl Fn(&N) -> i16,
+    goal: impl Fn(&N) -> bool,
+) -> Option<(i16, N)> {
+    let mut q = BinaryHeap::with_capacity(1024);
+    let mut score = HashMap::default();
+    score.insert(start.clone(), 0);
+    q.push(Reverse(Left(heuristic(&start), start)));
+    while let Some(Reverse(Left(c, n))) = q.pop() {
+        if goal(&n) {
+            return Some((c, n));
+        }
+        for (n_, d) in graph(n.clone()) {
+            let g = score[&n] + d;
+            let of = score.get(&n_).unwrap_or(&i16::MAX);
+            if g < *of {
+                score.insert(n_.clone(), g);
+                let f = g + heuristic(&n_);
+                q.push(Reverse(Left(f, n_)));
+            }
+        }
     }
     None
 }
@@ -550,8 +619,8 @@ pub fn dijkstra<N: Debug + Eq + Hash + Clone + Ord, I: Iterator<Item = (N, u16)>
 ) -> Option<(u16, N)> {
     let mut q = BinaryHeap::new();
     let mut s = HashSet::default();
-    q.push(Reverse((0, start)));
-    while let Some(Reverse((c, n))) = q.pop() {
+    q.push(Reverse(Left(0, start)));
+    while let Some(Reverse(Left(c, n))) = q.pop() {
         if end(&n) {
             return Some((c, n));
         }
@@ -563,7 +632,7 @@ pub fn dijkstra<N: Debug + Eq + Hash + Clone + Ord, I: Iterator<Item = (N, u16)>
                 continue;
             }
             // print!("{n:?} ");
-            q.push(Reverse((c + d, n)));
+            q.push(Reverse(Left(c + d, n)));
         }
     }
     None
