@@ -21,12 +21,12 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind, IntoCombinations,
-        IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey, Printable, Skip,
-        SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R, TupleIterTools3, TupleUtils,
-        TwoWayMapCollect, UnifiedTupleUtils, UnsoundUtilities, Widen, countmap, even, gcd, gt,
-        infinite_successors, l, lcm, lt, nail, pa, r, rand, reading, reading::Ext, sort, twice, Ͷ,
-        Α, Ι, Κ, Λ, Μ,
+        AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind,
+        IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey,
+        Printable, Skip, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
+        TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils, UnsoundUtilities, Widen,
+        countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, r, rand, reading,
+        reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
     };
     #[allow(unused_imports)]
     pub(crate) use super::{C, bits, dang, leek, mat, shucks};
@@ -1383,7 +1383,7 @@ pub mod reading {
                     s = T::default();
                 }
                 b => {
-                    s = s * T::ten() + T::from(b - b'0');
+                    s = s * T::TEN + T::from(b - b'0');
                 }
             }
         }
@@ -1391,14 +1391,14 @@ pub mod reading {
         n + 1
     }
     pub trait Ten {
-        fn ten() -> Self;
+        const TEN: Self;
+        const ONE: Self;
     }
     macro_rules! tenz {
         ($for:ty) => {
             impl Ten for $for {
-                fn ten() -> $for {
-                    10
-                }
+                const TEN: Self = 10;
+                const ONE: Self = 1;
             }
         };
     }
@@ -1464,7 +1464,7 @@ pub mod reading {
             if x == until {
                 return n;
             }
-            n = n * T::ten() + T::from(x - b'0')
+            n = n * T::TEN + T::from(x - b'0')
         }
     }
 
@@ -1492,7 +1492,7 @@ pub mod reading {
             if byte == until {
                 return n;
             }
-            n = n * T::ten() + T::from(byte - b'0');
+            n = n * T::TEN + T::from(byte - b'0');
         }
     }
 
@@ -1504,7 +1504,7 @@ pub mod reading {
     ) -> T {
         let mut n = T::default();
         for &byte in x {
-            n = n * T::ten() + T::from(byte - b'0');
+            n = n * T::TEN + T::from(byte - b'0');
         }
         n
     }
@@ -1913,18 +1913,22 @@ pub fn ints(x: &'static [u8]) -> impl Iterator<Item = i64> {
     static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("-?[0-9]+").unwrap());
     RE.find_iter(x.str()).map(|x| x.as_str().λ())
 }
-#[lower::apply(wrapping)]
-pub fn nb(x: usize, y: usize) -> [(usize, usize); 8] {
+
+pub fn nb<
+    T: Default + std::ops::Sub<T, Output = T> + std::ops::Add<T, Output = T> + Copy + reading::Ten,
+>(
+    (x, y): (T, T),
+) -> [(T, T); 8] {
     [
-        (x - 1, y - 1),
-        (x, y - 1),
-        (x + 1, y - 1),
-        (x - 1, y),
+        (x - T::ONE, y - T::ONE),
+        (x, y - T::ONE),
+        (x + T::ONE, y - T::ONE),
+        (x - T::ONE, y),
         // this
-        (x + 1, y),
-        (x - 1, y + 1),
-        (x, y + 1),
-        (x + 1, y + 1),
+        (x + T::ONE, y),
+        (x - T::ONE, y + T::ONE),
+        (x, y + T::ONE),
+        (x + T::ONE, y + T::ONE),
     ]
 }
 pub fn twice<T: Copy>(x: T) -> impl Iterator<Item = T> + Clone + ExactSizeIterator {
@@ -2028,5 +2032,49 @@ impl<K: Eq + Hash + Clone, V: Clone, I: Iterator<Item = ((K, K), V)>> TwoWayMapC
             m.insert((b, a), c);
         }
         m
+    }
+}
+
+/// for spiral such as
+///  9 10 11 12
+///  8  1  2 13
+///  7  0  3 14
+///  6  5  4 15
+pub mod spiral {
+    // https://www.desmos.com/calculator/qpn25p39v9
+    pub fn coordinate_of(n: u64) -> (i64, i64) {
+        let m = n.isqrt() as i64;
+
+        (
+            (-1i64).pow(m as u32 + 1)
+                * (((n as i64 - m * (m + 1)) // _
+                * (((2.0 * (n as f64).sqrt()).floor() as i64 + 1) % 2))
+                    + (m + 1) / 2),
+            (-1i64).pow(m as u32)
+                * ((n as i64 - m * (m + 1)) // _
+                * ((2.0 * (n as f64).sqrt()).floor() as i64 % 2)
+                    - (m + 1) / 2),
+        )
+    }
+
+    //https://math.stackexchange.com/a/1860731
+    pub fn index_at((x, y): (i64, i64)) -> i64 {
+        let s = if x.abs() >= y.abs() { x } else { -y };
+
+        if s >= 0 {
+            4 * s * s - x + -y
+        } else {
+            4 * s * s + (-1_i64).pow((s == x) as u32) * (2 * s + x + -y)
+        }
+    }
+}
+
+pub trait AndF {
+    fn and<T>(self, f: impl FnMut(&Self) -> T) -> Self;
+}
+impl<T> AndF for T {
+    fn and<U>(self, mut f: impl FnMut(&Self) -> U) -> Self {
+        f(&self);
+        self
     }
 }
