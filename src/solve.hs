@@ -1,10 +1,11 @@
 import Control.Exception
 import Data.Char
+import Data.Either (fromLeft)
 import Data.Foldable
 import Data.Function
 import Data.Functor
 import Data.List
-import Data.List.Split
+import Data.List.Split (chunksOf, splitOn)
 import Data.Maybe
 import Data.Void (Void)
 import Debug.Trace
@@ -44,12 +45,9 @@ s = L.lexeme skipSpace
 main :: IO ()
 main = do
   contents :: String <- readFile "src/inp.txt"
-  let nums = map digitToInt contents
-  print (length nums)
-  let w = take (length nums) (windows (nums ++ nums) ((length nums `div` 2) + 1)) -- or 2
-  let e = [head x | x <- w, head x == last x]
-
-  print (sum e)
+  let x = either (error "fail") id . runParser (many integer) "inp" <$> splitOn "\n" contents
+  print (sum $ (\x -> abs $ minimum x - maximum x) <$> x)
+  print (sum $ (\x -> sum [x `div` y | (x, y) <- combinations2 x, x `mod` y == 0]) <$> x)
 
 swapTwo f s xs =
   zipWith
@@ -63,6 +61,10 @@ swapTwo f s xs =
     )
     [0 ..]
     xs
+
+combinations' x n = filter (\x -> length x == n) (subsequences x)
+
+combinations2 l = concat [[(x, y) | y <- l, x /= y] | x <- l]
 
 windows c n = (\x -> take n (drop x c)) <$> [n .. length c - n]
 
