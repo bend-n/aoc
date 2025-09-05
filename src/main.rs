@@ -72,16 +72,28 @@ type u32x3 = Simd<u32, 3>;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut v = util::ints(x).collect::<Vec<_>>();
-    let mut p = 0i64;
-    let mut s = 0;
-    while v.len() > p.nat() {
-        let n = v[p.nat()];
-        v[p.nat()] += if n >= 3 { -1 } else { 1 };
-        p += n;
-        s += 1
+    const N: usize = 16;
+    #[implicit_fn::implicit_fn]
+    fn redistribute(mut v: [i64; N]) -> [i64; N] {
+        let (p, &n) = v.iter().enumerate().rev().max_by_key(_.1).unwrap();
+        v[p] = 0;
+        (0..N)
+            .cycle()
+            .skip(p)
+            .skip(1)
+            .take(n.nat())
+            .for_each(|i| v[i] += 1);
+        v
     }
-    s
+    let mut v = util::ints(x).carr::<N>();
+    let mut s = HashMap::default();
+    for n in 1.. {
+        v = redistribute(v);
+        if let Some(s) = s.insert(v, n) {
+            return (n, n - s);
+        }
+    }
+    panic!()
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
