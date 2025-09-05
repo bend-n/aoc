@@ -12,6 +12,7 @@
     redundant_semicolons
 )]
 #![feature(
+    type_alias_impl_trait,
     iter_from_coroutine,
     iterator_try_reduce,
     step_trait,
@@ -72,28 +73,26 @@ type u32x3 = Simd<u32, 3>;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    const N: usize = 16;
-    #[implicit_fn::implicit_fn]
-    fn redistribute(mut v: [i64; N]) -> [i64; N] {
-        let (p, &n) = v.iter().enumerate().rev().max_by_key(_.1).unwrap();
-        v[p] = 0;
-        (0..N)
-            .cycle()
-            .skip(p)
-            .skip(1)
-            .take(n.nat())
-            .for_each(|i| v[i] += 1);
-        v
-    }
-    let mut v = util::ints(x).carr::<N>();
-    let mut s = HashMap::default();
-    for n in 1.. {
-        v = redistribute(v);
-        if let Some(s) = s.insert(v, n) {
-            return (n, n - s);
+    let map = util::parse_digraph(x, |n| n.μ(' ').mr(|x| (&x[1..x.len() - 1]).λ::<u64>()));
+    fn disk(map: &HashMap<&[u8], (u64, Option<Vec<&[u8]>>)>, node: &[u8]) -> u64 {
+        let (w, Some(n)) = map[node].clone() else {
+            unreachable!()
+        };
+        let v = n
+            .iter()
+            .map(|x| {
+                let (c, children) = map[x].clone();
+                children.map(|_| disk(map, x)).unwrap_or(c)
+            })
+            .collect::<Vec<_>>();
+        if !v.iter().all_equal() {
+            let x = n.iter().map(map[_].0).collect::<Vec<_>>();
+            // pure programmers hate this one simple trick
+            panic!("{v:?} @ {} ({x:?})", node.p());
         }
+        w + v.iter().sum::<u64>()
     }
-    panic!()
+    disk(&map, &b"bpvhwhh"[..]);
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {

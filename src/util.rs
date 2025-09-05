@@ -23,7 +23,7 @@ pub mod prelude {
     pub use super::{
         AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind,
         IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey,
-        Printable, Skip, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
+        Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
         TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils, UnsoundUtilities, Widen,
         countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, r, rand, reading,
         reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
@@ -2078,4 +2078,37 @@ impl<T> AndF for T {
         f(&self);
         self
     }
+}
+
+pub trait Splib {
+    fn splib<'a>(&'a self, seq: &'static [u8]) -> impl Iterator<Item = &[u8]> + 'a;
+}
+impl Splib for [u8] {
+    fn splib<'a>(&'a self, seq: &'static [u8]) -> impl Iterator<Item = &[u8]> + 'a {
+        self.str().split(seq.str()).map(str::as_bytes)
+    }
+}
+
+pub fn parse_digraph<'a, N: Hash + Ord, D>(
+    x: &'a [u8],
+    mut f: impl FnMut(&'a [u8]) -> (N, D),
+) -> HashMap<N, (D, Option<Vec<&'a [u8]>>)> {
+    let mut map = HashMap::default();
+    x.行().for_each(|x| {
+        let (node, connections) = match memchr::memmem::find(x, b"->") {
+            Some(index) => (
+                &x[..index - 1],
+                Some(
+                    x[index + 3..]
+                        .μₙ(b',')
+                        .map(<[u8]>::trim_ascii)
+                        .collect::<Vec<_>>(),
+                ),
+            ),
+            None => (x, None),
+        };
+        let (k, d) = f(node);
+        map.insert(k, (d, connections));
+    });
+    map
 }
