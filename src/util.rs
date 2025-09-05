@@ -1563,6 +1563,7 @@ wide!(u8: u16);
 wide!(u16: u32);
 wide!(u32: u64);
 wide!(u64: u128);
+wide!(i64: i128);
 
 pub trait UnifiedTupleUtils<T> {
     fn mb<U>(self, f: impl FnMut(T) -> U) -> (U, U);

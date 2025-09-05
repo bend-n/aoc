@@ -72,19 +72,16 @@ type u32x3 = Simd<u32, 3>;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut store = Vec::with_capacity(1024);
-    store.push(1);
-    (1..)
-        .map(|x| {
-            util::nb(spiral::coordinate_of(x))
-                .map(spiral::index_at)
-                .iter()
-                .flat_map(|x| store.get(*x as usize))
-                .sum::<u32>()
-                .and(|&x| store.push(x))
-        })
-        .find(|x| *x > 325489)
-    // util::manhattan((-285, -267), (0, 0))
+    let mut v = util::ints(x).collect::<Vec<_>>();
+    let mut p = 0i64;
+    let mut s = 0;
+    while v.len() > p.nat() {
+        let n = v[p.nat()];
+        v[p.nat()] += if n >= 3 { -1 } else { 1 };
+        p += n;
+        s += 1
+    }
+    s
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
