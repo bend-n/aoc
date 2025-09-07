@@ -17,7 +17,6 @@ lower-macros = "0.2.3"
 mattr = "1.0.0"
 md-5 = "0.10.6"
 memchr = "2.6.4"
-pyo3 = "0.26.0"
 regex = { version = "1.11.1", default-features = false, features = [
     "unstable",
 ] }

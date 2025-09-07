@@ -69,24 +69,26 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut regis = HashMap::default();
-    let mut max = 0;
-    for i in x.行() {
-        let [a, item, b, _, x, operator, y] = i.μₙ(b' ').carr::<7>();
-        let x = regis.get(x).copied().unwrap_or(0);
-        let y = y.λ::<i32>();
-        if !python::eval!("{x} {} {y}", operator.p() => bool) {
-            continue;
+    let mut i = x.iter();
+    let mut garbo = false;
+    let mut group = 0;
+    let mut score = 0;
+    let mut garbage = 0;
+    while let Some(x) = i.next() {
+        match x {
+            b'{' if !garbo => group += 1,
+            b'}' if !garbo => {
+                score += group;
+                group -= 1
+            }
+            b'<' if !garbo => garbo = true,
+            b'>' => garbo = false,
+            b'!' if garbo => drop(i.next()),
+            _ if garbo => garbage += 1,
+            _ => {}
         }
-        let b = b.λ::<i32>();
-        *regis.entry(a).or_default() += match item {
-            b"inc" => b,
-            b"dec" => -b,
-            _ => unreachable!(),
-        };
-        max = max.max(*regis.values().max().unwrap());
     }
-    max
+    (score, garbage)
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
