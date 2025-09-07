@@ -17,6 +17,7 @@ glow_enabled = true
 
 [node name="Node3D" type="Node3D"]
 script = ExtResource("1_40nlf")
+cols = [Color(0.937255, 0.564706, 0.223529, 1), Color(0.259033, 0.329842, 0.678431, 1), Color(0.410748, 0.912109, 0.533683, 1), Color(0.910156, 0.269163, 0.252186, 1), Color(0.912109, 0.246977, 0.881583, 1), Color(0.838607, 0.910156, 0.878478, 1)]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_oii4q")
@@ -27,3 +28,6 @@ transform = Transform3D(-0.026162, -0.703771, -0.709945, 0, 0.710188, -0.704012,
 [node name="flor" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.04012, 0)
 size = Vector3(200, 0.1, 200)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -0.908384, 0.418137, 0, -0.418137, -0.908384, 0, 0, 0)

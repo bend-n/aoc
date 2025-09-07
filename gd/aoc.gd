@@ -13,8 +13,8 @@ func _ready() -> void:
 		n.size =abs(pair[1]-pair[0])
 		n.size+= Vector3(0.99,0.99,0.99);
 		n.use_collision = true
-		#n.material = StandardMaterial3D.new()
-		#n.material.albedo_color = cols[randi_range(0,cols.size()-1)];
+		n.material = StandardMaterial3D.new()
+		n.material.albedo_color = cols[randi_range(0,cols.size()-1)];
 		cubs.append(n)
 
 	if Engine.is_editor_hint(): return
