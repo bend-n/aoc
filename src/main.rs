@@ -50,10 +50,8 @@ extern crate test;
 pub mod util;
 
 pub use atools::prelude::*;
-use atools::{CollectArray, prelude::*};
 use itertools::chain;
 use lower::apply;
-use md5::{Digest, Md5};
 use memchr::memmem;
 use regex::bytes::Regex;
 use rustc_hash::FxBuildHasher;
@@ -68,31 +66,27 @@ use std::{
 use swizzle::array;
 pub use util::prelude::*;
 
-#[allow(warnings)]
-type u32x3 = Simd<u32, 3>;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let map = util::parse_digraph(x, |n| n.μ(' ').mr(|x| (&x[1..x.len() - 1]).λ::<u64>()));
-    fn disk(map: &HashMap<&[u8], (u64, Option<Vec<&[u8]>>)>, node: &[u8]) -> u64 {
-        let (w, Some(n)) = map[node].clone() else {
-            unreachable!()
-        };
-        let v = n
-            .iter()
-            .map(|x| {
-                let (c, children) = map[x].clone();
-                children.map(|_| disk(map, x)).unwrap_or(c)
-            })
-            .collect::<Vec<_>>();
-        if !v.iter().all_equal() {
-            let x = n.iter().map(map[_].0).collect::<Vec<_>>();
-            // pure programmers hate this one simple trick
-            panic!("{v:?} @ {} ({x:?})", node.p());
+    let mut regis = HashMap::default();
+    let mut max = 0;
+    for i in x.行() {
+        let [a, item, b, _, x, operator, y] = i.μₙ(b' ').carr::<7>();
+        let x = regis.get(x).copied().unwrap_or(0);
+        let y = y.λ::<i32>();
+        if !python::eval!("{x} {} {y}", operator.p() => bool) {
+            continue;
         }
-        w + v.iter().sum::<u64>()
+        let b = b.λ::<i32>();
+        *regis.entry(a).or_default() += match item {
+            b"inc" => b,
+            b"dec" => -b,
+            _ => unreachable!(),
+        };
+        max = max.max(*regis.values().max().unwrap());
     }
-    disk(&map, &b"bpvhwhh"[..]);
+    max
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {

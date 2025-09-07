@@ -25,8 +25,8 @@ pub mod prelude {
         IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey,
         Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
         TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils, UnsoundUtilities, Widen,
-        countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, r, rand, reading,
-        reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
+        countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, python, r, rand,
+        reading, reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
     };
     #[allow(unused_imports)]
     pub(crate) use super::{C, bits, dang, leek, mat, shucks};
@@ -2111,4 +2111,78 @@ pub fn parse_digraph<'a, N: Hash + Ord, D>(
         map.insert(k, (d, connections));
     });
     map
+}
+
+pub mod python {
+
+    use std::cell::RefCell;
+    use std::ffi::CStr;
+    use std::ffi::CString;
+    use std::sync::Mutex;
+    use std::sync::RwLock;
+
+    // struct R(proc_macro::TokenStream);
+    // impl<'py, 's> FromPyObject<'py> for R {
+    //     fn extract_bound(x: &Bound<'py, PyAny>) -> Result<R, PyErr> {
+    //         let tree: TokenTree = match () {
+    //             () if let Ok(x) = x.extract::<i128>() => Literal::i128_unsuffixed(x).into(),
+    //             () if let Ok(x) = x.extract::<f64>() => Literal::f64_unsuffixed(x).into(),
+    //             () if let Ok(x) = x.extract::<bool>() => {
+    //                 Ident::new(&x.to_string(), Span::call_site()).into()
+    //             }
+    //             () if let Ok(x) = x.extract::<String>() => {
+    //                 return Ok(R(x
+    //                     .parse::<TokenStream>()
+    //                     .unwrap_or(quote::quote!(compile_error!("lex failure")).into())));
+    //             }
+
+    //             // () if let Ok(x) = x.downcast::<PyList>() => {
+    //             //     if let Ok(y) = x.get_item(0) {
+    //             //         match () {
+    //             //             () if y.is_instance_of::<PyFloat>() => Val::Array(Array::Float(
+    //             //                 x.into_iter().map(|x| x.extract::<f64>()).try_collect()?,
+    //             //             )),
+    //             //             () if y.is_instance_of::<PyInt>() => Val::Array(Array::Int(
+    //             //                 x.into_iter().map(|x| x.extract::<i128>()).try_collect()?,
+    //             //             )),
+    //             //             _ => {
+    //             //                 return Err(PyTypeError::new_err("bad array types"));
+    //             //             }
+    //             //         }
+    //             //     } else {
+    //             //         Val::Array(Array::Int(vec![]))
+    //             //     }
+    //             // }
+    //             // () if let Ok(x) = x.downcast::<PySet>() => Val::Set(
+    //             //     x.into_iter()
+    //             //         .map(|x| x.extract::<Val<'s>>())
+    //             //         .try_collect()?,
+    //             // ),
+    //             _ => return Err(PyTypeError::new_err("bad types")),
+    //         };
+    //         let mut t = TokenStream::new();
+    //         t.extend([tree]);
+    //         Ok(R(t))
+    //     }
+    // }
+    macro_rules! eval {
+        ($fmt:literal $(, $args:expr)* $(,)? => $t:ty) => {{
+            use pyo3::*;
+            use pyo3::exceptions::PyTypeError;
+            use pyo3::prelude::*;
+            use pyo3::types::*;
+            pyo3::Python::initialize();
+            pyo3::Python::attach(|g| {
+                g.eval(&std::ffi::CString::new(format!($fmt $(, $args)*)).unwrap(), None, None)
+                    .unwrap_or_else(|x| {
+                        eprintln!("error:");
+                        x.display(g);
+                        std::process::exit(1)
+                    })
+                    .extract::<$t>()
+            })
+            .unwrap()
+        }};
+    }
+    pub(crate) use eval;
 }
