@@ -69,26 +69,42 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut i = x.iter();
-    let mut garbo = false;
-    let mut group = 0;
-    let mut score = 0;
-    let mut garbage = 0;
-    while let Some(x) = i.next() {
-        match x {
-            b'{' if !garbo => group += 1,
-            b'}' if !garbo => {
-                score += group;
-                group -= 1
+    // let lengths = util::ints(x).map(_ as usize).collect::<Vec<_>>();
+    let lengths = x.map(_ as usize).couple([17, 31, 73, 47, 23]);
+
+    let mut x = range::<256>();
+    let mut c = 0;
+    let mut s = 0;
+
+    for _ in 0..64 {
+        for &l in &lengths {
+            if (c + l) > 256 {
+                let mut i = x
+                    .into_iter()
+                    .cycle()
+                    .skip(c)
+                    .take(l)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev();
+                x.get_mut(c..(c + l).min(256))
+                    .map(|s| s.copy_from_slice(&i.by_ref().take(s.len()).collect::<Vec<_>>()));
+                x[..c + l - 256].copy_from_slice(&i.by_ref().take(c + l - 256).collect::<Vec<_>>());
+                assert_eq!(i.collect::<Vec<_>>(), &[]);
+            } else {
+                x.get_mut(c..(c + l).min(256)).map(_.reverse());
             }
-            b'<' if !garbo => garbo = true,
-            b'>' => garbo = false,
-            b'!' if garbo => drop(i.next()),
-            _ if garbo => garbage += 1,
-            _ => {}
+
+            c += l + s;
+            c %= 256;
+            s += 1;
         }
     }
-    (score, garbage)
+
+    x.chunked::<16>()
+        .map(|x| x.into_iter().reduce(_ ^ _).ψ())
+        .into_iter()
+        .fold(String::default(), |a, b| format!("{a}{b:02x}"))
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
