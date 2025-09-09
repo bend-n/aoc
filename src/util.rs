@@ -2186,3 +2186,17 @@ pub mod python {
     }
     pub(crate) use eval;
 }
+
+pub mod hexagon {
+    use atools::prelude::*;
+    pub const n: [i64; 2] = [0, -1];
+    pub const ne: [i64; 2] = [1, -1];
+    pub const se: [i64; 2] = [1, 0];
+    pub const s: [i64; 2] = [0, 1];
+    pub const sw: [i64; 2] = [-1, 1];
+    pub const nw: [i64; 2] = [-1, 0];
+    pub fn distance(a: [i64; 2], b: [i64; 2]) -> i64 {
+        let [q, r] = a.asub(b);
+        ((q).abs() + (q + r).abs() + (r).abs()) / 2
+    }
+}
