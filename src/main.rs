@@ -69,21 +69,9 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut p = [0, 0];
-    let mut max = 0;
-    for i in x.μₙ(b',') {
-        use util::hexagon::*;
-        p = p.aadd(mat! { i {
-            b"n" => n,   //  0, -1
-            b"ne" => ne, // +1, -1
-            b"se" => se, // +1,  0
-            b"s" => s,   //  0, +1
-            b"sw" => sw, // -1, +1
-            b"nw" => nw, // -1,  0
-        }});
-        max = max.max(util::hexagon::distance(p, [0, 0]))
-    }
-    max
+    let g = util::parse_graph(x, |x| x.λ::<usize>());
+    util::ccomponents(|x| g[&x].iter().map(|x| *x), 2000)
+    // util::reachable((0, 0), |(x, _)| g[&x].iter().map(|x| (*x, 0))).len()
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {

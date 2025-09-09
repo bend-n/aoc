@@ -480,6 +480,14 @@ pub fn reachable<D: Hash + Copy, N: Debug + Eq + Hash + Copy + Ord, I: Iterator<
     map
 }
 
+pub fn ccomponents<I: Iterator<Item = usize>>(graph: impl Fn(usize) -> I, length: usize) -> usize {
+    let mut s = UnionFind::new(length);
+    for n in 0..length {
+        graph(n).map(|y| s.union(n, y)).θ();
+    }
+    (0..length).map(|x| s.find(x)).collect::<HashSet<_>>().len()
+}
+
 pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>>(
     start: N,
     graph: impl Fn(N) -> I,
@@ -2109,6 +2117,31 @@ pub fn parse_digraph<'a, N: Hash + Ord, D>(
         };
         let (k, d) = f(node);
         map.insert(k, (d, connections));
+    });
+    map
+}
+pub fn parse_graph<'a, N: Hash + Ord + Clone>(
+    x: &'a [u8],
+    mut f: impl FnMut(&'a [u8]) -> N + Copy,
+) -> HashMap<N, Vec<N>> {
+    let mut map = HashMap::default();
+    x.行().for_each(|x| {
+        let (node, connections) = match memchr::memmem::find(x, b"--") {
+            Some(index) => (
+                &x[..index - 1],
+                x[index + 2..]
+                    .μₙ(b',')
+                    .map(<[u8]>::trim_ascii)
+                    .map(f)
+                    .collect::<Vec<_>>(),
+            ),
+            None => (x, vec![]),
+        };
+
+        // for c in &connections {
+        //     map.entry(c.clone()).or_default().push(c);
+        // }
+        map.entry(f(node)).or_insert(connections);
     });
     map
 }
