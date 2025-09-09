@@ -69,9 +69,31 @@ pub use util::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let g = util::parse_graph(x, |x| x.λ::<usize>());
-    util::ccomponents(|x| g[&x].iter().map(|x| *x), 2000)
-    // util::reachable((0, 0), |(x, _)| g[&x].iter().map(|x| (*x, 0))).len()
+    let x = x.行().map(|x| util::ints(x).carr::<2>()).carr::<43>();
+    fn at_t<const N: usize>(x: [[i64; 2]; N], t: i64) -> [i64; N] {
+        x.map(|[_, depth]| {
+            let k = t % (2 * (depth - 1));
+            k.min(2 * depth - 1 - k)
+        })
+    }
+    fn passes<const N: usize>(position: i64, x: [[i64; 2]; N], t: i64) -> bool {
+        x.into_iter()
+            .position(|[p, _]| p == position)
+            .map(|y| at_t(x, t)[y] != 0)
+            .unwrap_or(true)
+    }
+    [
+        (0..)
+            .zip(0..)
+            .take(100)
+            .filter(move |&(p, t)| !passes(p, x, t))
+            .map(|(p, _)| x.into_iter().find(|&[p2, _]| p == p2).unwrap())
+            .map(|[a, b]| a * b)
+            .sum::<i64>(),
+        (0..)
+            .find(|&t| (0..).zip(t..).take(100).all(|(p, t)| passes(p, x, t)))
+            .ψ(),
+    ]
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
