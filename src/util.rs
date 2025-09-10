@@ -2079,20 +2079,30 @@ pub mod spiral {
 }
 
 pub trait AndF {
-    fn and<T>(self, f: impl FnMut(&Self) -> T) -> Self;
+    fn and<T>(self, f: impl FnOnce(&Self) -> T) -> Self;
 }
 impl<T> AndF for T {
-    fn and<U>(self, mut f: impl FnMut(&Self) -> U) -> Self {
+    fn and<U>(self, f: impl FnOnce(&Self) -> U) -> Self {
         f(&self);
         self
     }
 }
 
+pub trait MapF: Sized {
+    #[doc(alias = "map")]
+    fn 𝙢𝙖𝙥<T>(self, f: impl FnOnce(Self) -> T) -> T;
+}
+impl<U> MapF for U {
+    fn 𝙢𝙖𝙥<T>(self, f: impl FnOnce(Self) -> T) -> T {
+        f(self)
+    }
+}
+
 pub trait Splib {
-    fn splib<'a>(&'a self, seq: &'static [u8]) -> impl Iterator<Item = &[u8]> + 'a;
+    fn splib(&'_ self, seq: &'static [u8]) -> impl Iterator<Item = &'_ [u8]> + '_;
 }
 impl Splib for [u8] {
-    fn splib<'a>(&'a self, seq: &'static [u8]) -> impl Iterator<Item = &[u8]> + 'a {
+    fn splib(&'_ self, seq: &'static [u8]) -> impl Iterator<Item = &'_ [u8]> + '_ {
         self.str().split(seq.str()).map(str::as_bytes)
     }
 }
@@ -2232,4 +2242,20 @@ pub mod hexagon {
         let [q, r] = a.asub(b);
         ((q).abs() + (q + r).abs() + (r).abs()) / 2
     }
+}
+
+pub fn each_bit<
+    T: reading::Ten
+        + Default
+        + std::ops::Shl<usize, Output = T>
+        + std::ops::BitAnd<T, Output = T>
+        + std::cmp::PartialEq
+        + Copy,
+>(
+    b: T,
+) -> [bool; size_of::<T>() * 8] {
+    use atools::prelude::*;
+    atools::range()
+        .rev()
+        .map(|x| b & (T::ONE << x) != T::default())
 }

@@ -66,34 +66,75 @@ use std::{
 use swizzle::array;
 pub use util::prelude::*;
 
+use crate::util::{MapF, UnionFind};
+#[implicit_fn::implicit_fn]
+fn kh(x: impl Iterator<Item = u8> + Clone) -> [u8; 32] {
+    let lengths = x.map(_ as usize).chain([17, 31, 73, 47, 23]);
+
+    let mut x = range::<256>();
+    let mut c = 0;
+    let mut s = 0;
+
+    for _ in 0..64 {
+        for l in lengths.clone() {
+            if (c + l) > 256 {
+                let mut i = x
+                    .into_iter()
+                    .cycle()
+                    .skip(c)
+                    .take(l)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev();
+                x.get_mut(c..(c + l).min(256))
+                    .map(|s| s.copy_from_slice(&i.by_ref().take(s.len()).collect::<Vec<_>>()));
+                x[..c + l - 256].copy_from_slice(&i.by_ref().take(c + l - 256).collect::<Vec<_>>());
+                assert_eq!(i.collect::<Vec<_>>(), &[]);
+            } else {
+                x.get_mut(c..(c + l).min(256)).map(_.reverse());
+            }
+
+            c += l + s;
+            c %= 256;
+            s += 1;
+        }
+    }
+
+    x.chunked::<16>()
+        .map(|x| x.into_iter().reduce(_ ^ _).ψ() as u8)
+        .map(|x| [x >> 4, x & 0x0f])
+        .flatten()
+}
+
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let x = x.行().map(|x| util::ints(x).carr::<2>()).carr::<43>();
-    fn at_t<const N: usize>(x: [[i64; 2]; N], t: i64) -> [i64; N] {
-        x.map(|[_, depth]| {
-            let k = t % (2 * (depth - 1));
-            k.min(2 * depth - 1 - k)
+    let grid: [[bool; 128]; 128] = (0..128)
+        .map(|x| {
+            kh(format!("ugkiagan-{x}").bytes())
+                .map(|b| util::each_bit(b).drop::<4>())
+                .flatten()
         })
-    }
-    fn passes<const N: usize>(position: i64, x: [[i64; 2]; N], t: i64) -> bool {
-        x.into_iter()
-            .position(|[p, _]| p == position)
-            .map(|y| at_t(x, t)[y] != 0)
-            .unwrap_or(true)
-    }
-    [
-        (0..)
-            .zip(0..)
-            .take(100)
-            .filter(move |&(p, t)| !passes(p, x, t))
-            .map(|(p, _)| x.into_iter().find(|&[p2, _]| p == p2).unwrap())
-            .map(|[a, b]| a * b)
-            .sum::<i64>(),
-        (0..)
-            .find(|&t| (0..).zip(t..).take(100).all(|(p, t)| passes(p, x, t)))
-            .ψ(),
-    ]
+        .carr::<128>();
+
+    let on = (0..128usize)
+        .flat_map(move |y| (0..128).map(move |x| (x, y)))
+        .filter(|&(x, y)| grid[y][x]);
+    (
+        on.clone().count(),
+        on.clone()
+            .fold(UnionFind::new(128 * 128), |mut uf, (x, y)| {
+                Dir::ALL
+                    .into_iter()
+                    .flat_map(|d| d.lim_add((x, y), [0, 128], [0, 128]))
+                    .filter(|&(x_, y_)| grid[y_][x_])
+                    .for_each(|(x_, y_)| {
+                        uf.union(y_ * 128 + x_, y * 128 + x);
+                    });
+                uf
+            })
+            .𝙢𝙖𝙥(|mut uf| on.map(|(x, y)| uf.find(y * 128 + x)).unique().count()),
+    )
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
