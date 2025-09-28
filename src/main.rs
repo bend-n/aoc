@@ -109,32 +109,14 @@ fn kh(x: impl Iterator<Item = u8> + Clone) -> [u8; 32] {
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let grid: [[bool; 128]; 128] = (0..128)
-        .map(|x| {
-            kh(format!("ugkiagan-{x}").bytes())
-                .map(|b| util::each_bit(b).drop::<4>())
-                .flatten()
-        })
-        .carr::<128>();
+    let g = [618, 814u64];
+    let a = infinite_successors(g[0], |x| (x * 16807) % 2147483647).filter(|x| x % 4 == 0);
+    let b = infinite_successors(g[1], |x| (x * 48271) % 2147483647).filter(|x| x % 8 == 0);
 
-    let on = (0..128usize)
-        .flat_map(move |y| (0..128).map(move |x| (x, y)))
-        .filter(|&(x, y)| grid[y][x]);
-    (
-        on.clone().count(),
-        on.clone()
-            .fold(UnionFind::new(128 * 128), |mut uf, (x, y)| {
-                Dir::ALL
-                    .into_iter()
-                    .flat_map(|d| d.lim_add((x, y), [0, 128], [0, 128]))
-                    .filter(|&(x_, y_)| grid[y_][x_])
-                    .for_each(|(x_, y_)| {
-                        uf.union(y_ * 128 + x_, y * 128 + x);
-                    });
-                uf
-            })
-            .𝙢𝙖𝙥(|mut uf| on.map(|(x, y)| uf.find(y * 128 + x)).unique().count()),
-    )
+    a.zip(b)
+        .take(5_000_000)
+        .filter(|&(a, b)| a & 0xffff == b & 0xffff)
+        .count()
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {

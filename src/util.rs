@@ -332,9 +332,6 @@ impl<K: Ord + Eq + Debug + Hash + Clone, V: Copy + Debug> LMap<K, V> {
         if let Some(x) = self.0.get(&k) {
             return *x;
         }
-        // let mut ks = self.0.keys().collect::<Vec<_>>();
-        // ks.sort();
-        // println!("{ks:?}");
         let elm = self.1(&k);
         self.0.insert(k.clone(), elm);
         elm
