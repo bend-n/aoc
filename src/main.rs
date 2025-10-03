@@ -67,56 +67,37 @@ use swizzle::array;
 pub use util::prelude::*;
 
 use crate::util::{MapF, UnionFind};
-#[implicit_fn::implicit_fn]
-fn kh(x: impl Iterator<Item = u8> + Clone) -> [u8; 32] {
-    let lengths = x.map(_ as usize).chain([17, 31, 73, 47, 23]);
-
-    let mut x = range::<256>();
-    let mut c = 0;
-    let mut s = 0;
-
-    for _ in 0..64 {
-        for l in lengths.clone() {
-            if (c + l) > 256 {
-                let mut i = x
-                    .into_iter()
-                    .cycle()
-                    .skip(c)
-                    .take(l)
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev();
-                x.get_mut(c..(c + l).min(256))
-                    .map(|s| s.copy_from_slice(&i.by_ref().take(s.len()).collect::<Vec<_>>()));
-                x[..c + l - 256].copy_from_slice(&i.by_ref().take(c + l - 256).collect::<Vec<_>>());
-                assert_eq!(i.collect::<Vec<_>>(), &[]);
-            } else {
-                x.get_mut(c..(c + l).min(256)).map(_.reverse());
-            }
-
-            c += l + s;
-            c %= 256;
-            s += 1;
-        }
-    }
-
-    x.chunked::<16>()
-        .map(|x| x.into_iter().reduce(_ ^ _).ψ() as u8)
-        .map(|x| [x >> 4, x & 0x0f])
-        .flatten()
-}
 
 #[unsafe(no_mangle)]
-#[implicit_fn::implicit_fn]
+// #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let g = [618, 814u64];
-    let a = infinite_successors(g[0], |x| (x * 16807) % 2147483647).filter(|x| x % 4 == 0);
-    let b = infinite_successors(g[1], |x| (x * 48271) % 2147483647).filter(|x| x % 8 == 0);
-
-    a.zip(b)
-        .take(5_000_000)
-        .filter(|&(a, b)| a & 0xffff == b & 0xffff)
-        .count()
+    let mut p = range::<16>().map(|x| x as u8);
+    // let mut set = HashMap::default();
+    for (x, _) in x.μₙ(b',').cycle().ι::<usize>().take(280000) {
+        match x[0] {
+            b's' => {
+                p.rotate_right(x[1..].λ());
+            }
+            b'x' => {
+                let (a, b) = x[1..].μ('/').mb(|x| x.λ());
+                p.swap(a, b);
+            }
+            b'p' => {
+                let a = p.position(x[1] - b'a');
+                let b = p.position(x[3] - b'a');
+                p.swap(a, b);
+            }
+            _ => dang!(),
+        }
+        // if let Some(p) = set.insert(p, i) {
+        //     println!(
+        //         "{i} = {p}",
+        //     );
+        // }
+    }
+    p.map(|x| (x as u8 + b'a') as char)
+        .iter()
+        .collect::<String>()
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {

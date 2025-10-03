@@ -23,10 +23,10 @@ pub mod prelude {
     pub use super::{
         AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind,
         IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey,
-        Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2, TupleIterTools2R,
-        TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils, UnsoundUtilities, Widen,
-        countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail, pa, python, r, rand,
-        reading, reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
+        Position, Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2,
+        TupleIterTools2R, TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils,
+        UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail,
+        pa, python, r, rand, reading, reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
     };
     #[allow(unused_imports)]
     pub(crate) use super::{C, bits, dang, leek, mat, shucks};
@@ -821,7 +821,7 @@ impl Λ for String {
         self.as_str().λ()
     }
 }
-impl Λ for &[u8] {
+impl Λ for [u8] {
     #[cfg_attr(debug_assertions, track_caller)]
     fn λ<T: FromStr>(&self) -> T
     where
@@ -1108,10 +1108,10 @@ pub fn lt<A: std::cmp::PartialOrd<T>, T>(n: T) -> impl Fn(A) -> bool {
 }
 
 pub trait SplitU8 {
-    fn μₙ(&self, x: u8) -> impl Iterator<Item = &[u8]>;
+    fn μₙ(&self, x: u8) -> impl Iterator<Item = &[u8]> + Clone;
 }
 impl SplitU8 for [u8] {
-    fn μₙ(&self, x: u8) -> impl Iterator<Item = &[u8]> {
+    fn μₙ(&self, x: u8) -> impl Iterator<Item = &[u8]> + Clone {
         self.split(move |&y| y == x)
     }
 }
@@ -2255,4 +2255,14 @@ pub fn each_bit<
     atools::range()
         .rev()
         .map(|x| b & (T::ONE << x) != T::default())
+}
+
+pub trait Position<T> {
+    fn position(&self, x: T) -> usize;
+}
+
+impl<T: PartialEq> Position<T> for [T] {
+    fn position(&self, x: T) -> usize {
+        self.iter().position(|y| &x == y).ψ()
+    }
 }
