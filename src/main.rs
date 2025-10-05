@@ -71,33 +71,32 @@ use crate::util::{MapF, UnionFind};
 #[unsafe(no_mangle)]
 // #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut p = range::<16>().map(|x| x as u8);
-    // let mut set = HashMap::default();
-    for (x, _) in x.μₙ(b',').cycle().ι::<usize>().take(280000) {
-        match x[0] {
-            b's' => {
-                p.rotate_right(x[1..].λ());
+    let mut p = 0;
+    let mut b = vec![()];
+    let mut l = 0;
+    b.reserve(50000005);
+    let steps = 354;
+    (1..)
+        .map(|x| {
+            p += steps;
+            p %= b.len();
+            p += 1;
+            // if p < b.len() {
+            //     b.insert(p, x);
+            // } else {
+            //     b.push(x);
+            // }
+            if p == 1 {
+                l = x;
             }
-            b'x' => {
-                let (a, b) = x[1..].μ('/').mb(|x| x.λ());
-                p.swap(a, b);
-            }
-            b'p' => {
-                let a = p.position(x[1] - b'a');
-                let b = p.position(x[3] - b'a');
-                p.swap(a, b);
-            }
-            _ => dang!(),
-        }
-        // if let Some(p) = set.insert(p, i) {
-        //     println!(
-        //         "{i} = {p}",
-        //     );
-        // }
-    }
-    p.map(|x| (x as u8 + b'a') as char)
-        .iter()
-        .collect::<String>()
+            b.push(());
+            // insertions.push((p, x));
+
+            // p += 1;
+        })
+        .take(50000000)
+        .θ();
+    l
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
