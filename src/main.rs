@@ -21,7 +21,6 @@
     pattern_types,
     pattern_type_macro,
     extend_one,
-    slice_as_array,
     impl_trait_in_bindings,
     coroutines,
     stmt_expr_attributes,
@@ -38,7 +37,6 @@
     iter_collect_into,
     anonymous_lifetime_in_impl_trait,
     array_windows,
-    vec_into_raw_parts,
     try_blocks,
     portable_simd,
     test,
@@ -62,6 +60,8 @@ use std::{
     ops::{Coroutine, Deref},
     pin::Pin,
     simd::prelude::*,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
 };
 use swizzle::array;
 pub use util::prelude::*;
@@ -71,36 +71,103 @@ use crate::util::{MapF, UnionFind};
 #[unsafe(no_mangle)]
 // #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
+    let mut registers = [0i64; 26];
+    let instrs = x.行().collect::<Vec<_>>();
     let mut p = 0;
-    let mut b = vec![()];
-    let mut l = 0;
-    b.reserve(50000005);
-    let steps = 354;
-    (1..)
-        .map(|x| {
-            p += steps;
-            p %= b.len();
-            p += 1;
-            // if p < b.len() {
-            //     b.insert(p, x);
-            // } else {
-            //     b.push(x);
-            // }
-            if p == 1 {
-                l = x;
-            }
-            b.push(());
-            // insertions.push((p, x));
+    let mut snds = vec![];
+    use crossbeam::channel::unbounded;
+    loop {
+        let Some((a, x)) = instrs.get(p).map(|x| x.μ(' ')) else {
+            break;
+        };
+        let reg = (x[0].wrapping_sub(b'a')) as usize;
+        let rval = if x[0] == b'1' { 1 } else { registers[reg] };
 
-            // p += 1;
-        })
-        .take(50000000)
-        .θ();
-    l
+        let b = (x.len() > 1).then(|| {
+            x[1..]
+                .str()
+                .trim_ascii()
+                .parse::<i64>()
+                .unwrap_or_else(|_| registers[(x[2] - b'a') as usize])
+        });
+        match a {
+            b"snd" => snds.push(rval),
+            b"jgz" if rval > 0 => {
+                p = (p as i64 + b.unwrap()) as usize;
+                continue;
+            }
+            b"set" => registers[reg] = b.unwrap(),
+
+            b"mod" => registers[reg] %= b.unwrap(),
+
+            b"mul" => registers[reg] *= b.unwrap(),
+            b"add" => registers[reg] += b.unwrap(),
+
+            b"rcv" if rval != 0 => panic!("{snds:?}"),
+
+            _ => {}
+        }
+        p += 1;
+    }
+    registers[1]
+}
+use crossbeam::channel::{self, Receiver, Sender, unbounded};
+
+pub fn p2(x: &'static [u8]) -> impl Debug {
+    // thought about coroutines, but eh.
+    let (tx, rx) = unbounded();
+    let (tx2, rx2) = unbounded();
+    let count = &*Box::leak(Box::new(AtomicUsize::new(0)));
+    std::thread::spawn(move || prog(0, x, (tx2, rx), &AtomicUsize::new(0)));
+    std::thread::spawn(move || prog(1, x, (tx, rx2), count));
+    std::thread::sleep(Duration::from_millis(150));
+    count.load(Ordering::Relaxed)
+}
+
+pub fn prog(
+    id: i64,
+    x: &'static [u8],
+    (tx, rx): (Sender<i64>, Receiver<i64>),
+    count: &AtomicUsize,
+) {
+    let mut registers = [0i64; 26];
+    registers[(b'p' - b'a') as usize] = id;
+    let instrs = x.行().collect::<Vec<_>>();
+    let mut p = 0;
+    loop {
+        let (a, x) = instrs.get(p).map(|x| x.μ(' ')).unwrap();
+        let reg = (x[0].wrapping_sub(b'a')) as usize;
+        let rval = if x[0] == b'1' { 1 } else { registers[reg] };
+
+        let b = (x.len() > 1).then(|| {
+            x[1..]
+                .str()
+                .trim_ascii()
+                .parse::<i64>()
+                .unwrap_or_else(|_| registers[(x[2] - b'a') as usize])
+        });
+        match a {
+            b"snd" => {
+                count.fetch_add(1, Ordering::Relaxed);
+                tx.send(rval).unwrap();
+            }
+            b"jgz" if rval > 0 => {
+                p = (p as i64 + b.unwrap()) as usize;
+                continue;
+            }
+            b"set" => registers[reg] = b.unwrap(),
+            b"mod" => registers[reg] %= b.unwrap(),
+            b"mul" => registers[reg] *= b.unwrap(),
+            b"add" => registers[reg] += b.unwrap(),
+            b"rcv" => registers[reg] = rx.recv().unwrap(),
+            _ => {}
+        }
+        p += 1;
+    }
 }
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
-    unsafe { println!("{:?}", p1(include_bytes!("inp.txt"))) };
+    unsafe { println!("{:?}", p2(include_bytes!("inp.txt"))) };
 }
 
 #[bench]
