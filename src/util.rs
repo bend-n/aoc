@@ -223,6 +223,14 @@ impl Dir {
             x => unreachable!("{}", x as char),
         }
     }
+    pub fn add_1(self) -> Self {
+        use Dir::*;
+        unsafe { std::mem::transmute((self as u8 + 1) % 4) }
+    }
+    pub fn sub_1(self) -> Self {
+        use Dir::*;
+        unsafe { std::mem::transmute(((self as u8).wrapping_sub(1)) % 4) }
+    }
     pub fn turdl(self) -> u8 {
         match self {
             Self::N => b'U',
@@ -1958,10 +1966,14 @@ pub fn countmap<T: Hash + Eq + Ord + Copy>(
 
 pub trait MapWith<T: Copy> {
     fn map_w<U>(self, f: impl FnMut(T) -> U) -> impl Iterator<Item = (T, U)>;
+    fn fmap_w<U>(self, f: impl FnMut(T) -> Option<U>) -> impl Iterator<Item = (T, U)>;
 }
 impl<T: Copy, I: Iterator<Item = T>> MapWith<T> for I {
     fn map_w<U>(self, mut f: impl FnMut(T) -> U) -> impl Iterator<Item = (T, U)> {
         self.map(move |x| (x, f(x)))
+    }
+    fn fmap_w<U>(self, mut f: impl FnMut(T) -> Option<U>) -> impl Iterator<Item = (T, U)> {
+        self.flat_map(move |x| Some(x).zip(f(x)))
     }
 }
 
@@ -2024,6 +2036,14 @@ impl<const N: usize, const M: usize> GridFind for [[u8; N]; M] {
     fn find(self, c: u8) -> (usize, usize) {
         let i = memchr::memchr(c, self.as_flattened()).ψ();
         (i % N, i / N)
+    }
+}
+impl GridFind for &[&[u8]] {
+    fn find(self, c: u8) -> (usize, usize) {
+        self.iter()
+            .zip(0..)
+            .find_map(|(x, y)| x.iter().position(|&x| x == c).map(|x| (x, y)))
+            .unwrap()
     }
 }
 
