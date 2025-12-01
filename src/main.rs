@@ -71,30 +71,15 @@ use crate::util::{MapF, UnionFind};
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let value = x.chunked::<202>();
-    let mut dir = Dir::S;
-    let mut start = value.find(b'|');
-    let mut letters = vec![];
-    let mut steps = 0;
-    loop {
-        steps += 1;
-        match value[start.1][start.0] {
-            b'+' => {
-                (dir, start) = [dir.turn_90(), dir.turn_90ccw()]
-                    .into_iter()
-                    .fmap_w(_ + start)
-                    .find(|&(_, (x, y))| !value[y][x].is_ascii_whitespace())
-                    .unwrap();
-            }
-            b' ' => return (letters.str().to_owned(), steps),
-            l => {
-                if l.is_ascii_alphabetic() {
-                    letters.push(l)
-                }
-                start = (dir + start).unwrap()
-            }
+    let mut set = HashSet::default();
+    let mut n = 0;
+    for freq in util::ints::<i32>(x).collect::<Vec<_>>().into_iter().cycle() {
+        n += freq;
+        if !set.insert(n) {
+            return n;
         }
     }
+    panic!()
 }
 
 const ISIZE: usize = include_bytes!("inp.txt").len();

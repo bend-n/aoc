@@ -1923,7 +1923,10 @@ pub fn manhattan((x1, y1): (i32, i32), (x2, y2): (i32, i32)) -> i32 {
     (x1 - x2).abs() + (y1 - y2).abs()
 }
 
-pub fn ints(x: &'static [u8]) -> impl Iterator<Item = i64> {
+pub fn ints<T: FromStr>(x: &'static [u8]) -> impl Iterator<Item = T>
+where
+    T::Err: std::fmt::Display,
+{
     static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("-?[0-9]+").unwrap());
     RE.find_iter(x.str()).map(|x| x.as_str().λ())
 }
