@@ -72,31 +72,16 @@ use crate::util::{MapF, UnionFind};
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut p = x.as_ptr();
-    let end = p.add(ISIZE);
-    let mut n = 50;
-    let mut c = 0;
-    while p != end {
-        let dir = p.λ();
-        let mut rest = 0;
-        while let x = p.λ()
-            && x != b'\n'
-        {
-            rest *= 10;
-            rest += (x - b'0') as i32;
-        }
-        let f = 1 - 2 * (dir == b'L') as i32;
-        // n += rest * f;
-        // n = n.rem_euclid(100);
-        // c += (n == 0) as u64;
-        
-        let new = n + rest * f;
-        c += ((new * f).div_floor(100) - (n * f).div_floor(100)).abs();
-        n = new;
-    }
-    c
+    util::uints::<u64>(x)
+        .array_chunks::<2>()
+        .flat_map(|[a, b]| a..=b)
+        .filter(|x| {
+            let a = x.ͷ().collect::<Vec<_>>();
+            a[..a.len() / 2] == a[a.len() / 2..]
+            // (1..=a.len() / 2).filter(|k| a.len() % k == 0).any(|k| a.chunks(k).all_equal())
+        })
+        .sum::<u64>()
 }
-
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
     unsafe { println!("{:?}", p1(include_bytes!("inp.txt"))) };

@@ -1930,6 +1930,13 @@ where
     static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("-?[0-9]+").unwrap());
     RE.find_iter(x.str()).map(|x| x.as_str().λ())
 }
+pub fn uints<T: FromStr>(x: &'static [u8]) -> impl Iterator<Item = T>
+where
+    T::Err: std::fmt::Display,
+{
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("[0-9]+").unwrap());
+    RE.find_iter(x.str()).map(|x| x.as_str().λ())
+}
 
 pub fn nb<
     T: Default + std::ops::Sub<T, Output = T> + std::ops::Add<T, Output = T> + Copy + reading::Ten,
