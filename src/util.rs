@@ -22,8 +22,8 @@ use std::{
 pub mod prelude {
     pub use super::{
         AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind,
-        IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, ParseIter, PartitionByKey,
-        Position, Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2,
+        IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, PRead, ParseIter,
+        PartitionByKey, Position, Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2,
         TupleIterTools2R, TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils,
         UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail,
         pa, python, r, rand, reading, reading::Ext, sort, spiral, twice, Ͷ, Α, Ι, Κ, Λ, Μ,
@@ -2287,5 +2287,15 @@ pub trait Position<T> {
 impl<T: PartialEq> Position<T> for [T] {
     fn position(&self, x: T) -> usize {
         self.iter().position(|y| &x == y).ψ()
+    }
+}
+pub trait PRead<T> {
+    unsafe fn λ(&mut self) -> T;
+}
+impl<T> PRead<T> for *const T {
+    unsafe fn λ(&mut self) -> T {
+        let b = self.read();
+        *self = self.add(1);
+        b
     }
 }
