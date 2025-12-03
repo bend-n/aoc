@@ -22,7 +22,7 @@ use std::{
 pub mod prelude {
     pub use super::{
         AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, FirstMax, GreekTools, GridFind,
-        IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, PRead, ParseIter,
+        IntoCombinations, IntoLines, IterͶ, Left, MapWith, NumTupleIterTools, PRead, ParseIter,
         PartitionByKey, Position, Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2,
         TupleIterTools2R, TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils,
         UnsoundUtilities, Widen, countmap, even, gcd, gt, infinite_successors, l, lcm, lt, nail,
@@ -519,7 +519,7 @@ pub fn dijkstra_h<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)
     dang!()
 }
 #[derive(Debug, Clone, Copy)]
-pub struct Left<T, U>(T, U);
+pub struct Left<T, U>(pub T, pub U);
 
 impl<T: Hash, U> Hash for Left<T, U> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -1304,8 +1304,8 @@ pub trait Ι<T>: Iterator<Item = T> + Sized {
 }
 impl<T, I: Iterator<Item = T>> Ι<T> for I {}
 
-pub fn nail<const N: usize, T: Copy>(x: &[T]) -> [T; N] {
-    unsafe { (x.as_ptr() as *const [T; N]).read() }
+pub fn nail<const N: usize, T: Copy>(x: &[T]) -> &[T; N] {
+    unsafe { &*(x.as_ptr() as *const [T; N]) }
 }
 
 pub mod reading {
