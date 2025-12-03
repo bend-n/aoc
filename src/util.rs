@@ -21,7 +21,7 @@ use std::{
 
 pub mod prelude {
     pub use super::{
-        AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, GreekTools, GridFind,
+        AndF, BoolTools, DigiCount, Dir, FilterBy, FilterBy3, FirstMax, GreekTools, GridFind,
         IntoCombinations, IntoLines, IterͶ, MapWith, NumTupleIterTools, PRead, ParseIter,
         PartitionByKey, Position, Printable, Skip, Splib, SplitU8, Str, TakeLine, TupleIterTools2,
         TupleIterTools2R, TupleIterTools3, TupleUtils, TwoWayMapCollect, UnifiedTupleUtils,
@@ -2304,5 +2304,21 @@ impl<T> PRead<T> for *const T {
         let b = self.read();
         *self = self.add(1);
         b
+    }
+}
+
+pub trait FirstMax<T> {
+    fn fmax_by_left(self) -> T;
+}
+
+impl<T: Ord + Default, U: Default, I: Iterator<Item = (T, U)>> FirstMax<(T, U)> for I {
+    fn fmax_by_left(self) -> (T, U) {
+        let mut best = (T::default(), U::default());
+        for el in self {
+            if best.0 < el.0 {
+                best = el
+            }
+        }
+        best
     }
 }

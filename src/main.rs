@@ -72,13 +72,20 @@ use crate::util::{MapF, UnionFind};
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    util::uints::<u64>(x)
-        .array_chunks::<2>()
-        .flat_map(|[a, b]| a..=b)
-        .filter(|x| {
-            let a = x.ͷ().collect::<Vec<_>>();
-            a[..a.len() / 2] == a[a.len() / 2..]
-            // (1..=a.len() / 2).filter(|k| a.len() % k == 0).any(|k| a.chunks(k).all_equal())
+    core::hint::assert_unchecked(x.len() == 200 * 101);
+    x.chunked::<101>()
+        .into_iter()
+        .map(|l| {
+            let mut l = &l[..100];
+            let mut n = 0;
+            for i in 0..12 {
+                let l_ = &l[..l.len() + i - (12 - 1)];
+                let (el, i) = l_.iter().copied().ι::<usize>().fmax_by_left();
+                n *= 10;
+                n += (el - b'0') as u64;
+                l = &l[i + 1..];
+            }
+            n
         })
         .sum::<u64>()
 }
