@@ -6,6 +6,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::VecDeque;
 use std::iter::Zip;
+use std::iter::empty;
 use std::iter::successors;
 use std::ops::RangeFrom;
 use std::sync::LazyLock;
@@ -1420,11 +1421,13 @@ pub mod reading {
     tenz!(u32);
     tenz!(u64);
     tenz!(u128);
+    tenz!(usize);
     tenz!(i8);
     tenz!(i16);
     tenz!(i32);
     tenz!(i64);
     tenz!(i128);
+    tenz!(isize);
 
     const DIG: [u8; 256] = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2041,11 +2044,16 @@ impl BoolTools for bool {
 
 pub trait GridFind {
     fn find(self, c: u8) -> (usize, usize);
+    fn find_iter(&self, c: u8) -> impl Iterator<Item = (usize, usize)>;
 }
 impl<const N: usize, const M: usize> GridFind for [[u8; N]; M] {
     fn find(self, c: u8) -> (usize, usize) {
         let i = memchr::memchr(c, self.as_flattened()).ψ();
         (i % N, i / N)
+    }
+
+    fn find_iter(&self, c: u8) -> impl Iterator<Item = (usize, usize)> {
+        memchr::memchr_iter(c, self.as_flattened()).map(|i| (i % N, i / N))
     }
 }
 impl GridFind for &[&[u8]] {
@@ -2054,6 +2062,10 @@ impl GridFind for &[&[u8]] {
             .zip(0..)
             .find_map(|(x, y)| x.iter().position(|&x| x == c).map(|x| (x, y)))
             .unwrap()
+    }
+
+    fn find_iter(&self, c: u8) -> impl Iterator<Item = (usize, usize)> {
+        empty()
     }
 }
 
