@@ -2065,7 +2065,30 @@ impl GridFind for &[&[u8]] {
     }
 
     fn find_iter(&self, c: u8) -> impl Iterator<Item = (usize, usize)> {
-        empty()
+        self.iter().zip(0..).flat_map(move |(x, y)| {
+            x.iter()
+                .ι::<usize>()
+                .fl(move |&x| x == c)
+                .map(move |(_, x)| (x, y))
+        })
+    }
+}
+
+impl GridFind for &[Vec<u8>] {
+    fn find(self, c: u8) -> (usize, usize) {
+        self.iter()
+            .zip(0..)
+            .find_map(|(x, y)| x.iter().position(|&x| x == c).map(|x| (x, y)))
+            .unwrap()
+    }
+
+    fn find_iter(&self, c: u8) -> impl Iterator<Item = (usize, usize)> {
+        self.iter().zip(0..).flat_map(move |(x, y)| {
+            x.iter()
+                .ι::<usize>()
+                .fl(move |&x| x == c)
+                .map(move |(_, x)| (x, y))
+        })
     }
 }
 
