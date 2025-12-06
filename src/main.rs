@@ -74,24 +74,24 @@ use atools::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let [range, nums] = x.splib(b"\n\n").carr();
-    let mut ranges_: Vec<RangeInclusive<u64>> = vec![];
-    for range in util::uints::<u64>(range)
-        .array_chunks::<2>()
-        .map(|[a, b]| a..=b)
-        .sorted_by_key(|x| *x.start())
-    {
-        if let Some(find) = ranges_
-            .iter()
-            .position(|sr| sr.contains(range.start()) || sr.contains(range.end()))
-        {
-            let find = &mut ranges_[find];
-            *find = *find.start().min(range.start())..=*find.end().max(range.end());
-        } else {
-            ranges_.push(range);
+    let mut numbers = x.行().map(|x| {
+        util::uints::<u64>(x).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+    numbers.pop();
+    let mut tot  =0 ;
+    for (ops, i) in x.行().next_back().unwrap().str().split_ascii_whitespace().ι::<usize>() {
+        match ops {
+            "+" => {
+                tot +=numbers.iter().map(|x| x[i]).sum::<u64>()
+            }
+            "*" => 
+            {
+            tot += numbers.iter().map(|x| x[i]).product::<u64>()
+            },
+            x => unreachable!("{x}"),
         }
     }
-    ranges_.into_iter().map(|x| x.count()).sum::<usize>()
+    tot
 }
 
 const ISIZE: usize = include_bytes!("inp.txt").len();
