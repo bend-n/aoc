@@ -44,7 +44,8 @@
     test,
     slice_split_once,
     import_trait_associated_functions,
-    core_intrinsics
+    core_intrinsics,
+    gen_blocks
 )]
 extern crate test;
 pub mod util;
@@ -59,7 +60,7 @@ use std::{
     arch::x86_64::*,
     cmp::{Reverse, minmax},
     hash::Hash,
-    hint::assert_unchecked,
+    hint::{assert_unchecked, unreachable_unchecked},
     mem::take,
     ops::{Coroutine, Deref, RangeInclusive},
     pin::Pin,
@@ -69,35 +70,21 @@ use std::{
 };
 use swizzle::array;
 pub use util::prelude::*;
-
-use atools::prelude::*;
+mod rah;
+// use atools::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
-pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let mut numbers = x.行().map(|x| {
-        util::uints::<u64>(x).collect::<Vec<_>>()
-    }).collect::<Vec<_>>();
-    numbers.pop();
-    let mut tot  =0 ;
-    for (ops, i) in x.行().next_back().unwrap().str().split_ascii_whitespace().ι::<usize>() {
-        match ops {
-            "+" => {
-                tot +=numbers.iter().map(|x| x[i]).sum::<u64>()
-            }
-            "*" => 
-            {
-            tot += numbers.iter().map(|x| x[i]).product::<u64>()
-            },
-            x => unreachable!("{x}"),
-        }
-    }
-    tot
+pub unsafe fn p1(x: &'static [u8]) -> impl Debug {
+    return rah::run(x);
 }
 
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
     use atools::prelude::*;
     unsafe { println!("{:?}", p1(include_bytes!("inp.txt"))) };
+    // unsafe { println!("{:?}", p1(include_str!("../1"))) };
+    // unsafe { println!("{:?}", p1(include_str!("../2"))) };
+    // unsafe { println!("{:?}", p1(include_str!("../3"))) };
 }
 
 #[bench]
