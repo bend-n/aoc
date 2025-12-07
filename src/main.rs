@@ -71,11 +71,27 @@ use std::{
 use swizzle::array;
 pub use util::prelude::*;
 mod rah;
-// use atools::prelude::*;
+use atools::prelude::*;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
-pub unsafe fn p1(x: &'static [u8]) -> impl Debug {
-    return rah::run(x);
+pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
+    let i = x.chunked::<{ 141 + 1 }>();
+    let start = i.find(b'S');
+
+    util::memo_countg(
+        start,
+        |&(x, y)| {
+            if i.get(y).is_none() {
+                vec![]
+            } else if i[y].get(x) == Some(&b'^') {
+                vec![(x - 1, y + 1), (x + 1, y + 1)]
+            } else {
+                vec![(x, y + 1)]
+            }
+            .into_iter()
+        },
+        |&(_, y)| y == 141,
+    )
 }
 
 const ISIZE: usize = include_bytes!("inp.txt").len();

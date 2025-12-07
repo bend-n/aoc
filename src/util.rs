@@ -472,6 +472,51 @@ pub fn show<N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, u16)>, D: 
     dang!();
 }
 
+fn memo_countg_<T, FN, IN, FS>(
+    start: T,
+    successors: &mut FN,
+    success: &mut FS,
+    cache: &mut HashMap<T, usize>,
+) -> usize
+where
+    T: Eq + Hash,
+    FN: FnMut(&T) -> IN,
+    IN: IntoIterator<Item = T>,
+    FS: FnMut(&T) -> bool,
+{
+    if let Some(&n) = cache.get(&start) {
+        return n;
+    }
+
+    let count = if success(&start) {
+        1
+    } else {
+        successors(&start)
+            .into_iter()
+            .map(|successor| memo_countg_(successor, successors, success, cache))
+            .sum()
+    };
+
+    cache.insert(start, count);
+
+    count
+}
+
+pub fn memo_countg<T, FN, IN, FS>(start: T, mut successors: FN, mut success: FS) -> usize
+where
+    T: Eq + Hash,
+    FN: FnMut(&T) -> IN,
+    IN: IntoIterator<Item = T>,
+    FS: FnMut(&T) -> bool,
+{
+    memo_countg_(
+        start,
+        &mut successors,
+        &mut success,
+        &mut HashMap::default(),
+    )
+}
+
 pub fn reachable<D: Hash + Copy, N: Debug + Eq + Hash + Copy + Ord, I: Iterator<Item = (N, D)>>(
     start: (N, D),
     graph: impl Fn((N, D)) -> I,
