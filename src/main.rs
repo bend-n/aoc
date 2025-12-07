@@ -76,6 +76,7 @@ use atools::prelude::*;
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
     let i = x.chunked::<{ 141 + 1 }>();
+    assert_eq!(i.len(), 142);
     let start = i.find(b'S');
 
     util::memo_countg(
@@ -97,10 +98,10 @@ pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
     use atools::prelude::*;
-    unsafe { println!("{:?}", p1(include_bytes!("inp.txt"))) };
-    // unsafe { println!("{:?}", p1(include_str!("../1"))) };
-    // unsafe { println!("{:?}", p1(include_str!("../2"))) };
-    // unsafe { println!("{:?}", p1(include_str!("../3"))) };
+    unsafe { println!("{:?}", rah::run(include_bytes!("inp.txt"))) };
+    unsafe { println!("{:?}", rah::run(include_bytes!("../1"))) };
+    unsafe { println!("{:?}", rah::run(include_bytes!("../2"))) };
+    unsafe { println!("{:?}", rah::run(include_bytes!("../3"))) };
 }
 
 #[bench]
