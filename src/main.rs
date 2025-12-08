@@ -13,6 +13,7 @@
     redundant_semicolons
 )]
 #![feature(
+    const_cmp,
     int_roundings,
     type_alias_impl_trait,
     iter_from_coroutine,
@@ -72,36 +73,43 @@ use swizzle::array;
 pub use util::prelude::*;
 mod rah;
 use atools::prelude::*;
+
+use crate::util::UnionFind;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
 pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
-    let i = x.chunked::<{ 141 + 1 }>();
-    assert_eq!(i.len(), 142);
-    let start = i.find(b'S');
-
-    util::memo_countg(
-        start,
-        |&(x, y)| {
-            if i.get(y).is_none() {
-                vec![]
-            } else if i[y].get(x) == Some(&b'^') {
-                vec![(x - 1, y + 1), (x + 1, y + 1)]
-            } else {
-                vec![(x, y + 1)]
-            }
-            .into_iter()
-        },
-        |&(_, y)| y == 141,
-    )
+    let v = util::uints::<i64>(x).array_chunks::<3>().collect_vec();
+    let k = v
+        .iter()
+        .copied()
+        .ι::<usize>()
+        .array_combinations::<2>()
+        .sorted_by_key(|[(a, _), (b, _)]| {
+            ((a[0] - b[0]).pow(2) + (a[1] - b[1]).pow(2) + (a[2] - b[2]).pow(2)).isqrt()
+        });
+    let mut uf = UnionFind::new(1000);
+    for [a, b] in k.into_iter() {
+        uf.union(a.1, b.1);
+        // if (0..1000).map(|n| uf.find(n)).all_equal() {
+        //     return v[a.1][0] * v[b.1][0];
+        // }
+    }
+    // panic!()
+    (0..1000)
+        .map(|x| uf.group_size(x))
+        .sorted()
+        .rev()
+        .take(3)
+        .product::<usize>()
 }
 
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
     use atools::prelude::*;
-    unsafe { println!("{:?}", rah::run(include_bytes!("inp.txt"))) };
-    unsafe { println!("{:?}", rah::run(include_bytes!("../1"))) };
-    unsafe { println!("{:?}", rah::run(include_bytes!("../2"))) };
-    unsafe { println!("{:?}", rah::run(include_bytes!("../3"))) };
+    unsafe { println!("{:?}", p1(include_bytes!("inp.txt"))) };
+    // unsafe { println!("{:?}", rah::run(include_bytes!("../1"))) };
+    // unsafe { println!("{:?}", rah::run(include_bytes!("../2"))) };
+    // unsafe { println!("{:?}", rah::run(include_bytes!("../3"))) };
 }
 
 #[bench]
