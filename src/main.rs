@@ -67,7 +67,7 @@ use std::{
     pin::Pin,
     simd::prelude::*,
     sync::atomic::{AtomicUsize, Ordering},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use swizzle::array;
 pub use util::prelude::*;
@@ -77,7 +77,7 @@ use atools::prelude::*;
 use crate::util::UnionFind;
 #[unsafe(no_mangle)]
 #[implicit_fn::implicit_fn]
-pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
+pub unsafe fn p1(x: &'static [u8]) -> impl Debug {
     let v = util::uints::<i64>(x).array_chunks::<3>().collect_vec();
     let k = v
         .iter()
@@ -94,7 +94,7 @@ pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
         //     return v[a.1][0] * v[b.1][0];
         // }
     }
-    // panic!()
+
     (0..1000)
         .map(|x| uf.group_size(x))
         .sorted()
@@ -103,13 +103,58 @@ pub unsafe fn p1(x: &'static [u8; ISIZE]) -> impl Debug {
         .product::<usize>()
 }
 
+unsafe fn p2(x: &[u8]) -> i64 {
+    fn sq(p1: [i64; 3], p2: [i64; 3]) -> i64 {
+        (p1[0] - p2[0]).pow(2) + (p1[1] - p2[1]).pow(2) + (p1[2] - p2[2]).pow(2)
+    }
+
+    let mut p = x.as_ptr();
+    let end = p.add(x.len());
+
+    static mut points: [[i32; 1000]; 3] = [[0; 1000]; 3];
+    let mut i = 0;
+    while p != end {
+        let mut f = |til| {
+            let mut rest = 0;
+            while let x = p.λ()
+                && x != til
+            {
+                rest *= 10;
+                rest += (x - b'0') as i32;
+            }
+            rest
+        };
+        let x = f(b',');
+        let y = f(b',');
+        let z = f(b'\n');
+        (points[0][i], points[1][i], points[2][i]) = (x, y, z);
+        i += 1;
+    }
+    (0..1000)
+        .map(|i| {
+            let former = from_fn(|j| points[j][i] as i64);
+            let (dist, retval) = (0..1000)
+                .filter(|j| i != *j)
+                .filter_map(|j| {
+                    let d = sq(former, from_fn(|i| points[i][j] as i64)) as i64;
+                    Some((d, points[0][i] as i64 * points[0][j] as i64))
+                })
+                .min_by_key(|&(d, _)| d)
+                .unwrap_or((i64::MAX, 0));
+            (dist, retval)
+        })
+        .fold((0, -1i64), |(best, mxd), (rmin, set)| {
+            if rmin > mxd { (set, rmin) } else { (best, mxd) }
+        })
+        .0
+}
 const ISIZE: usize = include_bytes!("inp.txt").len();
 fn main() {
     use atools::prelude::*;
-    unsafe { println!("{:?}", p1(include_bytes!("inp.txt"))) };
-    // unsafe { println!("{:?}", rah::run(include_bytes!("../1"))) };
-    // unsafe { println!("{:?}", rah::run(include_bytes!("../2"))) };
-    // unsafe { println!("{:?}", rah::run(include_bytes!("../3"))) };
+    unsafe { println!("{:?}", p2(include_bytes!("inp.txt"))) };
+    unsafe { println!("{:?}", p2(include_bytes!("../1"))) }; // 8141888143
+    unsafe { println!("{:?}", p2(include_bytes!("../2"))) }; // 83173 * 97891
+    unsafe { println!("{:?}", p2(include_bytes!("../3"))) }; // 8465902405
 }
 
 #[bench]
