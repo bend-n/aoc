@@ -419,9 +419,7 @@ pub fn countg<N: Debug + PartialEq + Hash + Eq + Clone, I: Iterator<Item = N>>(
         *sum += 1;
     } else {
         graph(start).for_each(|x| {
-            if has.insert(x.clone()) {
-                countg(x, graph, end, sum, has);
-            }
+            countg(x, graph, end, sum, has);
         });
     }
 }
@@ -636,9 +634,6 @@ pub fn bfs<N: Debug + Eq + Hash + Clone, I: Iterator<Item = N>>(
             }
             // print!("{n:?} ");
             q.push_back(n);
-        }
-        if s.len() % (1 << 20) == 0 {
-            dbg!(s.len());
         }
     }
     None
