@@ -9,6 +9,7 @@ edition = "2024"
 atools = { git = "https://github.com/bend-n/atools", version = "0.1.7" }
 car = "0.1.1"
 collar = "1.0.1"
+fimg = "0.4.50"
 implicit-fn = "0.1.0"
 # hinted = "0.0.1"
 itertools = "0.14.0"
@@ -23,6 +24,7 @@ regex = { version = "1.11.1", default-features = false, features = [
 # radsort = "0.1.1"
 rustc-hash = { version = "2.1.0", features = ["nightly"] }
 swizzle = "0.1.0"
+z3 = "0.19.5"
 [profile.release]
 lto = true
 codegen-units = 1
